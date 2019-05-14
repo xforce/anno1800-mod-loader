@@ -43,4 +43,4 @@
 !.vscode/extensions.json
 
 # Private code that will not be shared publically
-/debuggable/
+/libs/internal/

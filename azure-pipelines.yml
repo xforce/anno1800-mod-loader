@@ -1,21 +1,13 @@
 jobs:
   - job: windows_x64
     pool:
-      vmImage: "vs2017-win2016"
+      vmImage: "windows-2019"
     steps:
       - checkout: self
-        fetchDepth: 50
-        displayName: "Show env"
+        submodules: true
       - powershell: |
-          iex (new-object net.webclient).downloadstring('https://get.scoop.sh')
-          scoop install bazel msys2 curl
+          mkdir C:\bazel
+          Invoke-WebRequest -Uri https://github.com/bazelbuild/bazel/releases/download/0.25.2/bazel-0.25.2-windows-x86_64.exe -OutFile C:\bazel\bazel.exe
         displayName: Install bazel
-      - powershell: |
-          $env:Path += $env:USERPROFILE + "/scoop/shims"
-          bazel build //...
-      - task: GithubRelease@0
-        displayName: "Create GitHub Release"
-        inputs:
-          githubConnection: xforce_publish
-          repositoryName: xforce/anno1800-mod-loader
-          assets: $(Build.ArtifactStagingDirectory)/*.exe
+      - script: |
+          C:/bazel/bazel build //... --cpu=x64_windows --host_cpu=x64_windows
