@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+# Bazel
+/bazel-*
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
