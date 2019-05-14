@@ -1,0 +1,21 @@
+jobs:
+  - job: windows_x64
+    pool:
+      vmImage: "vs2017-win2016"
+    steps:
+      - checkout: self
+        fetchDepth: 50
+        displayName: "Show env"
+      - powershell: |
+          iex (new-object net.webclient).downloadstring('https://get.scoop.sh')
+          scoop install bazel msys2 curl
+        displayName: Install bazel
+      - powershell: |
+          $env:Path += $env:USERPROFILE + "/scoop/shims"
+          bazel build //...
+      - task: GithubRelease@0
+        displayName: "Create GitHub Release"
+        inputs:
+          githubConnection: xforce_publish
+          repositoryName: xforce/anno1800-mod-loader
+          assets: $(Build.ArtifactStagingDirectory)/*.exe

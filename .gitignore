@@ -33,6 +33,7 @@
 
 # Bazel
 /bazel-*
+/msbuild/
 
 # VSCode
 .vscode/*
@@ -40,3 +41,6 @@
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Private code that will not be shared publically
+/debuggable/
