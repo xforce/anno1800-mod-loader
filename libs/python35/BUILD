@@ -15,6 +15,7 @@ cc_binary(
     linkshared = 1,
     win_def_file = "src/python_forward.def",
     deps = [
+        ":loader_interface",
         "//third_party:python",
         "//third_party:ksignals",
     ] + select({
