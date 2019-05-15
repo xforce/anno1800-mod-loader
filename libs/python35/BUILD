@@ -16,6 +16,7 @@ cc_binary(
     win_def_file = "src/python_forward.def",
     deps = [
         ":loader_interface",
+        "//libs/hooking:hooking",
         "//third_party:python",
         "//third_party:ksignals",
     ] + select({

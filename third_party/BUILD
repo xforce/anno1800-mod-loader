@@ -23,3 +23,13 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "libudis86",
+    srcs = glob(["libudis86/**/*.h"]) + glob(["libudis86/**/*.c"]),
+    hdrs = glob(["libudis86/include/**/*.h"]),
+    includes = [
+        "libudis86/include",
+    ],
+    visibility = ["//visibility:public"],
+)
