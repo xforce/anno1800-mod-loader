@@ -1,8 +1,9 @@
 cc_library(
-    name = "hooking",
+    name = "anno-api",
     srcs = glob([
-        "src/**/*.h",
         "src/**/*.cc",
+    ]) + glob([
+        "src/**/*.h",
     ]),
     hdrs = glob([
         "include/**/*.h",
@@ -10,7 +11,6 @@ cc_library(
     includes = ["include"],
     visibility = ["//visibility:public"],
     deps = [
-        "//third_party:ksignals",
-        "//third_party:libudis86",
+        "//libs/hooking",
     ],
 )

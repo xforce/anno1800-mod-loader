@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "filesystem": "cpp",
+        "map": "cpp",
+        "xmemory0": "cpp"
     }
 }

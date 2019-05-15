@@ -17,6 +17,7 @@ cc_binary(
     deps = [
         ":loader_interface",
         "//libs/hooking:hooking",
+        "//libs/external-file-loader:external-file-loader",
         "//third_party:python",
         "//third_party:ksignals",
     ] + select({

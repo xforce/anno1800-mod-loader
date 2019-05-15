@@ -26,7 +26,7 @@ cc_library(
 
 cc_library(
     name = "libudis86",
-    srcs = glob(["libudis86/**/*.h"]) + glob(["libudis86/**/*.c"]),
+    srcs = glob(["libudis86/src/**/*.h"]) + glob(["libudis86/src/**/*.c"]),
     hdrs = glob(["libudis86/include/**/*.h"]),
     includes = [
         "libudis86/include",
