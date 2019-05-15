@@ -2,6 +2,9 @@
 
 #include "anno/random_game_functions.h"
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+
 #include <Windows.h>
 
 Mod& ModManager::Create(const fs::path& root)
@@ -18,7 +21,8 @@ void ModManager::GameFilesReady()
         std::unordered_map<fs::path, std::vector<fs::path>> modded_patchable_files;
         // Let's collect all the files first;
         for (const auto& mod : mods) {
-            mod.second.ForEachFile([this, &modded_patchable_files](const fs::path &game_path, const fs::path &file_path) {
+            mod.second.ForEachFile([this, &modded_patchable_files](const fs::path& game_path,
+                                                                   const fs::path& file_path) {
                 if (IsPatchableFile(game_path)) {
                     modded_patchable_files[game_path].emplace_back(file_path);
                 }
@@ -27,7 +31,7 @@ void ModManager::GameFilesReady()
         // Now let's patch them, if we can
         for (auto&& modded_file : modded_patchable_files) {
             auto&& [game_path, on_disk_files] = modded_file;
-            auto game_file = GetGameFile(game_path);
+            auto game_file                    = GetGameFile(game_path);
             if (!game_file.empty()) {
                 for (auto&& on_disk_file : on_disk_files) {
                     __debugbreak();
@@ -35,7 +39,6 @@ void ModManager::GameFilesReady()
             }
         }
     });
-   
 }
 
 bool ModManager::IsFileModded(const fs::path& path) const
@@ -78,12 +81,12 @@ std::string ModManager::GetGameFile(fs::path path) const
 {
     std::string output;
 
-    char* buffer = nullptr;
+    char*  buffer           = nullptr;
     size_t output_data_size = 0;
     if (anno::ReadFileFromContainer(*(uintptr_t*)(adjust_address(0x144EE8DF8)),
-        path.wstring().c_str(), &buffer, &output_data_size)) {
+                                    path.wstring().c_str(), &buffer, &output_data_size)) {
         buffer = buffer;
-        output = { buffer, output_data_size };
+        output = {buffer, output_data_size};
 
         // TODO(alexander): Move to anno api
         auto game_free = (decltype(free)*)(GetProcAddress(

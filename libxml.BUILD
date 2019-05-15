@@ -3,16 +3,13 @@ load("@//tools/skylib:write_file.bzl", "write_file")
 
 write_file(
     name = "script",
-    # On Windows we need the ".bat" extension.
-    # On other platforms the extension doesn't matter.
-    # Therefore we can use ".bat" on every platform.
     out = "script.bat",
     content = [
-        "echo %1",
         "cd third_party\\libxml2\\win32",
         "cscript configure.js compiler=msvc iconv=no zlib=no debug=no http=no ftp=no",
         "cd ../../../",
-        "powershell -command \"cp third_party/libxml2/include/libxml/xmlversion.h %1\""
+        "powershell -command \"cp third_party/libxml2/include/libxml/xmlversion.h %1\"",
+        "powershell -command \"cp third_party/libxml2/config.h %2\""
     ],
     is_executable = True,
 )
@@ -21,11 +18,16 @@ write_file(
 run_binary(
     name = "libxml_configure",
     tool = ":script",
+    srcs = [
+        "include/libxml/xmlversion.h.in"
+    ],
     args = [
-        "$(location include/libxml/xmlversion.h)"
+        "$(location include/libxml/xmlversion.h)",
+        "$(location config.h)"
     ],
     outs = [
-        "include/libxml/xmlversion.h"
+        "include/libxml/xmlversion.h",
+        "config.h",
     ]
 )
 
@@ -77,17 +79,19 @@ cc_library(
         "xpointer.c",
         "xzlib.c",
     ],
-    hdrs = [
-        ":libxml_configure",
-    ] + glob(
+    hdrs = glob(
         [
             "*.h",
             "include/libxml/*.h",
         ],
         exclude = [
+            "config.h",
             "include/libxml/xmlversion.h",
         ],
-    ),
+    ) + [
+        "config.h",
+        "include/libxml/xmlversion.h",
+    ],
     copts = [
         "-D_REENTRANT",
         "-DHAVE_CONFIG_H",
@@ -96,9 +100,6 @@ cc_library(
     includes = [
         ".",
         "include",
-    ],
-    data = [
-        ":libxml_configure"
     ],
     visibility = ["//visibility:public"],
 )
