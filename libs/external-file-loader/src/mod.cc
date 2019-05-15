@@ -23,3 +23,11 @@ bool Mod::HasFile(const fs::path& file) const
     // TODO(alexander): Do we need a mutex here?
     return file_mappings.count(file) > 0;
 }
+
+void Mod::ForEachFile(std::function<void(const fs::path&, const fs::path&)> fn) const
+{
+    std::for_each(std::begin(file_mappings), std::end(file_mappings), [&fn](auto &&it) {
+        auto &&[game_path, file_path] = it;
+        fn(game_path, file_path);
+    });
+}

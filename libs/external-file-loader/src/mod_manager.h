@@ -3,12 +3,13 @@
 #include <filesystem>
 #include <map>
 #include <mutex>
+#include <thread>
 
 namespace fs = std::filesystem;
 
 class ModManager
 {
-  public:
+public:
     static ModManager& instance()
     {
         static ModManager instance;
@@ -27,10 +28,15 @@ class ModManager
 
     Mod& Create(const fs::path& path);
 
-  private:
+private:
     std::map<fs::path, Mod>            mods;
     mutable std::mutex                 file_cache_mutex;
     std::unordered_map<fs::path, File> file_cache;
+    mutable std::thread                        patching_file_thread;
+
+    bool IsPatchableFile(const fs::path& file) const;
+
+    std::string GetGameFile(fs::path path) const;
 
     void HandleFile();
 };

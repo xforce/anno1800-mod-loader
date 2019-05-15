@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 namespace fs = std::filesystem;
 
@@ -22,6 +23,7 @@ class Mod
     explicit Mod(const fs::path& root);
 
     bool HasFile(const fs::path& file) const;
+    void ForEachFile(std::function<void(const fs::path&, const fs::path&)>) const;
 
   private:
     fs::path                               root_path;
