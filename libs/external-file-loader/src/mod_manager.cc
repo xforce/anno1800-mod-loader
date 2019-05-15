@@ -7,9 +7,6 @@
 Mod& ModManager::Create(const fs::path& root)
 {
     auto& mod = this->mods.emplace(root, Mod(root)).first->second;
-    // mod.ForEachFile([]() {
-
-    // });
     return mod;
 }
 

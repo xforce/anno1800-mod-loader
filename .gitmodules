@@ -7,3 +7,6 @@
 [submodule "third_party/ksignals"]
 	path = third_party/ksignals
 	url = https://github.com/xforce/ksignals.git
+[submodule "third_party/libxml2"]
+	path = third_party/libxml2
+	url = https://github.com/GNOME/libxml2.git

@@ -51,7 +51,7 @@ bool GetContainerBlockInfo(uintptr_t* a1, const std::wstring& file_path, int a3)
     auto result = anno::GetContainerBlockInfo(a1, file_path, a3);
     if (ModManager::instance().IsFileModded(file_path)) {
         auto info = ModManager::instance().GetModdedFileInfo(file_path);
-        // TODO(alexander): Move this a1 +0x88 to some nice structure in an API
+        // TODO(alexander): Move this 'a1 + 0x88' to some nice structure in an API
         // package
         *(size_t*)((char*)a1 + 0x88) = info.size;
     }

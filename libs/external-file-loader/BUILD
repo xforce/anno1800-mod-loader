@@ -13,5 +13,6 @@ cc_library(
         "//libs/hooking",
         "//libs/python35:loader_interface",
         "//third_party:ksignals",
+        "@libxml",
     ],
 )
