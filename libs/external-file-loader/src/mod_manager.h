@@ -9,7 +9,7 @@ namespace fs = std::filesystem;
 
 class ModManager
 {
-public:
+  public:
     static ModManager& instance()
     {
         static ModManager instance;
@@ -18,7 +18,9 @@ public:
 
     struct File {
         size_t      size;
+        bool        is_patched = false;
         std::string data;
+        fs::path    disk_path;
     };
 
     bool        IsFileModded(const fs::path& path) const;
@@ -28,11 +30,11 @@ public:
 
     Mod& Create(const fs::path& path);
 
-private:
+  private:
     std::map<fs::path, Mod>            mods;
     mutable std::mutex                 file_cache_mutex;
     std::unordered_map<fs::path, File> file_cache;
-    mutable std::thread                        patching_file_thread;
+    mutable std::thread                patching_file_thread;
 
     bool IsPatchableFile(const fs::path& file) const;
 

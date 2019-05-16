@@ -1,6 +1,7 @@
 #include "mod_manager.h"
 
 #include "anno/random_game_functions.h"
+#include "xml_operations.h"
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -25,6 +26,16 @@ void ModManager::GameFilesReady()
                                                                    const fs::path& file_path) {
                 if (IsPatchableFile(game_path)) {
                     modded_patchable_files[game_path].emplace_back(file_path);
+                } else {
+                    auto hFile = CreateFileW(file_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                                             OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                    if (hFile != INVALID_HANDLE_VALUE) {
+                        LARGE_INTEGER lFileSize;
+                        GetFileSizeEx(hFile, &lFileSize);
+                        CloseHandle(hFile);
+                        file_cache[game_path] = {
+                            static_cast<size_t>(lFileSize.QuadPart), false, {}, file_path};
+                    }
                 }
             });
         }
@@ -33,9 +44,23 @@ void ModManager::GameFilesReady()
             auto&& [game_path, on_disk_files] = modded_file;
             auto game_file                    = GetGameFile(game_path);
             if (!game_file.empty()) {
+                std::string buffer;
+                xmlDocPtr   game_xml;
+                buffer   = "<MEOW_XML_SUCKS>" + game_file + "</MEOW_XML_SUCKS>";
+                game_xml = xmlReadMemory(buffer.data(), buffer.size(), "", NULL, XML_PARSE_RECOVER);
                 for (auto&& on_disk_file : on_disk_files) {
-                    __debugbreak();
+                    auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
+                    for (auto&& operation : operations) {
+                        operation.Apply(game_xml);
+                    }
                 }
+                xmlChar* xmlbuff;
+                int      buffersize;
+                xmlDocDumpFormatMemory(game_xml, &xmlbuff, &buffersize, 1);
+                std::string buf = (const char*)(xmlbuff);
+                buf = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
+                buf = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
+                file_cache[game_path] = {buf.size(), true, buf};
             }
         }
     });
@@ -71,10 +96,10 @@ const ModManager::File& ModManager::GetModdedFileInfo(const fs::path& path) cons
 
 bool ModManager::IsPatchableFile(const fs::path& file) const
 {
-    // We can only patch xml files at the moment
-    // Other files have to be replaced entirely
-    const auto extension = file.extension();
-    return extension == ".xml";
+     // We can only patch xml files at the moment
+     // Other files have to be replaced entirely
+     const auto extension = file.extension();
+     return extension == ".xml";
 }
 
 std::string ModManager::GetGameFile(fs::path path) const

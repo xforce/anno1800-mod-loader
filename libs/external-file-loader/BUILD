@@ -11,6 +11,7 @@ cc_library(
     deps = [
         "//libs/anno-api",
         "//libs/hooking",
+        "//libs/xml-operations",
         "//libs/python35:loader_interface",
         "//third_party:ksignals",
         "@libxml",
