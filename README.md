@@ -56,6 +56,18 @@ Original whitespace should be pretty much the same, so you can use some diff too
 
 Other file types can't be 'merged' obviously, so there we just load the version of the last mod that has that file. (Mods are loaded alphabetically).
 
+# Installation
+
+Head over to the releases page and download the loader.zip from the latest release.  
+Unzip the contents to the location where Anno1800.exe is (For uplay default that would be C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\Bin\Win64), you will be asked to overwrite python35.dll, just accept that.
+
+You probably also need the VS 2019 Redist https://aka.ms/vs/16/release/VC_redist.x64.exe
+
+And that's basically it.
+
+Mods will be loaded from `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\mods` assuming default Uplay path.
+For an example zoom extend mod see the `examples` directory.
+
 # Building
 
 You need Bazel, Visual Studio 2019 and that _should_ be it.  
