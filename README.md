@@ -30,7 +30,9 @@ Example:
 Adding a new zoom level
 
 Put this in a mod folder with the game path
-so this would be in `new-zoom-level/data/config/game/camera.xml`
+so this would be in `mods/new-zoom-level/data/config/game/camera.xml`
+
+> The mods folder in a default Uplay installation has to be located at `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\mods`
 
 ```xml
 <ModOp Type="add" Path="/Normal/Presets">
