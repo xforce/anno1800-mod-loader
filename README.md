@@ -73,6 +73,8 @@ For an example zoom extend mod see the `examples` directory.
 You need Bazel, Visual Studio 2019 and that _should_ be it.  
 You can checkout `azure-pipelines.yml` and see how it's done there.
 
+If you want to work on new features for XML operations, you can use xmltest for testing. As that is using the same code as the actualy file loader.
+
 # Debugging
 
 Debugging will not be possible, the game is using Denuvo and VMProtect, I have my own tools that allow me to debug it, but I will not be sharing those publicly.  
