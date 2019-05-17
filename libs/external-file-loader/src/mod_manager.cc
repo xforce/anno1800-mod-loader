@@ -47,7 +47,7 @@ void ModManager::GameFilesReady()
                 std::string buffer;
                 xmlDocPtr   game_xml;
                 buffer   = "<MEOW_XML_SUCKS>" + game_file + "</MEOW_XML_SUCKS>";
-                game_xml = xmlReadMemory(buffer.data(), buffer.size(), "", NULL, XML_PARSE_RECOVER);
+                game_xml = xmlReadMemory(buffer.data(), buffer.size(), "", "UTF-8",, XML_PARSE_RECOVER);
                 for (auto&& on_disk_file : on_disk_files) {
                     auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
                     for (auto&& operation : operations) {

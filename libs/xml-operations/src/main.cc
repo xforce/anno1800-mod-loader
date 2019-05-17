@@ -78,7 +78,7 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(xmlNode *a_node)
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path path)
 {
-    auto doc    = xmlReadFile(path.string().c_str(), NULL, 0);
+    auto doc    = xmlReadFile(path.string().c_str(), "UTF-8", 0);
     auto root   = xmlDocGetRootElement(doc);
     auto result = GetXmlOperations(root);
     // xmlFree(doc);

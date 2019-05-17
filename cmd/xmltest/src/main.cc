@@ -27,11 +27,11 @@ int main(int argc, const char **argv)
     buffer.resize(size);
     if (file.read(buffer.data(), size)) {
         buffer   = "<MEOW_XML_SUCKS>" + buffer + "</MEOW_XML_SUCKS>";
-        game_xml = xmlReadMemory(buffer.data(), buffer.size(), "", NULL, XML_PARSE_RECOVER);
+        game_xml = xmlReadMemory(buffer.data(), buffer.size(), "", "UTF-8", XML_PARSE_RECOVER);
     }
 
     auto operations = XmlOperation::GetXmlOperationsFromFile(argv[2]);
-    auto patch_xml  = xmlReadFile(argv[2], NULL, 0);
+    auto patch_xml  = xmlReadFile(argv[2], "UTF-8", 0);
 
     for (auto &&operation : operations) {
         operation.Apply(game_xml);
