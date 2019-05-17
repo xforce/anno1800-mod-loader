@@ -62,6 +62,10 @@
         "xstddef": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "deque": "cpp",
+        "resumable": "cpp",
+        "future": "cpp",
+        "sstream": "cpp"
     }
 }

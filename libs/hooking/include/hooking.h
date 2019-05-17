@@ -22,11 +22,7 @@ inline void* AllocateFunctionStub(void* function)
 static uintptr_t base_address = 0;
 inline uint64_t  adjust_address(uint64_t address)
 {
-    if (base_address == 0) {
-        base_address = uintptr_t(GetModuleHandle(NULL));
-    }
-    const auto offset = address - uint64_t(0x140000000);
-    return base_address + offset;
+    return address;
 }
 
 template <typename AddressType> inline void nop(AddressType address, size_t length)

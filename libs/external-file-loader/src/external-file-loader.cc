@@ -104,7 +104,8 @@ void EnableExtenalFileLoading(Events& events)
         anno::SetAddress(anno::READ_FILE_FROM_CONTAINER,
                          uintptr_t(detour_func(GetAddress(anno::READ_FILE_FROM_CONTAINER),
                                                ReadFileFromContainer)));
-
-        jump_abs(0x140054880, GetContainerBlockInfo);
+        anno::SetAddress(anno::GET_CONTAINER_BLOCK_INFO,
+            uintptr_t(detour_func(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
+                GetContainerBlockInfo)));
     });
 }

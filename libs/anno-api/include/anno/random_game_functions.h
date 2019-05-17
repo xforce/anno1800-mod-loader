@@ -15,6 +15,12 @@ enum Address {
     // '13.10575.0.1471' === 14004F840
     // '13.12551.0.1532' === 14004F840
     READ_FILE_FROM_CONTAINER,
+    //// GetContainerBlockInfo
+    //// '13.10575.0.1471' === 140054880
+    //// '13.12551.0.1532' === 140054880
+    //// GET_CONTAINER_BLOCK_INFO_JMP,
+    // '13.12551.0.1532' === 144EE8DF8
+    SOME_GLOBAL_STRUCTURE_ARCHIVE,
     SIZE
 };
 

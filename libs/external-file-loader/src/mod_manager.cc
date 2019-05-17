@@ -46,8 +46,9 @@ void ModManager::GameFilesReady()
             if (!game_file.empty()) {
                 std::string buffer;
                 xmlDocPtr   game_xml;
-                buffer   = "<MEOW_XML_SUCKS>" + game_file + "</MEOW_XML_SUCKS>";
-                game_xml = xmlReadMemory(buffer.data(), buffer.size(), "", "UTF-8",, XML_PARSE_RECOVER);
+                buffer = "<MEOW_XML_SUCKS>" + game_file + "</MEOW_XML_SUCKS>";
+                game_xml =
+                    xmlReadMemory(buffer.data(), buffer.size(), "", "UTF-8", XML_PARSE_RECOVER);
                 for (auto&& on_disk_file : on_disk_files) {
                     auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
                     for (auto&& operation : operations) {
@@ -96,10 +97,10 @@ const ModManager::File& ModManager::GetModdedFileInfo(const fs::path& path) cons
 
 bool ModManager::IsPatchableFile(const fs::path& file) const
 {
-     // We can only patch xml files at the moment
-     // Other files have to be replaced entirely
-     const auto extension = file.extension();
-     return extension == ".xml";
+    // We can only patch xml files at the moment
+    // Other files have to be replaced entirely
+    const auto extension = file.extension();
+    return extension == ".xml";
 }
 
 std::string ModManager::GetGameFile(fs::path path) const
@@ -108,7 +109,7 @@ std::string ModManager::GetGameFile(fs::path path) const
 
     char*  buffer           = nullptr;
     size_t output_data_size = 0;
-    if (anno::ReadFileFromContainer(*(uintptr_t*)(adjust_address(0x144EE8DF8)),
+    if (anno::ReadFileFromContainer(*(uintptr_t*)GetAddress(anno::SOME_GLOBAL_STRUCTURE_ARCHIVE),
                                     path.wstring().c_str(), &buffer, &output_data_size)) {
         buffer = buffer;
         output = {buffer, output_data_size};
