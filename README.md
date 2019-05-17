@@ -1,7 +1,8 @@
 # Anno 1800 Mod Loader
 
 | WARNING: This is currently only compatible with the Uplay Version, see issue #3 |
-| --- |
+| ------------------------------------------------------------------------------- |
+
 
 The one and only mod loader for Anno 1800, supports loading of unpacked RDA files, XML auto merging and DLL based mods.
 
@@ -61,7 +62,11 @@ Other file types can't be 'merged' obviously, so there we just load the version 
 # Installation
 
 Head over to the releases page and download the loader.zip from the latest release.  
-Unzip the contents to the location where Anno1800.exe is (For uplay default that would be C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\Bin\Win64), you will be asked to overwrite python35.dll, just accept that.
+Unzip the contents to the location where Anno1800.exe is
+
+> Uplay default path is `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\Bin\Win64`)
+
+You will be asked to overwrite python35.dll, just accept that.
 
 You probably also need the VS 2019 Redist https://aka.ms/vs/16/release/VC_redist.x64.exe
 
