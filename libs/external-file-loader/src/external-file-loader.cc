@@ -28,7 +28,6 @@ bool __fastcall ReadFileFromContainer(__int64 archive_file_map, const std::wstri
         auto info = ModManager::instance().GetModdedFileInfo(file_path);
         if (info.is_patched) {
             memcpy(*output_data_pointer, info.data.data(), info.data.size());
-            (*output_data_pointer)[info.size] = 0;
         } else {
             // This is not a file that we can patch
             // Just load it from disk
@@ -62,24 +61,15 @@ bool GetContainerBlockInfo(uintptr_t* a1, const std::wstring& file_path, int a3)
         auto info = ModManager::instance().GetModdedFileInfo(file_path);
         // TODO(alexander): Move this 'a1 + 0x88' to some nice structure in an API
         // package
-        *(size_t*)((char*)a1 + 0x88) = info.size + 1;
+        *(size_t*)((char*)a1 + 0x88) = info.size;
     }
     return result;
 }
-
-bool isModEnabled(std::string path)
+static bool IsModEnabled(fs::path path)
 {
-    for (std::string::size_type i = path.size() - 2; i > 0; --i) {
-        if (strncmp(&path[i], "\\", 1) == 0) {
-            if (strncmp(&path[i + 1], "-", 1) == 0) {
-				return false; //Disable mod when "-" is at the beginning of the directory name
-            } else {
-                return true;
-			}
-		}
-    }
+    // If mod folder name starts with '-', we don't enable it.
+    return path.stem().wstring().find(L'-') != 0;
 }
-
 void EnableExtenalFileLoading(Events& events)
 {
     fs::path mods_directory;
@@ -108,7 +98,7 @@ void EnableExtenalFileLoading(Events& events)
     // Now create a mod for each of these
     std::vector<fs::path> mod_roots;
     for (auto&& root : fs::directory_iterator(mods_directory)) {
-        if (root.is_directory() && isModEnabled(root.path().string())) {
+        if (root.is_directory() && IsModEnabled(root.path())) {
             ModManager::instance().Create(root.path());
         }
     }
@@ -118,7 +108,7 @@ void EnableExtenalFileLoading(Events& events)
                          uintptr_t(detour_func(GetAddress(anno::READ_FILE_FROM_CONTAINER),
                                                ReadFileFromContainer)));
         anno::SetAddress(anno::GET_CONTAINER_BLOCK_INFO,
-            uintptr_t(detour_func(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
-                GetContainerBlockInfo)));
+                         uintptr_t(detour_func(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
+                                               GetContainerBlockInfo)));
     });
 }
