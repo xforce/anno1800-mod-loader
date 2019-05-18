@@ -15,6 +15,9 @@ XmlOperation::XmlOperation(xmlNode *node)
         type_ = Type::Merge;
     }
     path_ = GetXmlPropString(node, "Path");
+    if (path_ == "/") {
+        path_ = "/*";
+    }
     if (type_ != Type::Remove) {
         node_ = node->children;
         while (node_->type != XML_ELEMENT_NODE) {
@@ -74,19 +77,33 @@ void XmlOperation::Apply(xmlDocPtr doc)
     if (xpathObj->nodesetval) {
         for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++) {
             auto game_node = xpathObj->nodesetval->nodeTab[i];
+            auto root_node = game_node;
             if (GetType() == XmlOperation::Type::Merge) {
-                // Do the merge :D
-                // Merge attribues of first level element
-                // TODO(alexander): Support 'deep' merge
                 auto patching_node = GetContentNode();
                 RecursiveMerge(game_node, patching_node);
             } else if (GetType() == XmlOperation::Type::Add) {
-                xmlAddChildList(game_node, GetContentNode());
+                // TODO(alexander): Walking down next here adds nodes to unexpected places
+                auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
+                while (game_node) {
+                    if (game_node->type == XML_ELEMENT_NODE) {
+                        xmlAddChildList(game_node, node);
+                    }
+                    game_node = nullptr;
+                }
             } else if (GetType() == XmlOperation::Type::Remove) {
-                xmlUnlinkNode(game_node);
+                while (game_node) {
+                    xmlUnlinkNode(game_node);
+                    game_node = game_node->next;
+                }
             } else if (GetType() == XmlOperation::Type::Replace) {
-                xmlAddPrevSibling(game_node, GetContentNode());
-                xmlUnlinkNode(game_node);
+                auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
+                auto parent = root_node->parent;
+                while (game_node) {
+                    auto next_game_node = game_node->next;
+                    xmlUnlinkNode(game_node);
+                    game_node = next_game_node;
+                }
+                xmlAddChildList(parent, node);
             }
         }
     }
