@@ -28,7 +28,6 @@ bool __fastcall ReadFileFromContainer(__int64 archive_file_map, const std::wstri
         auto info = ModManager::instance().GetModdedFileInfo(file_path);
         if (info.is_patched) {
             memcpy(*output_data_pointer, info.data.data(), info.data.size());
-            (*output_data_pointer)[info.size] = 0;
         } else {
             // This is not a file that we can patch
             // Just load it from disk
@@ -62,7 +61,7 @@ bool GetContainerBlockInfo(uintptr_t* a1, const std::wstring& file_path, int a3)
         auto info = ModManager::instance().GetModdedFileInfo(file_path);
         // TODO(alexander): Move this 'a1 + 0x88' to some nice structure in an API
         // package
-        *(size_t*)((char*)a1 + 0x88) = info.size + 1;
+        *(size_t*)((char*)a1 + 0x88) = info.size;
     }
     return result;
 }
@@ -105,7 +104,7 @@ void EnableExtenalFileLoading(Events& events)
                          uintptr_t(detour_func(GetAddress(anno::READ_FILE_FROM_CONTAINER),
                                                ReadFileFromContainer)));
         anno::SetAddress(anno::GET_CONTAINER_BLOCK_INFO,
-            uintptr_t(detour_func(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
-                GetContainerBlockInfo)));
+                         uintptr_t(detour_func(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
+                                               GetContainerBlockInfo)));
     });
 }
