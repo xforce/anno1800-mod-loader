@@ -65,7 +65,11 @@ bool GetContainerBlockInfo(uintptr_t* a1, const std::wstring& file_path, int a3)
     }
     return result;
 }
-
+static bool IsModEnabled(fs::path path)
+{
+    // If mod folder name starts with '-', we don't enable it.
+    return path.stem().wstring().find(L'-') != 0;
+}
 void EnableExtenalFileLoading(Events& events)
 {
     fs::path mods_directory;
@@ -94,7 +98,7 @@ void EnableExtenalFileLoading(Events& events)
     // Now create a mod for each of these
     std::vector<fs::path> mod_roots;
     for (auto&& root : fs::directory_iterator(mods_directory)) {
-        if (root.is_directory()) {
+        if (root.is_directory() && IsModEnabled(root.path())) {
             ModManager::instance().Create(root.path());
         }
     }
