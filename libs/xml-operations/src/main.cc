@@ -23,6 +23,45 @@ XmlOperation::XmlOperation(xmlNode *node)
     }
 }
 
+void MergeProperties(xmlNode *game_node, xmlNode *patching_node)
+{
+    xmlAttr *attribute = patching_node->properties;
+    while (attribute) {
+        xmlChar *value = xmlNodeListGetString(patching_node->doc, attribute->children, 1);
+        // do something with value
+        xmlSetProp(game_node, attribute->name, value);
+        xmlFree(value);
+        attribute = attribute->next;
+    }
+}
+
+void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
+{
+    xmlNode *cur_node = NULL;
+    auto find_node_with_name = [](auto game_node, auto name) -> xmlNode* {
+        xmlNode* cur_node = NULL;
+        for (cur_node = game_node; cur_node; cur_node = cur_node->next) {
+            if (xmlStrcmp(cur_node->name, name) == 0) {
+                return cur_node;
+            }
+        }
+        return nullptr;
+    };
+
+    for (cur_node = game_node; cur_node; cur_node = cur_node->next) {
+        auto node = find_node_with_name(cur_node, patching_node->name);
+        MergeProperties(node, patching_node);
+        if (node) {
+            if (node->type == XML_TEXT_NODE) {
+                xmlNodeSetContent(node, patching_node->content);
+            }
+            else {
+                RecursiveMerge(node->children, patching_node->children);
+            }
+        }
+    }
+}
+
 void XmlOperation::Apply(xmlDocPtr doc)
 {
     auto path_expression = xmlXPathCompile(
@@ -36,16 +75,8 @@ void XmlOperation::Apply(xmlDocPtr doc)
                 // Do the merge :D
                 // Merge attribues of first level element
                 // TODO(alexander): Support 'deep' merge
-                auto     patching_node = GetContentNode();
-                xmlAttr *attribute     = patching_node->properties;
-                while (attribute) {
-                    xmlChar *value =
-                        xmlNodeListGetString(patching_node->doc, attribute->children, 1);
-                    // do something with value
-                    xmlSetProp(game_node, attribute->name, value);
-                    xmlFree(value);
-                    attribute = attribute->next;
-                }
+                auto patching_node = GetContentNode();
+                RecursiveMerge(game_node, patching_node);
             } else if (GetType() == XmlOperation::Type::Add) {
                 xmlAddChildList(game_node, GetContentNode());
             } else if (GetType() == XmlOperation::Type::Remove) {
