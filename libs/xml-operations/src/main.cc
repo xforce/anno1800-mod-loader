@@ -52,14 +52,14 @@ void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
     };
 
     for (cur_node = patching_node; cur_node; cur_node = cur_node->next) {
-        game_node = find_node_with_name(game_node, patching_node->name);
-        MergeProperties(game_node, patching_node);
+        game_node = find_node_with_name(game_node, cur_node->name);
+        MergeProperties(game_node, cur_node);
         if (game_node) {
             if (game_node->type == XML_TEXT_NODE) {
-                xmlNodeSetContent(game_node, patching_node->content);
+                xmlNodeSetContent(game_node, cur_node->content);
             }
             else {
-                RecursiveMerge(game_node->children, patching_node->children);
+                RecursiveMerge(game_node->children, cur_node->children);
             }
         }
     }
