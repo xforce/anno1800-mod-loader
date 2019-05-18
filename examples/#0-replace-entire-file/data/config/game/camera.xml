@@ -2,8 +2,8 @@
     <ModOp Type="replace" Path="/">
         <Normal>
             <Presets>
-                <Preset ID="-1" Height="10" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.675" />
-                <Preset ID="0" Height="12.5" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.65" />
+                <Preset ID="-1" Height="4" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.675" />
+                <Preset ID="0" Height="12" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.675"/>
                 <Preset ID="1" Height="15" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.625" />
                 <Preset ID="2" Height="17.5" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.62" />
                 <Preset ID="3" Height="20" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.61" />
@@ -13,15 +13,21 @@
                 <Preset ID="7" Height="40" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.57" />
                 <Preset ID="8" Height="50" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.56" />
                 <Preset ID="9" Height="60" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.55" />
-                <Preset ID="10" Height="75" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.54" />	
-                <Preset ID="11" Height="90" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.53" />
+                <Preset ID="10" Height="70" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.54" />	
+                <Preset ID="11" Height="86" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.53" />
                 <Preset ID="12" Height="105" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.52" />
                 <Preset ID="13" Height="120" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.51" />
                 <Preset ID="14" Height="135" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.50" />
+				<Preset ID="15" Height="140" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.56" />
+				<Preset ID="16" Height="160" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.55" />
+				<Preset ID="17" Height="190" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.54" />
+				<Preset ID="18" Height="230" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.53" />
+				<Preset ID="19" Height="280" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.52" />
+				<Preset ID="20" Height="330" Pitch="0.875" MinPitch="-0.375" MaxPitch="1.40" Fov="0.51" />
                 </Presets>
             <Settings 
                 MinZoomPreset="-1"            
-                MaxZoomPreset="14"
+                MaxZoomPreset="20"
                 DefaultPreset="9"
                 ZoomDuration="400"
                 ZoomSensivity="1"
