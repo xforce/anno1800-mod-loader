@@ -37,6 +37,9 @@ void MergeProperties(xmlNode *game_node, xmlNode *patching_node)
 
 void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
 {
+    if (!patching_node) {
+        return;
+    }
     xmlNode *cur_node = NULL;
     auto find_node_with_name = [](auto game_node, auto name) -> xmlNode* {
         xmlNode* cur_node = NULL;
@@ -48,15 +51,15 @@ void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
         return nullptr;
     };
 
-    for (cur_node = game_node; cur_node; cur_node = cur_node->next) {
-        auto node = find_node_with_name(cur_node, patching_node->name);
-        MergeProperties(node, patching_node);
-        if (node) {
-            if (node->type == XML_TEXT_NODE) {
-                xmlNodeSetContent(node, patching_node->content);
+    for (cur_node = patching_node; cur_node; cur_node = cur_node->next) {
+        game_node = find_node_with_name(game_node, patching_node->name);
+        MergeProperties(game_node, patching_node);
+        if (game_node) {
+            if (game_node->type == XML_TEXT_NODE) {
+                xmlNodeSetContent(game_node, patching_node->content);
             }
             else {
-                RecursiveMerge(node->children, patching_node->children);
+                RecursiveMerge(game_node->children, patching_node->children);
             }
         }
     }
