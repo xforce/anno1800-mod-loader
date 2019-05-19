@@ -120,10 +120,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
                     if (std::lexicographical_compare(current_version, current_version + 3,
                                                      latest_version, latest_version + 3)) {
-                        std::string msg =
-                            "A new version (" + version_str + ") is available for download.\n\n";
+                        std::string msg = "Verion " + version_str + " of "
+                                          + VER_FILE_DESCRIPTION_STR
+                                          + " is available for download.\n\n";
                         msg.append("Do you want to go to the release page on GitHub?\n(THIS IS "
-                                   "HIGHLY RECOMMENDED!!");
+                                   "HIGHLY RECOMMENDED!!!)");
 
                         if (MessageBoxA(NULL, msg.c_str(), VER_FILE_DESCRIPTION_STR,
                                         MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)

@@ -33,3 +33,12 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "json",
+    hdrs = glob(["json/single_include/json.hpp"]),
+    includes = [
+        "json/single_include",
+    ],
+    visibility = ["//visibility:public"],
+)

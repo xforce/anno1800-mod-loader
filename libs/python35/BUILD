@@ -25,8 +25,6 @@ cc_binary(
         "//libs/external-file-loader:external-file-loader",
         "//third_party:python",
         "//third_party:ksignals",
-        # "@openssl//:ssl",
-        # "@openssl//:crypto",
     ] + select({
         ":internal": [
             "//libs/internal/debuggable:debuggable",
