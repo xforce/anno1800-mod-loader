@@ -1,13 +1,55 @@
-jobs:
-  - job: windows_x64
-    pool:
-      vmImage: "windows-2019"
-    steps:
-      - checkout: self
-        submodules: true
-      - powershell: |
-          mkdir C:\bazel
-          Invoke-WebRequest -Uri https://github.com/bazelbuild/bazel/releases/download/0.25.2/bazel-0.25.2-windows-x86_64.exe -OutFile C:\bazel\bazel.exe
-        displayName: Install bazel
-      - script: |
-          C:/bazel/bazel build //... --cpu=x64_windows --host_cpu=x64_windows 2>&1
+pool:
+  name: Hosted Windows 2019 with VS2019
+
+steps:
+- checkout: self
+  submodules: true
+
+- task: gep13.chocolatey-azuredevops.chocolatey-azuredevops.ChocolateyCommand@0
+  displayName: 'Chocolatey install'
+  inputs:
+    command: install
+    extraArguments: '--ignore-dependencies'
+    installPackageId: bazel
+  continueOnError: true
+
+- script: 'bazel build //... -c opt 2>&1'
+  displayName: Build
+
+- task: CopyFiles@2
+  displayName: 'Copy loader'
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    Contents: |
+     bazel-bin/libs/python35/?(*.exe|*.dll)
+     third_party/Python35/bin/?(*.exe|*.dll)
+    TargetFolder: '$(Build.BinariesDirectory)/python35/'
+    flattenFolders: true
+
+- task: CopyFiles@2
+  displayName: 'Copy Files xmltest'
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    Contents: 'bazel-bin/cmd/xmltest/?(*.exe|*.dll)'
+    TargetFolder: '$(Build.BinariesDirectory)/xmltest/'
+    flattenFolders: true
+
+- task: ArchiveFiles@2
+  displayName: 'Archive xmltest'
+  inputs:
+    rootFolderOrFile: '$(Build.BinariesDirectory)/xmltest/'
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/xmltest.zip'
+
+- task: ArchiveFiles@2
+  displayName: 'Archive loader'
+  inputs:
+    rootFolderOrFile: '$(Build.BinariesDirectory)/python35/'
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/loader.zip'
+
+- task: GitHubRelease@0
+  displayName: 'GitHub release (create)'
+  inputs:
+    gitHubConnection: publish
+    isDraft: true
