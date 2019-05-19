@@ -10,4 +10,4 @@ jobs:
           Invoke-WebRequest -Uri https://github.com/bazelbuild/bazel/releases/download/0.25.2/bazel-0.25.2-windows-x86_64.exe -OutFile C:\bazel\bazel.exe
         displayName: Install bazel
       - script: |
-          C:/bazel/bazel build //... --cpu=x64_windows --host_cpu=x64_windows
+          C:/bazel/bazel build //... --cpu=x64_windows --host_cpu=x64_windows 2>&1
