@@ -110,5 +110,7 @@ void EnableExtenalFileLoading(Events& events)
         anno::SetAddress(anno::GET_CONTAINER_BLOCK_INFO,
                          uintptr_t(detour_func(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
                                                GetContainerBlockInfo)));
+
+        // retn(0x148423610); // Disables UI rendering...
     });
 }

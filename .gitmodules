@@ -10,3 +10,6 @@
 [submodule "third_party/libxml2"]
 	path = third_party/libxml2
 	url = https://github.com/GNOME/libxml2.git
+[submodule "third_party/json"]
+	path = third_party/json
+	url = https://github.com/nlohmann/json.git

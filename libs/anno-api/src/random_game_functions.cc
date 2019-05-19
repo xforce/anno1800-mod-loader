@@ -353,6 +353,21 @@ uintptr_t GetAddress(Address address)
         }
         initialized = true;
     }
+
+    auto add = adjust_address(0x141345750);
+    auto add2 = adjust_address(0x14ED52939);
+    auto add3 = adjust_address(0x144EE9870);
+    auto add4 = adjust_address(0x14110D677);
+    // 0x141110B50
+    // 0x140D47990
+    // ^ // This is not working for some reason, time to find out....
+    // | // 0x140D4660C
+    // 0x140D44DF0
+    // 0x1400204E0
+    // 0x14ED52920 
+    // 0x14ED526BC
+    // 0x140D4505E
+
     return ADDRESSES[address].address;
 }
 void SetAddress(Address address, uint64_t add)
