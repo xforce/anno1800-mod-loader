@@ -27,13 +27,12 @@ inline uint64_t  adjust_address(uint64_t address)
 
 template <typename AddressType> inline void nop(AddressType address, size_t length)
 {
-    const auto offset = address - 0x140000000;
     DWORD      oldProtect;
-    VirtualProtect((void*)(base_address + offset), length, PAGE_EXECUTE_READWRITE, &oldProtect);
+    VirtualProtect((void*)(address), length, PAGE_EXECUTE_READWRITE, &oldProtect);
 
-    memset((void*)(base_address + offset), 0x90, length);
+    memset((void*)(address), 0x90, length);
 
-    VirtualProtect((void*)(base_address + offset), length, oldProtect, &oldProtect);
+    VirtualProtect((void*)(address), length, oldProtect, &oldProtect);
 }
 
 template <typename ValueType, typename AddressType>
@@ -121,6 +120,20 @@ inline uintptr_t* detour_func(AddressType address, ValueType target)
     return (uintptr_t*)orig_code;
 }
 
+template<typename T, typename AT>
+inline void call(AT address, T func)
+{
+    put<uint8_t>(address, 0xE8);
+    put<int32_t>(static_cast<int64_t>((uintptr_t)address + 1), static_cast<int32_t>((intptr_t)func - (intptr_t)address - 5));
+}
+
+template<typename T, typename AT>
+inline void jump(AT address, T func)
+{
+    put<uint8_t>(address, 0xE9);
+    put<int32_t>(static_cast<int64_t>((uintptr_t)address + 1), static_cast<int32_t>((intptr_t)func - (intptr_t)address - 5));
+}
+
 template <typename R> static R __thiscall func_call(uint64_t addr)
 {
     return ((R(*)())(adjust_address(addr)))();
@@ -159,3 +172,4 @@ func_call(uint64_t addr, T _this, Args... args)
     addr = adjust_address(addr);
     return func_call_member<R, T, Args...>(addr, _this, args...);
 }
+

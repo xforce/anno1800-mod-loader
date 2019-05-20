@@ -13,6 +13,7 @@ class XmlOperation
     enum Type { Add, Remove, Replace, Merge };
 
     explicit XmlOperation(xmlNode *node);
+    XmlOperation(xmlNode *node, std::string guid);
 
     xmlNode *GetContentNode()
     {
@@ -35,15 +36,16 @@ class XmlOperation
   private:
     Type        type_;
     std::string path_;
+    std::string guid_;
     xmlNode *   node_ = nullptr;
 
-    inline std::string to_string(xmlChar *str)
+    static inline std::string to_string(xmlChar *str)
     {
         int charLength = xmlStrlen(str);
         return std::string{reinterpret_cast<const char *>(str), size_t(charLength)};
     }
 
-    std::string GetXmlPropString(xmlNode *node, std::string prop_name)
+    static std::string GetXmlPropString(xmlNode *node, std::string prop_name)
     {
         auto prop   = xmlGetProp(node, (const xmlChar *)prop_name.c_str());
         auto result = to_string(prop);

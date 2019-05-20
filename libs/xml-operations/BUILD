@@ -12,6 +12,7 @@ cc_library(
     deps = [
         "//third_party:ksignals",
         "//third_party:libudis86",
+        "@com_google_absl//absl/strings",
         "@libxml",
     ],
 )

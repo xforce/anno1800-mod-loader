@@ -1,5 +1,7 @@
 #include "xml_operations.h"
 
+#include "absl/strings/str_split.h"
+
 XmlOperation::XmlOperation(xmlNode *node)
 {
     auto type = GetXmlPropString(node, "Type");
@@ -26,6 +28,39 @@ XmlOperation::XmlOperation(xmlNode *node)
     }
 }
 
+XmlOperation::XmlOperation(xmlNode *node, std::string guid)
+{
+    if (!guid.empty()) {
+        path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
+    }
+    auto prop_path = GetXmlPropString(node, "Path");
+    if (prop_path.find("/") != 0) {
+        path_ += "/";
+    }
+    path_ += GetXmlPropString(node, "Path");
+    if (path_ == "/") {
+        path_ = "/*";
+    }
+    auto type = GetXmlPropString(node, "Type");
+    if (type == "add") {
+        type_ = Type::Add;
+    } else if (type == "add") {
+        type_ = Type::Add;
+    } else if (type == "remove") {
+        type_ = Type::Remove;
+    } else if (type == "replace") {
+        type_ = Type::Replace;
+    } else if (type == "merge") {
+        type_ = Type::Merge;
+    }
+    if (type_ != Type::Remove) {
+        node_ = node->children;
+        while (node_->type != XML_ELEMENT_NODE) {
+            node_ = node_->next;
+        }
+    }
+}
+
 void MergeProperties(xmlNode *game_node, xmlNode *patching_node)
 {
     xmlAttr *attribute = patching_node->properties;
@@ -43,9 +78,9 @@ void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
     if (!patching_node) {
         return;
     }
-    xmlNode *cur_node = NULL;
-    auto find_node_with_name = [](auto game_node, auto name) -> xmlNode* {
-        xmlNode* cur_node = NULL;
+    xmlNode *cur_node            = NULL;
+    auto     find_node_with_name = [](auto game_node, auto name) -> xmlNode * {
+        xmlNode *cur_node = NULL;
         for (cur_node = game_node; cur_node; cur_node = cur_node->next) {
             if (xmlStrcmp(cur_node->name, name) == 0) {
                 return cur_node;
@@ -60,8 +95,7 @@ void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
         if (game_node) {
             if (game_node->type == XML_TEXT_NODE) {
                 xmlNodeSetContent(game_node, cur_node->content);
-            }
-            else {
+            } else {
                 RecursiveMerge(game_node->children, cur_node->children);
             }
         }
@@ -96,7 +130,7 @@ void XmlOperation::Apply(xmlDocPtr doc)
                     game_node = game_node->next;
                 }
             } else if (GetType() == XmlOperation::Type::Replace) {
-                auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
+                auto node   = xmlDocCopyNodeList(game_node->doc, GetContentNode());
                 auto parent = root_node->parent;
                 while (game_node) {
                     auto next_game_node = game_node->next;
@@ -119,7 +153,15 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(xmlNode *a_node)
         for (cur_node = a_node->children; cur_node; cur_node = cur_node->next) {
             if (cur_node->type == XML_ELEMENT_NODE) {
                 if (reinterpret_cast<const char *>(cur_node->name) == std::string("ModOp")) {
-                    mod_operations.emplace_back(cur_node);
+                    const auto guid = GetXmlPropString(cur_node, "GUID");
+                    if (!guid.empty()) {
+                        std::vector<std::string> guids = absl::StrSplit(guid, ',');
+                        for (auto g : guids) {
+                            mod_operations.emplace_back(cur_node, g.data());
+                        }
+                    } else {
+                        mod_operations.emplace_back(cur_node);
+                    }
                 }
             }
         }
