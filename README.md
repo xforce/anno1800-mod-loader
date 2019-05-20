@@ -1,9 +1,5 @@
 # Anno 1800 Mod Loader
 
-| WARNING: This is currently only compatible with the Uplay Version, see issue #3 |
-| ------------------------------------------------------------------------------- |
-
-
 The one and only mod loader for Anno 1800, supports loading of unpacked RDA files, XML auto merging and DLL based mods.
 
 No file size limit. No more repacking. Less likely to break after updates (in general a mod should continue to work after every update, YMMV).
