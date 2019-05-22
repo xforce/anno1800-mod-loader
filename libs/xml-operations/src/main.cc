@@ -22,9 +22,9 @@ XmlOperation::XmlOperation(xmlNode *node)
     }
     if (type_ != Type::Remove) {
         node_ = node->children;
-        while (node_->type != XML_ELEMENT_NODE) {
+        /*while (node_->type != XML_ELEMENT_NODE) {
             node_ = node_->next;
-        }
+        }*/
     }
 }
 
@@ -118,26 +118,21 @@ void XmlOperation::Apply(xmlDocPtr doc)
             } else if (GetType() == XmlOperation::Type::Add) {
                 // TODO(alexander): Walking down next here adds nodes to unexpected places
                 auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
-                while (game_node) {
-                    if (game_node->type == XML_ELEMENT_NODE) {
-                        xmlAddChildList(game_node, node);
-                    }
-                    game_node = nullptr;
+                if (game_node->type == XML_ELEMENT_NODE) {
+                    xmlAddChildList(game_node, node);
                 }
+                game_node = nullptr;
             } else if (GetType() == XmlOperation::Type::Remove) {
-                while (game_node) {
-                    xmlUnlinkNode(game_node);
-                    game_node = game_node->next;
-                }
+                xmlUnlinkNode(game_node);
+                game_node = game_node->next;
             } else if (GetType() == XmlOperation::Type::Replace) {
-                auto node   = xmlDocCopyNodeList(game_node->doc, GetContentNode());
-                auto parent = root_node->parent;
-                while (game_node) {
-                    auto next_game_node = game_node->next;
-                    xmlUnlinkNode(game_node);
-                    game_node = next_game_node;
+                auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
+                auto node_to_add = node;
+                while (node_to_add) {
+                    xmlAddPrevSibling(game_node, xmlDocCopyNode(node_to_add, game_node->doc, 1));
+                    node_to_add = node_to_add->next;
                 }
-                xmlAddChildList(parent, node);
+                xmlUnlinkNode(game_node);
             }
         }
     } else {
