@@ -108,7 +108,7 @@ void XmlOperation::Apply(xmlDocPtr doc)
         reinterpret_cast<const xmlChar *>((std::string("/MEOW_XML_SUCKS") + GetPath()).c_str()));
     auto xpathCtx = xmlXPathNewContext(doc);
     auto xpathObj = xmlXPathCompiledEval(path_expression, xpathCtx);
-    if (xpathObj->nodesetval) {
+    if (xpathObj && xpathObj->nodesetval) {
         for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++) {
             auto game_node = xpathObj->nodesetval->nodeTab[i];
             auto root_node = game_node;
@@ -140,6 +140,8 @@ void XmlOperation::Apply(xmlDocPtr doc)
                 xmlAddChildList(parent, node);
             }
         }
+    } else {
+        // TODO(alexander): Diagnostics
     }
 }
 
