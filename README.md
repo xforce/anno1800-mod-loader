@@ -14,12 +14,103 @@ from the RDA container. While that made it easier, it's still not a nice way to 
 This Anno 1800 Mod loader supports a few simple 'commands' to easily patch the XML to achieve pretty much whatever you want.  
 Currently supported operations inside an XML file:
 
-> This was just a quick initial implementation (~3h), very open for discussions on how to make that better or do something entirely different
 
-- Merge
-- Remove
-- Add
-- Replace
+### Merge
+The main reason to use merge is just to overwrite some data. Look at this short example:
+```xml
+<ModOp Type="merge" Path="//Asset[Values/Standard/GUID='101373']/Values/Walking">
+    <Walking>
+        <ForwardSpeed>12</ForwardSpeed>
+    </Walking>
+</ModOp>
+```
+This will overwrite the default value of 5 with the new value 12. (Great Eastern Speed Boost)
+
+### Remove
+If you want to remove some stuff, as simply as it sounds, just use remove.
+```xml
+<ModOp Type="remove" Path="//Asset[Values/Standard/GUID='2002450']/Values/DifficultySettings/StartShips/TradeFleet/Ships/Item">
+    <Item>
+        <Ship>100440</Ship>
+        <ShipLoad>
+            <Item>
+                <Product>1010196</Product>
+                <Amount>50</Amount>
+            </Item>
+        </ShipLoad>
+    </Item>
+</ModOp>
+```
+This snippet will delete one start Item from the tradefleet.
+
+### Add
+If you want to add stuff to the game.
+```xml
+<ModOp Type="add" Path="//Asset[Values/Standard/GUID='2002450']/Values/DifficultySettings/StartShips/TradeFleet">
+    <TradeFleet>
+        <ValueName>11075</ValueName>
+        <Ships>
+            <Item>
+                <Ship>100440</Ship>
+                <ShipLoad>
+                    <Item>
+                        <Product>1010196</Product>
+                        <Amount>50</Amount>
+                    </Item>
+                </ShipLoad>
+            </Item>
+        </Ships>
+    </TradeFleet>
+</ModOp>
+```
+This snippet will add a Ship Of The Line to the TradeFleet (new savegame required)
+
+### Replace
+Use replace if you want to replace a whole dataset.
+```xml
+<ModOp Type="replace" Path="//Asset[Values/Standard/GUID='2002450']/Values/DifficultySettings/StartShips/TradeFleet">
+		<TradeFleet>
+            <ValueName>11075</ValueName>
+            <Ships>
+                <Item>
+                    <Ship>100440</Ship>
+                    <ShipLoad>
+                        <Item>
+                            <Product>1010196</Product>
+                            <Amount>50</Amount>
+                        </Item>
+                        <Item>
+                            <Product>1010218</Product>
+                            <Amount>50</Amount>
+                        </Item>
+                        <Item>
+                            <Product>1010221</Product>
+                            <Amount>50</Amount>
+                        </Item>
+                    </ShipLoad>
+                </Item>
+                <Item>
+                    <Ship>100440</Ship>
+                    <ShipLoad>
+                        <Item>
+                            <Product>1010196</Product>
+                            <Amount>50</Amount>
+                        </Item>
+                        <Item>
+                            <Product>1010218</Product>
+                            <Amount>50</Amount>
+                        </Item>
+                        <Item>
+                            <Product>1010221</Product>
+                            <Amount>50</Amount>
+                        </Item>
+                    </ShipLoad>
+                </Item>
+            </Ships>
+        </TradeFleet>
+	</ModOp>
+```
+This snippet replaces the TradeFleet. Now you start with Two Ship-Of-The-Line and full amount of Wood/Brick/Steel.
 
 Lookup for all of those is done using XPath, this makes it easy and possible to only have the changes in a mod that you absolutely need instead of handling megabytes of XML files.
 
