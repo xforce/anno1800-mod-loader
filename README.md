@@ -114,9 +114,8 @@ This snippet replaces the TradeFleet. Now you start with Two Ship-Of-The-Line an
 
 Lookup for all of those is done using XPath, this makes it easy and possible to only have the changes in a mod that you absolutely need instead of handling megabytes of XML files.
 
-Example:
-Adding a new zoom level
 
+### Camera Example (New Zoom Level)
 Put this in a mod folder with the game path
 so this would be in `mods/new-zoom-level/data/config/game/camera.xml`
 
