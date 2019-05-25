@@ -1,0 +1,7 @@
+{
+    "name": "Simple replace",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[Meow='10']"
+    ]
+}
