@@ -1,0 +1,9 @@
+{
+    "name": "Multi node merge content nested skipping parent",
+    "expected": [
+        "/Test/Node/FullSatisfactionDistance",
+        "/Test/Node/NoSatisfactionDistance",
+        "/Test/Node[FullSatisfactionDistance='60']",
+        "/Test/Node/NoSatisfactionDistance[NoSatisfactionDistance2='100']"
+    ]
+}

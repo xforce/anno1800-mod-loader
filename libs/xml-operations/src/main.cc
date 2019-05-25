@@ -85,6 +85,8 @@ static bool HasNonTextNode(xmlNode *node) {
     return false;
 }
 
+// TODO(alexander): Make this a member of XmlOperation so we have more information
+// available for logging later
 void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
 {
     if (!patching_node) {
@@ -112,6 +114,7 @@ void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
     }
 
     for (auto cur_node = patching_node; cur_node; cur_node = cur_node->next) {
+        auto prev_game_node = game_node;
         game_node = find_node_with_name(game_node, cur_node->name);
         MergeProperties(game_node, cur_node);
         if (game_node) {
@@ -120,7 +123,12 @@ void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
             } else {
                 RecursiveMerge(game_node->children, cur_node->children);
             }
+        } else {
+            if (cur_node && prev_game_node) {
+                RecursiveMerge(prev_game_node->children, cur_node);
+            }
         }
+
     }
 }
 
