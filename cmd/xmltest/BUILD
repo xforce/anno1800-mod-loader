@@ -4,4 +4,8 @@ cc_binary(
     deps = [
         "//libs/xml-operations",
     ],
+    linkopts = select({
+            "@bazel_tools//src/conditions:windows": [],
+            "//conditions:default": ["-lstdc++fs"],
+    }),
 )

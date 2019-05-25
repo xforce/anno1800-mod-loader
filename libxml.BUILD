@@ -4,31 +4,51 @@ load("@//tools/skylib:write_file.bzl", "write_file")
 write_file(
     name = "script",
     out = "script.bat",
-    content = [
-        "cd third_party\\libxml2\\win32",
-        "cscript configure.js compiler=msvc iconv=no zlib=no debug=no http=no ftp=no",
-        "cd ../../../",
-        "powershell -command \"cp third_party/libxml2/include/libxml/xmlversion.h %1\"",
-        "powershell -command \"cp third_party/libxml2/config.h %2\""
-    ],
+    content = select({
+        "@bazel_tools//src/conditions:windows": [
+            "cd third_party\\libxml2\\win32",
+            "cscript configure.js compiler=msvc iconv=no zlib=no debug=no http=no ftp=no",
+            "cd ../../../",
+            "powershell -command \"cp third_party/libxml2/include/libxml/xmlversion.h %2\"",
+            "powershell -command \"cp third_party/libxml2/config.h %3\"",
+        ],
+        "//conditions:default": [
+            "export PATH=$PATH:$4",
+            "meow=$(pwd)",
+            "cd $(dirname $1)",
+            "autoreconf -if -Wall 2&> /dev/null",
+            "./configure --without-http --without-zlib --without-lzma --without-iconv --without-ftp",
+            "mkdir -p $(dirname $meow/$2); cp include/libxml/xmlversion.h $meow/$2",
+            "mkdir -p $(dirname $meow/$3); cp config.h $meow/$3",
+        ],
+    }),
     is_executable = True,
 )
 
-
 run_binary(
     name = "libxml_configure",
-    tool = ":script",
-    srcs = [
-        "include/libxml/xmlversion.h.in"
+    srcs = glob(
+        [
+            "**/*.*",
+            "**/*",
+        ],
+        exclude = [
+            "config.h",
+            "include/libxml/xmlversion.h",
+        ],
+    ),
+    outs = [
+        "config.h",
+        "include/libxml/xmlversion.h",
     ],
     args = [
+        "$(location autogen.sh)",
         "$(location include/libxml/xmlversion.h)",
-        "$(location config.h)"
+        "$(location config.h)",
+        "$PATH",
+        "2",
     ],
-    outs = [
-        "include/libxml/xmlversion.h",
-        "config.h",
-    ]
+    tool = ":script",
 )
 
 cc_library(
@@ -78,6 +98,7 @@ cc_library(
         "xpath.c",
         "xpointer.c",
         "xzlib.c",
+        ":libxml_configure",
     ],
     hdrs = glob(
         [

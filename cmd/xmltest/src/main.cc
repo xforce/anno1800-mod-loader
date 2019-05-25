@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <fstream>
 #include <vector>
+#include <cstring>
 
 int main(int argc, const char **argv)
 {
