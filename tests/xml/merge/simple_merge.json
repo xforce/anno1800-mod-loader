@@ -1,0 +1,7 @@
+{
+    "name": "Simple merge",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[@Attr='Meow']"
+    ]
+}

@@ -1,0 +1,19 @@
+{
+    "name": "Add With GUID Helper",
+    "expected": [
+        "/AssetList",
+        "/AssetList/Groups",
+        "/AssetList/Groups/Group",
+        "/AssetList/Groups/Group/Groups",
+        "/AssetList/Groups/Group/Groups/Group",
+        "/AssetList/Groups/Group/Groups/Group/Groups",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset/Values",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset/Values/Standard",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset/Values/Shipyard",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset/Values/Shipyard/AssemblyOptions",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset/Values/Shipyard/AssemblyOptions/Item[Vehicle='Meow']"
+    ]
+}

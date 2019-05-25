@@ -1,0 +1,7 @@
+<ModOps>
+    <ModOp Type="add" Path="/Test/Node">
+        <Cat>
+            <Fur />
+        </Cat>
+    </ModOp>
+</ModOps>

@@ -35,6 +35,15 @@ cc_library(
 )
 
 cc_library(
+    name = "Catch2",
+    hdrs = glob(["Catch2/single_include/**/*.h"]),
+    includes = [
+        "Catch2/single_include",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "json",
     hdrs = glob(["json/single_include/json.hpp"]),
     includes = [

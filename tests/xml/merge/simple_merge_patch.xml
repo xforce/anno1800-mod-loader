@@ -1,0 +1,5 @@
+<ModOps>
+<ModOp Type="merge" Path="/Test/Node">
+    <Node Attr="Meow"></Node>
+</ModOp>
+</ModOps>

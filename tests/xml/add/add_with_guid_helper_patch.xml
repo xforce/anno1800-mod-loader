@@ -1,0 +1,5 @@
+<ModOps>
+    <ModOp Type="add" GUID="1010521" Path="/Values/Shipyard/AssemblyOptions">
+        <Item><Vehicle>Meow</Vehicle></Item>
+    </ModOp>
+</ModOps>
