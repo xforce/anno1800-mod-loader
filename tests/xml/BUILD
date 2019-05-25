@@ -25,11 +25,11 @@ run_binary(
         "gen_tests.py",
     ],
     outs = [
-        "tests2.inc.hpp",
+        "tests.cc",
     ],
     args = [
         "$(location gen_tests.py)",
-        "$(location tests2.inc.hpp)",
+        "$(location tests.cc)",
     ],
     tool = ":meow",
 )

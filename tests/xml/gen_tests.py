@@ -8,6 +8,7 @@ from functools import partial
 def main():
     # Gather tests
     with open(sys.argv[1], 'w+') as f:
+        f.write("#include \"runner.h\"\n")
         tests_directory = os.path.dirname(os.path.abspath(__file__))
         for test_type in os.listdir(tests_directory):
             test_type_dir = os.path.join(tests_directory, test_type)
