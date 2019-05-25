@@ -16,7 +16,7 @@ steps:
 - script: 'bazel build //... -c opt 2>&1'
   displayName: Build
 
-- script: 'start bazel-bin/tests/xml/xml-tests'
+- script: '.\bazel-bin\tests\xml\xml-tests'
   displayName: 'Run Tests'
 
 - task: CopyFiles@2
