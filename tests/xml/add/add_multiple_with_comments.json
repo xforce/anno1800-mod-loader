@@ -1,0 +1,9 @@
+{
+    "name": "Add Multiple Nodes with comments",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[NodeToChange='x']",
+        "/Test/Node[NodeToChange='xx']",
+        "/Test/Node[NodeToChange='xxx']"
+    ]
+}

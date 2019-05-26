@@ -1,0 +1,10 @@
+<ModOps>
+<ModOp Type="add" Path="/Test/Node">
+     <!--comment-->
+     <NodeToChange>x</NodeToChange>
+     <!--comment-->
+     <NodeToChange>xx</NodeToChange>
+     <!--comment-->
+     <NodeToChange>xxx</NodeToChange>
+</ModOp>
+</ModOps>
