@@ -1,0 +1,8 @@
+{
+    "name": "Replace with childs",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node",
+        "/Test/Node/Meow[Cat='10']"
+    ]
+}

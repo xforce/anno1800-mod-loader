@@ -1,0 +1,5 @@
+<ModOps>
+<ModOp Type="replace" Path="/Test/Node/Meow">
+    <Meow><Cat>10</Cat></Meow>
+</ModOp>
+</ModOps>
