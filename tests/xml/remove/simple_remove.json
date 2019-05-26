@@ -1,0 +1,6 @@
+{
+    "name": "Simple remove",
+    "expected": [
+        "!/Test/Node/Meow"
+    ]
+}

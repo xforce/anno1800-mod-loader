@@ -43,8 +43,12 @@ def main():
                     f.write("INFO(runner.DumpXml());")
                     expected_paths = data['expected']
                     for expected_path in expected_paths:
-                        f.write(
-                            "CHECK(runner.PathExists(\"" + expected_path + "\"));")
+                        if expected_path.startswith('!'):
+                            f.write(
+                                "CHECK_FALSE(runner.PathExists(\"" + expected_path[1:] + "\"));")
+                        else:
+                            f.write(
+                                "CHECK(runner.PathExists(\"" + expected_path + "\"));")
                     f.write("}\n\n")
 
 
