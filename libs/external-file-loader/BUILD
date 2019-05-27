@@ -14,6 +14,7 @@ cc_library(
         "//libs/xml-operations",
         "//libs/python35:loader_interface",
         "//third_party:ksignals",
+        "//third_party:spdlog",
         "@libxml",
     ],
 )

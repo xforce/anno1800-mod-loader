@@ -1,0 +1,15 @@
+{
+    "name": "Replace With GUID Helper root path",
+    "expected": [
+        "/AssetList",
+        "/AssetList/Groups",
+        "/AssetList/Groups/Group",
+        "/AssetList/Groups/Group/Groups",
+        "/AssetList/Groups/Group/Groups/Group",
+        "/AssetList/Groups/Group/Groups/Group/Groups",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Item",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Item[Vehicle='Meow']"
+    ]
+}

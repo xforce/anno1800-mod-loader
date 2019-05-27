@@ -9,6 +9,8 @@
 #include "libs/external-file-loader/include/external-file-loader.h"
 
 #include "nlohmann/json.hpp"
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
 
 #include <WinInet.h>
 #include <Windows.h>
@@ -17,8 +19,12 @@
 
 #include <cstdio>
 #include <thread>
+#include <filesystem>
 
-Events events;
+namespace fs = std::filesystem;
+
+// Global events instance
+static Events events;
 
 static std::string GetLatestVersion()
 {
@@ -36,7 +42,7 @@ static std::string GetLatestVersion()
         InternetSetOption(hInternet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
 
         // open HTTP session
-        HINTERNET hConnect = ::InternetConnect(hInternet, "xforce.dev", INTERNET_DEFAULT_HTTPS_PORT,
+        HINTERNET hConnect = ::InternetConnectA(hInternet, "xforce.dev", INTERNET_DEFAULT_HTTPS_PORT,
                                                0, 0, INTERNET_SERVICE_HTTP, 0, 0);
         if (hConnect != nullptr) {
             HINTERNET hRequest = ::HttpOpenRequestA(
@@ -101,11 +107,38 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         case DLL_PROCESS_ATTACH: {
             DisableThreadLibraryCalls(hModule);
 
+        
 #if defined(INTERNAL_ENABLED)
             EnableDebugging(events);
 #endif
             // Version Check
             events.DoHooking.connect([]() {
+                // Let's start loading the list of files we want to have
+                HMODULE module;
+                if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                    | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                    (LPWSTR)& EnableExtenalFileLoading, &module)) {
+                    WCHAR path[0x7FFF] = {}; // Support for long paths, in theory
+                    GetModuleFileNameW(module, path, sizeof(path));
+                    fs::path dll_file(path);
+                    try {
+                        auto logs_directory = fs::canonical(dll_file.parent_path() / ".." / ".." / "logs");
+                        // Set the default logger to file logger
+                        auto file_logger = spdlog::basic_logger_mt("default", (logs_directory / "mod-loader.log").wstring());
+                        spdlog::set_default_logger(file_logger);
+                        spdlog::flush_on(spdlog::level::info);
+                        spdlog::set_pattern("[%Y-%m-%d %T.%e] [%l] %v");
+                    }
+                    catch (const fs::filesystem_error& e) {
+                        // TODO(alexander): Logs
+                        return FALSE;
+                    }
+                }
+                else {
+                    spdlog::error("Failed to get current module directory {}", GetLastError());
+                    return FALSE;
+                }
+
                 static int32_t current_version[3] = {VERSION_MAJOR, VERSION_MINOR,
                                                      VERSION_REVISION};
 

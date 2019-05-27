@@ -1,0 +1,27 @@
+<AssetList>
+  <Groups>
+    <Group>
+      <Groups>
+        <Group>
+          <Groups>
+            <Group>
+              <Assets>
+                <Asset>
+                  <Template>Text</Template>
+                  <Values>
+                    <Standard>
+                      <GUID>1010521</GUID>
+                    </Standard>
+                    <Shipyard>
+                      <AssemblyOptions></AssemblyOptions>
+                    </Shipyard>
+                  </Values>
+                </Asset>
+              </Assets>
+            </Group>
+          </Groups>
+        </Group>
+      </Groups>
+    </Group>
+  </Groups>
+</AssetList>

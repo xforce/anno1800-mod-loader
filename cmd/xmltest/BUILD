@@ -12,5 +12,6 @@ cc_binary(
     }),
     deps = [
         "//libs/xml-operations",
+        "//third_party:spdlog",
     ],
 )

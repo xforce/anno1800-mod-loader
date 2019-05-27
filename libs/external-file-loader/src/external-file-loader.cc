@@ -5,6 +5,8 @@
 #include "anno/random_game_functions.h"
 #include "hooking.h"
 
+#include "spdlog/spdlog.h"
+
 #include <Windows.h>
 
 #include <cstdint>
@@ -21,7 +23,7 @@ uintptr_t* ReadFileFromContainerOIP = nullptr;
 bool __fastcall ReadFileFromContainer(__int64 archive_file_map, const std::wstring& file_path,
                                       char** output_data_pointer, size_t* output_data_size)
 {
-    // archive_file_map is a pointer to a struct identifying which rda this file resides is
+    // archive_file_map is a pointer to a struct identifying which rda this file resides in
     // as each rda is actually just a memory mapped file
     // but we don't care about that at the moment, probably never will
     if (ModManager::instance().IsFileModded(file_path)) {
@@ -86,11 +88,10 @@ void EnableExtenalFileLoading(Events& events)
             mods_directory = fs::canonical(dll_file.parent_path() / ".." / ".." / "mods");
         } catch (const fs::filesystem_error& e) {
             // TODO(alexander): Logs
-            return;
+        return;
         }
     } else {
-        // TODO(alexander): Logs
-        // std::wcout << L"GetModuleHandle Error: " << GetLastError() << std::endl;
+        spdlog::error("Failed to get current module directory {}", GetLastError());
         return;
     }
 
@@ -100,6 +101,9 @@ void EnableExtenalFileLoading(Events& events)
     for (auto&& root : fs::directory_iterator(mods_directory)) {
         if (root.is_directory() && IsModEnabled(root.path())) {
             ModManager::instance().Create(root.path());
+        }
+        else {
+            spdlog::info("Disabled mod {}", root.path().stem().string());
         }
     }
 

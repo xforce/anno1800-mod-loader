@@ -52,4 +52,5 @@ class XmlOperation
         xmlFree(prop);
         return result;
     }
+    void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node);
 };

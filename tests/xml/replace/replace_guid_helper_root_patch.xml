@@ -1,0 +1,5 @@
+<ModOps>
+    <ModOp Type="replace" GUID="1010521" Path="/">
+        <Item><Vehicle>Meow</Vehicle></Item>
+    </ModOp>
+</ModOps>

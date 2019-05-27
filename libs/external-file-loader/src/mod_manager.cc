@@ -3,13 +3,15 @@
 #include "anno/random_game_functions.h"
 #include "xml_operations.h"
 
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+#include "spdlog/spdlog.h"
+#include "libxml/parser.h"
+#include "libxml/tree.h"
 
 #include <Windows.h>
 
 Mod& ModManager::Create(const fs::path& root)
 {
+    spdlog::info("Loading mod {}", root.stem().string());
     auto& mod = this->mods.emplace(root, Mod(root)).first->second;
     return mod;
 }

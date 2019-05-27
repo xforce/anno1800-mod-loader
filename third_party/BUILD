@@ -51,3 +51,16 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
 )
+
+
+cc_library(
+    name = "spdlog",
+    defines = [
+        "SPDLOG_WCHAR_FILENAMES"
+    ],
+    hdrs = glob(["spdlog/include/**/*.h"]),
+    includes = [
+        "spdlog/include",
+    ],
+    visibility = ["//visibility:public"],
+)
