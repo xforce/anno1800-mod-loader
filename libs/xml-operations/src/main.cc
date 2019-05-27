@@ -23,8 +23,10 @@ XmlOperation::XmlOperation(xmlNode *node)
     if (path_ == "/") {
         path_ = "/*";
     }
-    if (path_.ends_with("/")) {
-        path_ = path_.substr(0, path_.length() - 1);
+    if (path_.length() > 0) {
+        if (path_[path_.length() - 1] == '/') {
+            path_ = path_.substr(0, path_.length() - 1);
+        }
     }
     if (type_ != Type::Remove) {
         node_ = node->children;
@@ -44,8 +46,10 @@ XmlOperation::XmlOperation(xmlNode *node, std::string guid)
     if (path_ == "/") {
         path_ = "/*";
     }
-    if (path_.ends_with("/")) {
-        path_ = path_.substr(0, path_.length() - 1);
+    if (path_.length() > 0) {
+        if (path_[path_.length() - 1] == '/') {
+            path_ = path_.substr(0, path_.length() - 1);
+        }
     }
     auto type = GetXmlPropString(node, "Type");
     if (type == "add") {
