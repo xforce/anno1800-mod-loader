@@ -1,0 +1,5 @@
+<ModOps>
+<ModOp Type="addPrevSibling" Path="/Test/Node/Meow[GUID='1']">
+    <Meow><GUID>3</GUID></Meow>
+</ModOp>
+</ModOps>

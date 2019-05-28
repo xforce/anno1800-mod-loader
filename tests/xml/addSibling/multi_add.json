@@ -1,0 +1,11 @@
+{
+    "name": "Add multiple siblings",
+    "expected": [
+        "/Test/Node/Meow[GUID='1']",
+        "/Test/Node/Meow[GUID='2']",
+        "/Test/Node/Meow[GUID='3']",
+        "/Test/Node/Meow[GUID='4']",
+        "/Test/Node/Meow[GUID='1']/following-sibling::Meow[GUID='3']",
+        "/Test/Node/Meow[GUID='3']/following-sibling::Meow[GUID='4']"
+    ]
+}

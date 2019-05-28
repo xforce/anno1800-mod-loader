@@ -10,6 +10,10 @@ XmlOperation::XmlOperation(xmlNode *node)
     auto type = GetXmlPropString(node, "Type");
     if (type == "add") {
         type_ = Type::Add;
+    } if (type == "addSibling") {
+        type_ = Type::AddSibling;
+    } if (type == "addPrevSibling") {
+        type_ = Type::AddPrevSibling;
     } else if (type == "add") {
         type_ = Type::Add;
     } else if (type == "remove") {
@@ -54,20 +58,25 @@ XmlOperation::XmlOperation(xmlNode *node, std::string guid)
     auto type = GetXmlPropString(node, "Type");
     if (type == "add") {
         type_ = Type::Add;
-    } else if (type == "add") {
+    } if (type == "addSibling") {
+        type_ = Type::AddSibling;
+    } if (type == "addPrevSibling") {
+        type_ = Type::AddPrevSibling;
+    }
+    else if (type == "add") {
         type_ = Type::Add;
-    } else if (type == "remove") {
+    }
+    else if (type == "remove") {
         type_ = Type::Remove;
-    } else if (type == "replace") {
+    }
+    else if (type == "replace") {
         type_ = Type::Replace;
-    } else if (type == "merge") {
+    }
+    else if (type == "merge") {
         type_ = Type::Merge;
     }
     if (type_ != Type::Remove) {
         node_ = node->children;
-        while (node_->type != XML_ELEMENT_NODE) {
-            node_ = node_->next;
-        }
     }
 }
 
@@ -95,7 +104,24 @@ void XmlOperation::Apply(xmlDocPtr doc)
             if (GetType() == XmlOperation::Type::Merge) {
                 auto patching_node = GetContentNode();
                 RecursiveMerge(game_node, patching_node);
-            } else if (GetType() == XmlOperation::Type::Add) {
+            } 
+            else if (GetType() == XmlOperation::Type::AddSibling) {
+                auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
+                auto node_to_add = node;
+                while (node_to_add) {
+                    xmlAddSibling(game_node, xmlDocCopyNode(node_to_add, game_node->doc, 1));
+                    node_to_add = node_to_add->next;
+                }
+            }
+            else if (GetType() == XmlOperation::Type::AddPrevSibling) {
+                auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
+                auto node_to_add = node;
+                while (node_to_add) {
+                    xmlAddPrevSibling(game_node, xmlDocCopyNode(node_to_add, game_node->doc, 1));
+                    node_to_add = node_to_add->next;
+                }
+            }
+            else if (GetType() == XmlOperation::Type::Add) {
                 // TODO(alexander): Walking down next here adds nodes to unexpected places
                 auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
                 if (game_node->type == XML_ELEMENT_NODE) {
@@ -150,8 +176,19 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(xmlNode *a_node)
 std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path path)
 {
     auto doc    = xmlReadFile(path.string().c_str(), "UTF-8", 0);
+    if (!doc) {
+        spdlog::error("Failed to parse {}", path.string());
+        return {};
+    }
     auto root   = xmlDocGetRootElement(doc);
+    if (!root) {
+        spdlog::error("Failed to get root element from {}", path.string());
+        return {};
+    }
     auto result = GetXmlOperations(root);
+    // TODO(alexander): we have to do this at some point in the future
+    // but we can't do it here, we have to wait until all the operations
+    // have been applied
     // xmlFree(doc);
     return result;
 }
@@ -159,7 +196,6 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path path)
 void MergeProperties(xmlNode* game_node, xmlNode* patching_node)
 {
     xmlAttr* attribute = patching_node->properties;
-    // xmlCopyPropList(game_node, attribute);
     while (attribute) {
         xmlChar* value = xmlNodeListGetString(patching_node->doc, attribute->children, 1);
         xmlSetProp(game_node, attribute->name, value);

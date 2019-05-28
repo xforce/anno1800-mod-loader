@@ -1,0 +1,9 @@
+{
+    "name": "Simple add prev sibling",
+    "expected": [
+        "/Test/Node/Meow[GUID='1']",
+        "/Test/Node/Meow[GUID='2']",
+        "/Test/Node/Meow[GUID='3']",
+        "/Test/Node/Meow[GUID='3']/following-sibling::Meow[GUID='1']"
+    ]
+}
