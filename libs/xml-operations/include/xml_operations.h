@@ -14,7 +14,7 @@ class XmlOperation
 
     explicit XmlOperation(xmlNode *node);
     XmlOperation(xmlNode *node, std::string guid);
-
+    void ReadPath();
     xmlNode *GetContentNode()
     {
         return node_;
@@ -53,4 +53,6 @@ class XmlOperation
         return result;
     }
     void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node);
+    void ReadPath(xmlNode* node, std::string guid = "");
+    void ReadType(xmlNode *node);
 };

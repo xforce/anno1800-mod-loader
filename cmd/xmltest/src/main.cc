@@ -34,6 +34,7 @@ int main(int argc, const char **argv)
     auto operations = XmlOperation::GetXmlOperationsFromFile(argv[2]);
     auto patch_xml  = xmlReadFile(argv[2], "UTF-8", 0);
 
+    xmlXPathOrderDocElems(game_xml);
     for (auto &&operation : operations) {
         operation.Apply(game_xml);
     }

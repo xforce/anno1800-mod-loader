@@ -7,37 +7,23 @@
 
 XmlOperation::XmlOperation(xmlNode *node)
 {
-    auto type = GetXmlPropString(node, "Type");
-    if (type == "add") {
-        type_ = Type::Add;
-    } if (type == "addSibling") {
-        type_ = Type::AddSibling;
-    } if (type == "addPrevSibling") {
-        type_ = Type::AddPrevSibling;
-    } else if (type == "add") {
-        type_ = Type::Add;
-    } else if (type == "remove") {
-        type_ = Type::Remove;
-    } else if (type == "replace") {
-        type_ = Type::Replace;
-    } else if (type == "merge") {
-        type_ = Type::Merge;
-    }
-    path_ = GetXmlPropString(node, "Path");
-    if (path_ == "/") {
-        path_ = "/*";
-    }
-    if (path_.length() > 0) {
-        if (path_[path_.length() - 1] == '/') {
-            path_ = path_.substr(0, path_.length() - 1);
-        }
-    }
+    ReadType(node);
+    ReadPath(node);
     if (type_ != Type::Remove) {
         node_ = node->children;
     }
 }
 
 XmlOperation::XmlOperation(xmlNode *node, std::string guid)
+{
+    ReadPath(node, guid);
+    ReadType(node);
+    if (type_ != Type::Remove) {
+        node_ = node->children;
+    }
+}
+
+void XmlOperation::ReadPath(xmlNode* node, std::string guid)
 {
     if (!guid.empty()) {
         path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
@@ -55,6 +41,10 @@ XmlOperation::XmlOperation(xmlNode *node, std::string guid)
             path_ = path_.substr(0, path_.length() - 1);
         }
     }
+}
+
+void XmlOperation::ReadType(xmlNode *node)
+{
     auto type = GetXmlPropString(node, "Type");
     if (type == "add") {
         type_ = Type::Add;
@@ -74,9 +64,6 @@ XmlOperation::XmlOperation(xmlNode *node, std::string guid)
     }
     else if (type == "merge") {
         type_ = Type::Merge;
-    }
-    if (type_ != Type::Remove) {
-        node_ = node->children;
     }
 }
 
