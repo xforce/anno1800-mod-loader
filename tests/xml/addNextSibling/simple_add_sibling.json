@@ -1,5 +1,5 @@
 {
-    "name": "Simple add sibling",
+    "name": "Simple add next sibling",
     "expected": [
         "/Test/Node/Meow[GUID='1']",
         "/Test/Node/Meow[GUID='2']",

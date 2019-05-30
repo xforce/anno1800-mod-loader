@@ -131,12 +131,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                     }
                     catch (const fs::filesystem_error& e) {
                         // TODO(alexander): Logs
-                        return FALSE;
+                        return;
                     }
                 }
                 else {
                     spdlog::error("Failed to get current module directory {}", GetLastError());
-                    return FALSE;
+                    return;
                 }
 
                 static int32_t current_version[3] = {VERSION_MAJOR, VERSION_MINOR,

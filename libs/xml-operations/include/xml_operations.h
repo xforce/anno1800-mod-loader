@@ -10,7 +10,7 @@ namespace fs = std::filesystem;
 class XmlOperation
 {
   public:
-    enum Type { Add, AddSibling, AddPrevSibling, Remove, Replace, Merge };
+    enum Type { Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
 
     explicit XmlOperation(xmlNode *node);
     XmlOperation(xmlNode *node, std::string guid);

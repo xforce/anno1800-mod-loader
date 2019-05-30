@@ -48,8 +48,8 @@ void XmlOperation::ReadType(xmlNode *node)
     auto type = GetXmlPropString(node, "Type");
     if (type == "add") {
         type_ = Type::Add;
-    } if (type == "addSibling") {
-        type_ = Type::AddSibling;
+    } if (type == "addNextSibling") {
+        type_ = Type::AddNextSibling;
     } if (type == "addPrevSibling") {
         type_ = Type::AddPrevSibling;
     }
@@ -92,11 +92,11 @@ void XmlOperation::Apply(xmlDocPtr doc)
                 auto patching_node = GetContentNode();
                 RecursiveMerge(game_node, patching_node);
             } 
-            else if (GetType() == XmlOperation::Type::AddSibling) {
+            else if (GetType() == XmlOperation::Type::AddNextSibling) {
                 auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
                 auto node_to_add = node;
                 while (node_to_add) {
-                    xmlAddSibling(game_node, xmlDocCopyNode(node_to_add, game_node->doc, 1));
+                    game_node = xmlAddNextSibling(game_node, xmlDocCopyNode(node_to_add, game_node->doc, 1));
                     node_to_add = node_to_add->next;
                 }
             }
