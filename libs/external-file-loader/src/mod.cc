@@ -10,7 +10,6 @@ Mod::Mod(const fs::path& root)
             try {
                 const auto game_path = fs::relative(fs::canonical(file), fs::canonical(root_path));
                 file_mappings[game_path] = fs::canonical(file);
-                // TODO(alexander): Logging
             } catch (const fs::filesystem_error& error) {
                 // TODO(alexander): Logging
             }
@@ -20,7 +19,6 @@ Mod::Mod(const fs::path& root)
 
 bool Mod::HasFile(const fs::path& file) const
 {
-    // TODO(alexander): Do we need a mutex here?
     return file_mappings.count(file) > 0;
 }
 
