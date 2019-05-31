@@ -20,6 +20,8 @@ Currently supported operations inside an XML file:
 - Remove
 - Add
 - Replace
+- AddNextSibling
+- AddPrevSibling
 
 Lookup for all of those is done using XPath, this makes it easy and possible to only have the changes in a mod that you absolutely need instead of handling megabytes of XML files.
 
