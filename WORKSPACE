@@ -13,13 +13,22 @@ http_archive(
 # abseil-cpp
 http_archive(
     name = "com_google_absl",
-    sha256 = "71d00d15fe6370220b6685552fb66e5814f4dd2e130f3836fc084c894943753f",
-    strip_prefix = "abseil-cpp-7c7754fb3ed9ffb57d35fe8658f3ba4d73a31e72",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/7c7754fb3ed9ffb57d35fe8658f3ba4d73a31e72.zip"],  # 2019-03-14
+    sha256 = "8aec4f1b7381089b4005b284975c6676e46503bd54d024f22ff7d348d7321212",
+    strip_prefix = "abseil-cpp-2f76a9bf50046e396138cc8eeb3cdc17b7a5ac24",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/2f76a9bf50046e396138cc8eeb3cdc17b7a5ac24.zip"],  # 2019-03-14
 )
 
 new_local_repository(
     name = "libxml",
     build_file = "libxml.BUILD",
     path = "./third_party/libxml2",
+)
+
+http_archive(
+    name = "boringssl",
+    strip_prefix = "boringssl-863837047be74b20f59369b5256c39ad00f015b3",
+    sha256 = "55c19c2db2e8b23fc3d19ad707209f992da5b3b6cfbe3812e6aadcee1786669c",
+    urls = [
+        "https://github.com/google/boringssl/archive/863837047be74b20f59369b5256c39ad00f015b3.zip"
+    ],
 )

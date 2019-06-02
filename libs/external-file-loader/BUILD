@@ -15,6 +15,9 @@ cc_library(
         "//libs/python35:loader_interface",
         "//third_party:ksignals",
         "//third_party:spdlog",
+        "//third_party:json",
+        "@boringssl//:crypto",
+        "@com_google_absl//absl/strings",
         "@libxml",
     ],
 )

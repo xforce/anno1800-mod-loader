@@ -74,27 +74,7 @@ static bool IsModEnabled(fs::path path)
 }
 void EnableExtenalFileLoading(Events& events)
 {
-    fs::path mods_directory;
-
-    // Let's start loading the list of files we want to have
-    HMODULE module;
-    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
-                               | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                           (LPWSTR)&EnableExtenalFileLoading, &module)) {
-        WCHAR path[0x7FFF] = {}; // Support for long paths, in theory
-        GetModuleFileNameW(module, path, sizeof(path));
-        fs::path dll_file(path);
-        try {
-            mods_directory = fs::canonical(dll_file.parent_path() / ".." / ".." / "mods");
-        } catch (const fs::filesystem_error& e) {
-            // TODO(alexander): Logs
-        return;
-        }
-    } else {
-        spdlog::error("Failed to get current module directory {}", GetLastError());
-        return;
-    }
-
+    auto mods_directory = ModManager::GetModsDirectory();
     // We have a mods directory
     // Now create a mod for each of these
     std::vector<fs::path> mod_roots;
