@@ -6,7 +6,6 @@
 #include "absl/strings/str_cat.h"
 #include "libxml/parser.h"
 #include "libxml/tree.h"
-#include "nlohmann/json.hpp"
 #include "spdlog/spdlog.h"
 
 // Prevent preprocess errors with boringssl
@@ -18,238 +17,250 @@
 #include <Windows.h>
 
 #include <fstream>
+#include <optional>
 
-constexpr static auto PATCH_OP_VERSION = "1.1";
+constexpr static auto PATCH_OP_VERSION = "1.0";
 
 Mod& ModManager::Create(const fs::path& root)
 {
     spdlog::info("Loading mod {}", root.stem().string());
-    auto& mod = this->mods.emplace(root, Mod(root)).first->second;
+    auto& mod = this->mods.emplace_back(root);
     return mod;
 }
 
-struct CacheLayer {
-    std::string input_hash;
-    std::string patch_hash;
-    std::string output_hash;
-    std::string layer_file;
-
-    std::string CacheFileName() const
-    {
-        if (!patch_hash.empty()) {
-            return patch_hash;
-        }
-        return output_hash;
-    }
-};
-
-void to_json(nlohmann::json& j, const CacheLayer& p)
+void ModManager::CollectPatchableFiles()
 {
-    j = nlohmann::json{{"input_hash", p.input_hash},
-                       {"patch_hash", p.patch_hash},
-                       {"output_hash", p.output_hash},
-                       {"layer_file", p.layer_file}};
+    for (const auto& mod : mods) {
+        mod.ForEachFile([this](const fs::path& game_path, const fs::path& file_path) {
+            if (IsPatchableFile(game_path)) {
+                modded_patchable_files_[game_path].emplace_back(file_path);
+            } else {
+                auto hFile = CreateFileW(file_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                if (hFile != INVALID_HANDLE_VALUE) {
+                    LARGE_INTEGER lFileSize;
+                    GetFileSizeEx(hFile, &lFileSize);
+                    CloseHandle(hFile);
+                    file_cache[game_path] = {
+                        static_cast<size_t>(lFileSize.QuadPart), false, {}, file_path};
+                }
+            }
+        });
+    }
 }
 
-void from_json(const nlohmann::json& j, CacheLayer& p)
+void ModManager::ReadCache()
 {
-    j.at("input_hash").get_to(p.input_hash);
-    j.at("patch_hash").get_to(p.patch_hash);
-    j.at("output_hash").get_to(p.output_hash);
-    j.at("layer_file").get_to(p.layer_file);
+    const auto cache_directory = ModManager::GetCacheDirectory();
+    for (auto&& modded_file : modded_patchable_files_) {
+        auto [game_path, on_disk_files] = modded_file;
+        fs::create_directories(cache_directory / game_path);
+        auto json_path = cache_directory / game_path;
+        json_path += ".json";
+        if (fs::exists(json_path)) {
+            std::ifstream ifs(json_path);
+            try {
+                const auto&              data             = nlohmann::json::parse(ifs);
+                std::vector<std::string> layer_order      = data["layers"]["order"];
+                std::string              patch_op_version = data.at("version").get<std::string>();
+                if (PATCH_OP_VERSION == patch_op_version) {
+                    std::vector<CacheLayer> cache_layers;
+                    for (auto&& layer : layer_order) {
+                        cache_layers.emplace_back(data["layers"].at(layer).get<CacheLayer>());
+                    }
+                    modded_file_cache_info_[game_path] = std::move(cache_layers);
+                }
+            } catch (const nlohmann::json::exception&) {
+            }
+        }
+    }
+}
+
+void ModManager::WriteCacheInfo(const fs::path& game_path)
+{
+    const auto cache_directory = ModManager::GetCacheDirectory();
+
+    auto json_path = cache_directory / game_path;
+    json_path += ".json";
+    std::ofstream            ofs(json_path);
+    nlohmann::json           j;
+    std::vector<std::string> order;
+    for (auto& layer : modded_file_cache_info_[game_path]) {
+        order.push_back(layer.output_hash);
+        j["layers"][layer.output_hash] = layer;
+    }
+    j["layers"]["order"] = order;
+    j["version"]         = PATCH_OP_VERSION;
+    ofs << j;
+    ofs.close();
+
+    // Let's clean up old cache files
+    for (auto file : fs::directory_iterator(cache_directory / game_path)) {
+        const auto file_name = file.path().filename();
+        auto       it        = std::find_if(begin(modded_file_cache_info_[game_path]),
+                               end(modded_file_cache_info_[game_path]),
+                               [file_name](const auto& x) { return file_name == x.layer_file; });
+        //
+        if (it == end(modded_file_cache_info_[game_path])) {
+            fs::remove(file);
+        }
+    }
+}
+
+std::optional<std::string> ModManager::CheckCacheLayer(const fs::path&    game_path,
+                                                       const std::string& input_hash,
+                                                       const std::string& patch_hash)
+{
+    if (input_hash.empty()) {
+        return {};
+    }
+
+    for (auto&& cache : modded_file_cache_info_[game_path]) {
+        if (cache.input_hash == input_hash && cache.patch_hash == patch_hash) {
+            return cache.output_hash;
+        }
+    }
+    return {};
+}
+
+std::string ModManager::ReadCacheLayer(const fs::path& game_path, const std::string& input_hash)
+{
+    const auto cache_directory = ModManager::GetCacheDirectory();
+
+    for (auto&& cache : modded_file_cache_info_[game_path]) {
+        if (cache.output_hash == input_hash) {
+            const auto      cache_file      = cache.layer_file;
+            const auto      cache_file_path = (cache_directory / game_path / cache_file);
+            std::ifstream   file(cache_file_path, std::ios::binary | std::ios::ate);
+            std::streamsize size = file.tellg();
+            file.seekg(0, std::ios::beg);
+            std::string buffer;
+            buffer.resize(size);
+            if (file.read(buffer.data(), size)) {
+                return buffer.data();
+            }
+        }
+    }
+    return "";
+}
+
+std::string ModManager::PushCacheLayer(const fs::path&    game_path,
+                                       const std::string& last_valid_cache,
+                                       const std::string& patch_file_hash, const std::string& buf,
+                                       const std::string& mod_name)
+{
+    CacheLayer layer;
+    layer.input_hash  = last_valid_cache;
+    layer.output_hash = GetDataHash(buf);
+    layer.patch_hash  = patch_file_hash;
+    layer.layer_file  = layer.output_hash;
+    layer.mod_name    = mod_name;
+
+    auto& cache = modded_file_cache_info_[game_path];
+
+    auto it = find_if(begin(cache), end(cache), [&last_valid_cache](const auto& x) {
+        return x.output_hash == last_valid_cache;
+    });
+    if (it == end(cache)) {
+        cache.clear();
+    } else {
+        std::advance(it, 1);
+        cache.erase(it, end(cache));
+    }
+
+    const auto cache_directory = ModManager::GetCacheDirectory();
+
+    fs::create_directories(cache_directory / game_path);
+    std::ofstream myfile;
+    myfile.open((cache_directory / game_path / layer.layer_file));
+    myfile.write(buf.data(), buf.size());
+    myfile.close();
+
+    cache.push_back(layer);
+
+    return layer.output_hash;
 }
 
 void ModManager::GameFilesReady()
 {
-    // Let's start doing run-time patching of the files
-    // FUCKING HYPE
+    sort(begin(mods), end(mods), [](const auto& l, const auto& r) {
+        return stricmp(l.Name().c_str(), r.Name().c_str()) < 0;
+    });
+
     patching_file_thread = std::thread([this]() {
-        // TODO(alexander): refactor this
-        std::unordered_map<fs::path, std::vector<fs::path>> modded_patchable_files;
-        // Let's collect all the files first;
-        for (const auto& mod : mods) {
-            mod.second.ForEachFile([this, &modded_patchable_files](const fs::path& game_path,
-                                                                   const fs::path& file_path) {
-                if (IsPatchableFile(game_path)) {
-                    modded_patchable_files[game_path].emplace_back(file_path);
-                } else {
-                    auto hFile = CreateFileW(file_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
-                                             OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-                    if (hFile != INVALID_HANDLE_VALUE) {
-                        LARGE_INTEGER lFileSize;
-                        GetFileSizeEx(hFile, &lFileSize);
-                        CloseHandle(hFile);
-                        file_cache[game_path] = {
-                            static_cast<size_t>(lFileSize.QuadPart), false, {}, file_path};
-                    }
-                }
-            });
-        }
+        const auto cache_directory = ModManager::GetCacheDirectory();
 
-        std::unordered_map<fs::path, std::vector<CacheLayer>> modded_file_cache_info;
+        CollectPatchableFiles();
+        ReadCache();
 
-        // Read the caching information
-        const auto cache_directory = ModManager::GetModsDirectory() / ".cache";
-        for (auto&& modded_file : modded_patchable_files) {
-            auto [game_path, on_disk_files] = modded_file;
-            fs::create_directories(cache_directory / game_path);
-            auto json_path = cache_directory / game_path;
-            json_path += ".json";
-            if (fs::exists(json_path)) {
-                std::ifstream ifs(json_path);
-                try {
-                    const auto&              data        = nlohmann::json::parse(ifs);
-                    std::vector<std::string> layer_order = data["layers"]["order"];
-                    std::string patch_op_version         = data.at("version").get<std::string>();
-                    if (PATCH_OP_VERSION == patch_op_version) {
-                        std::vector<CacheLayer> cache_layers;
-                        for (auto&& layer : layer_order) {
-                            cache_layers.emplace_back(data["layers"].at(layer).get<CacheLayer>());
-                        }
-                        modded_file_cache_info[game_path] = std::move(cache_layers);
-                    }
-                } catch (const nlohmann::json::exception&) {
-                }
-            }
-        }
-
-        // Now let's patch them, if we can
-        for (auto&& modded_file : modded_patchable_files) {
+        for (auto&& modded_file : modded_patchable_files_) {
             auto&& [game_path, on_disk_files] = modded_file;
 
-            auto game_file = GetGameFile(game_path);
-            auto cache_end = end(modded_file_cache_info[game_path]);
-            // Prepare first cache layer
+            auto game_file = ReadGameFile(game_path);
+            if (game_file.empty()) {
+                spdlog::error("Failed to get original game file {}", game_path.string());
+                continue;
+            }
+            xmlDocPtr game_xml           = nullptr;
+            game_file                    = "<MEOW_XML_SUCKS>" + game_file + "</MEOW_XML_SUCKS>";
+            auto        game_file_hash   = GetDataHash(game_file);
+            std::string last_valid_cache = "";
+            std::string next_input_hash  = game_file_hash;
 
-            if (!game_file.empty()) {
-                auto cache_it = begin(modded_file_cache_info[game_path]);
-
-                game_file          = "<MEOW_XML_SUCKS>" + game_file + "</MEOW_XML_SUCKS>";
-                auto starting_hash = GetDataHash(game_file);
-
-                // Only read xml once we have a cache miss
-                xmlDocPtr game_xml = nullptr;
-                if (cache_end == cache_it || cache_it->output_hash != starting_hash) {
-                    game_xml = xmlReadMemory(game_file.data(), game_file.size(), "", "UTF-8",
-                                             XML_PARSE_RECOVER);
-                    modded_file_cache_info[game_path].clear();
-                    modded_file_cache_info[game_path].push_back({"", "", starting_hash, ""});
-                    cache_end = end(modded_file_cache_info[game_path]);
-                    cache_it  = begin(modded_file_cache_info[game_path]);
-                }
-                for (auto&& on_disk_file : on_disk_files) {
-                    auto patch_file_hash = GetFileHash(on_disk_file);
-                    auto prev_cache_it   = cache_it;
-                    if (cache_end != cache_it) {
-                        ++cache_it;
-                    }
-                    if (cache_end == cache_it || cache_it->patch_hash != patch_file_hash) {
-
-                        // Read previous cached file if there was any
-                        if (prev_cache_it != cache_end && !game_xml) {
-                            const auto cache_file_path =
-                                (cache_directory / game_path / prev_cache_it->CacheFileName());
-                            std::ifstream   file(cache_file_path, std::ios::binary | std::ios::ate);
-                            std::streamsize size = file.tellg();
-                            file.seekg(0, std::ios::beg);
-                            std::string buffer;
-                            buffer.resize(size);
-                            if (file.read(buffer.data(), size)) {
-                                game_xml = xmlReadMemory(buffer.data(), buffer.size(), "", "UTF-8",
-                                                         XML_PARSE_RECOVER);
-                            }
-                        }
-
-                        // Check if we have a cached file for this...
-                        auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
-                        for (auto&& operation : operations) {
-                            operation.Apply(game_xml);
-                        }
-
-                        xmlChar* xmlbuff;
-                        int      buffersize;
-                        xmlDocDumpFormatMemory(game_xml, &xmlbuff, &buffersize, 1);
-                        std::string buf = (const char*)(xmlbuff);
-                        buf = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
-                        buf = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
-
-                        fs::create_directories(cache_directory / game_path);
-                        std::ofstream myfile;
-                        myfile.open((cache_directory / game_path / patch_file_hash));
-                        myfile.write(buf.data(), buf.size());
-                        myfile.close();
-                        modded_file_cache_info[game_path].push_back(
-                            {"", patch_file_hash, GetDataHash(buf), patch_file_hash});
-                        cache_end = end(modded_file_cache_info[game_path]);
-                        cache_it  = begin(modded_file_cache_info[game_path]);
-                    }
-                }
-                // Everything was a cache hit
-                if (!game_xml) {
-                    // We check for at least 2 cache layers here
-                    // as the game input is the first cache layer
-                    if (cache_end != cache_it && modded_file_cache_info[game_path].size() > 1) {
-                        //
-                        auto cache_file_name =
-                            modded_file_cache_info[game_path]
-                                                  [modded_file_cache_info[game_path].size() - 1]
-                                                      .CacheFileName();
-                        std::ifstream   file((cache_directory / game_path / cache_file_name),
-                                           std::ios::binary | std::ios::ate);
-                        std::streamsize size = file.tellg();
-                        file.seekg(0, std::ios::beg);
-                        std::string buffer;
-                        buffer.resize(size);
-                        if (file.read(buffer.data(), size)) {
-                            file_cache[game_path] = {buffer.size(), true, buffer};
-                        }
-                    } else {
-                        game_file = game_file.substr(game_file.find("<MEOW_XML_SUCKS>")
-                                                     + strlen("<MEOW_XML_SUCKS>"));
-                        game_file = game_file.substr(0, game_file.find("</MEOW_XML_SUCKS>"));
-                        file_cache[game_path] = {game_file.size(), true, game_file};
-                    }
-
+            for (auto&& on_disk_file : on_disk_files) {
+                auto       patch_file_hash = GetFileHash(on_disk_file);
+                const auto output_hash =
+                    CheckCacheLayer(game_path, next_input_hash, patch_file_hash);
+                if (output_hash) {
+                    // Cache hit
+                    last_valid_cache = *output_hash;
+                    next_input_hash  = *output_hash;
                 } else {
+                    next_input_hash = "";
+
+                    if (!game_xml) {
+                        std::string cache_data = "";
+                        if (last_valid_cache.empty()) {
+                            cache_data = game_file;
+                        } else {
+                            cache_data = "<MEOW_XML_SUCKS>"
+                                         + ReadCacheLayer(game_path, last_valid_cache)
+                                         + "</MEOW_XML_SUCKS>";
+                        }
+                        game_xml = xmlReadMemory(cache_data.data(), cache_data.size(), "", "UTF-8",
+                                                 XML_PARSE_RECOVER);
+                    }
+
+                    // Cache miss
+                    auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
+                    for (auto&& operation : operations) {
+                        operation.Apply(game_xml);
+                    }
+
                     xmlChar* xmlbuff;
                     int      buffersize;
                     xmlDocDumpFormatMemory(game_xml, &xmlbuff, &buffersize, 1);
                     std::string buf = (const char*)(xmlbuff);
                     buf = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
                     buf = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
+
+                    if (last_valid_cache.empty()) {
+                        last_valid_cache = game_file_hash;
+                    }
+                    last_valid_cache = PushCacheLayer(game_path, last_valid_cache, patch_file_hash,
+                                                      buf, on_disk_file.string());
                     file_cache[game_path] = {buf.size(), true, buf};
                 }
-
-                // Write cache info
-                auto json_path = cache_directory / game_path;
-                json_path += ".json";
-                std::ofstream            ofs(json_path);
-                nlohmann::json           j;
-                std::vector<std::string> order;
-                for (auto& layer : modded_file_cache_info[game_path]) {
-                    order.push_back(layer.output_hash);
-                    j["layers"][layer.output_hash] = layer;
-                }
-                j["layers"]["order"] = order;
-                j["version"]         = PATCH_OP_VERSION;
-                ofs << j;
-                ofs.close();
-
-                for (auto file : fs::directory_iterator(cache_directory / game_path)) {
-                    const auto file_name = file.path().filename();
-                    auto       it        = std::find_if(
-                        begin(modded_file_cache_info[game_path]),
-                        end(modded_file_cache_info[game_path]),
-                        [file_name](const auto& x) { return file_name == x.CacheFileName(); });
-                    //
-                    if (it == end(modded_file_cache_info[game_path])) {
-                        fs::remove(file);
-                    }
-                }
-                // Let's clean up old cache files
-            } else {
-                spdlog::error("Failed to get original game file {}", game_path.string());
             }
+            if (!game_xml) {
+                auto cache_data       = ReadCacheLayer(game_path, last_valid_cache);
+                file_cache[game_path] = {cache_data.size(), true, cache_data};
+            }
+
+            WriteCacheInfo(game_path);
+
+            xmlFree(game_xml);
+            game_xml = nullptr;
         }
     });
 }
@@ -257,7 +268,7 @@ void ModManager::GameFilesReady()
 bool ModManager::IsFileModded(const fs::path& path) const
 {
     for (const auto& mod : mods) {
-        if (mod.second.HasFile(path.lexically_normal())) {
+        if (mod.HasFile(path.lexically_normal())) {
             return true;
         }
     }
@@ -304,6 +315,11 @@ fs::path ModManager::GetModsDirectory()
     return mods_directory;
 }
 
+fs::path ModManager::GetCacheDirectory()
+{
+    return ModManager::GetModsDirectory() / ".cache";
+}
+
 bool ModManager::IsPatchableFile(const fs::path& file) const
 {
     // We can only patch xml files at the moment
@@ -337,7 +353,7 @@ std::string ModManager::GetDataHash(const std::string& data) const
     return result;
 }
 
-std::string ModManager::GetGameFile(fs::path path) const
+std::string ModManager::ReadGameFile(fs::path path) const
 {
     std::string output;
 
@@ -349,7 +365,7 @@ std::string ModManager::GetGameFile(fs::path path) const
         output = {buffer, output_data_size};
 
         // TODO(alexander): Move to anno api
-        auto game_free = (decltype(free)*)(GetProcAddress(
+        static auto game_free = (decltype(free)*)(GetProcAddress(
             GetModuleHandleA("api-ms-win-crt-heap-l1-1-0.dll"), "free"));
         game_free(buffer);
     }

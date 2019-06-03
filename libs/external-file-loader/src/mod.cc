@@ -17,6 +17,11 @@ Mod::Mod(const fs::path& root)
     }
 }
 
+std::string Mod::Name() const
+{
+    return root_path.stem().string();
+}
+
 bool Mod::HasFile(const fs::path& file) const
 {
     return file_mappings.count(file) > 0;
@@ -24,8 +29,8 @@ bool Mod::HasFile(const fs::path& file) const
 
 void Mod::ForEachFile(std::function<void(const fs::path&, const fs::path&)> fn) const
 {
-    std::for_each(std::begin(file_mappings), std::end(file_mappings), [&fn](auto &&it) {
-        auto &&[game_path, file_path] = it;
+    std::for_each(std::begin(file_mappings), std::end(file_mappings), [&fn](auto&& it) {
+        auto&& [game_path, file_path] = it;
         fn(game_path, file_path);
     });
 }

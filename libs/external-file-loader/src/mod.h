@@ -22,8 +22,9 @@ class Mod
   public:
     explicit Mod(const fs::path &root);
 
-    bool HasFile(const fs::path &file) const;
-    void ForEachFile(std::function<void(const fs::path &, const fs::path &)>) const;
+    std::string Name() const;
+    bool        HasFile(const fs::path &file) const;
+    void        ForEachFile(std::function<void(const fs::path &, const fs::path &)>) const;
 
   private:
     fs::path                               root_path;
