@@ -15,11 +15,15 @@
 #include "openssl/sha.h"
 
 #include <Windows.h>
+#undef NTDDI_VERSION
+#define NTDDI_VERSION NTDDI_WIN8
+#include <compressapi.h>
+#pragma comment(lib, "Cabinet.lib")
 
 #include <fstream>
 #include <optional>
 
-constexpr static auto PATCH_OP_VERSION = "1.0";
+constexpr static auto PATCH_OP_VERSION = "1.1";
 
 Mod& ModManager::Create(const fs::path& root)
 {
@@ -137,7 +141,23 @@ std::string ModManager::ReadCacheLayer(const fs::path& game_path, const std::str
             std::string buffer;
             buffer.resize(size);
             if (file.read(buffer.data(), size)) {
-                return buffer.data();
+                DECOMPRESSOR_HANDLE Decompressor = NULL;
+                SIZE_T              DecompressedBufferSize;
+                SIZE_T              DecompressedDataSize;
+                BOOL                Success;
+                Success = CreateDecompressor(COMPRESS_ALGORITHM_XPRESS_HUFF, NULL, &Decompressor);
+                DWORD level = 1;
+                SetDecompressorInformation(Decompressor, COMPRESS_INFORMATION_CLASS_LEVEL, &level,
+                                           sizeof(level));
+                Success = Decompress(Decompressor, buffer.data(), buffer.size(), NULL, 0,
+                                     &DecompressedBufferSize);
+                std::string output;
+                output.resize(DecompressedBufferSize);
+                Success = Decompress(Decompressor, buffer.data(), buffer.size(), output.data(),
+                                     output.size(), &DecompressedDataSize);
+                CloseDecompressor(Decompressor);
+                output.resize(DecompressedDataSize);
+                return output;
             }
         }
     }
@@ -171,10 +191,23 @@ std::string ModManager::PushCacheLayer(const fs::path&    game_path,
     const auto cache_directory = ModManager::GetCacheDirectory();
 
     fs::create_directories(cache_directory / game_path);
-    std::ofstream myfile;
-    myfile.open((cache_directory / game_path / layer.layer_file));
-    myfile.write(buf.data(), buf.size());
-    myfile.close();
+    std::ofstream ofs((cache_directory / game_path / layer.layer_file), std::ofstream::binary);
+
+    COMPRESSOR_HANDLE Compressor = NULL;
+    SIZE_T            CompressedBufferSize;
+    SIZE_T            CompressedDataSize;
+    BOOL              Success;
+    Success     = CreateCompressor(COMPRESS_ALGORITHM_XPRESS_HUFF, NULL, &Compressor);
+    DWORD level = 1;
+    SetCompressorInformation(Compressor, COMPRESS_INFORMATION_CLASS_LEVEL, &level, sizeof(level));
+    Success = Compress(Compressor, buf.data(), buf.size(), NULL, 0, &CompressedBufferSize);
+    std::string CompressedBuffer;
+    CompressedBuffer.resize(CompressedBufferSize);
+    Success = Compress(Compressor, buf.data(), buf.size(), CompressedBuffer.data(),
+                       CompressedBuffer.size(), &CompressedDataSize);
+    CloseCompressor(Compressor);
+    ofs.write(CompressedBuffer.data(), CompressedDataSize);
+    ofs.close();
 
     cache.push_back(layer);
 
