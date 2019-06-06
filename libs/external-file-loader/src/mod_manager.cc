@@ -8,6 +8,11 @@
 #include "libxml/tree.h"
 #include "spdlog/spdlog.h"
 
+#define ZSTD_STATIC_LINKING_ONLY /* ZSTD_compressContinue, ZSTD_compressBlock */
+#include "fse.h"
+#include "zstd.h"
+#include "zstd_errors.h" /* ZSTD_getErrorCode */
+
 // Prevent preprocess errors with boringssl
 #undef X509_NAME
 #undef X509_CERT_PAIR
@@ -15,15 +20,11 @@
 #include "openssl/sha.h"
 
 #include <Windows.h>
-#undef NTDDI_VERSION
-#define NTDDI_VERSION NTDDI_WIN8
-#include <compressapi.h>
-#pragma comment(lib, "Cabinet.lib")
 
 #include <fstream>
 #include <optional>
 
-constexpr static auto PATCH_OP_VERSION = "1.1";
+constexpr static auto PATCH_OP_VERSION = "1.2";
 
 Mod& ModManager::Create(const fs::path& root)
 {
@@ -141,22 +142,12 @@ std::string ModManager::ReadCacheLayer(const fs::path& game_path, const std::str
             std::string buffer;
             buffer.resize(size);
             if (file.read(buffer.data(), size)) {
-                DECOMPRESSOR_HANDLE Decompressor = NULL;
-                SIZE_T              DecompressedBufferSize;
-                SIZE_T              DecompressedDataSize;
-                BOOL                Success;
-                Success = CreateDecompressor(COMPRESS_ALGORITHM_XPRESS_HUFF, NULL, &Decompressor);
-                DWORD level = 1;
-                SetDecompressorInformation(Decompressor, COMPRESS_INFORMATION_CLASS_LEVEL, &level,
-                                           sizeof(level));
-                Success = Decompress(Decompressor, buffer.data(), buffer.size(), NULL, 0,
-                                     &DecompressedBufferSize);
                 std::string output;
-                output.resize(DecompressedBufferSize);
-                Success = Decompress(Decompressor, buffer.data(), buffer.size(), output.data(),
-                                     output.size(), &DecompressedDataSize);
-                CloseDecompressor(Decompressor);
-                output.resize(DecompressedDataSize);
+                size_t      rSize = ZSTD_getFrameContentSize(buffer.data(), buffer.size());
+                output.resize(rSize);
+                size_t dSize =
+                    ZSTD_decompress(output.data(), output.size(), buffer.data(), buffer.size());
+                output.resize(dSize);
                 return output;
             }
         }
@@ -193,20 +184,14 @@ std::string ModManager::PushCacheLayer(const fs::path&    game_path,
     fs::create_directories(cache_directory / game_path);
     std::ofstream ofs((cache_directory / game_path / layer.layer_file), std::ofstream::binary);
 
-    COMPRESSOR_HANDLE Compressor = NULL;
-    SIZE_T            CompressedBufferSize;
-    SIZE_T            CompressedDataSize;
-    BOOL              Success;
-    Success     = CreateCompressor(COMPRESS_ALGORITHM_XPRESS_HUFF, NULL, &Compressor);
-    DWORD level = 1;
-    SetCompressorInformation(Compressor, COMPRESS_INFORMATION_CLASS_LEVEL, &level, sizeof(level));
-    Success = Compress(Compressor, buf.data(), buf.size(), NULL, 0, &CompressedBufferSize);
-    std::string CompressedBuffer;
-    CompressedBuffer.resize(CompressedBufferSize);
-    Success = Compress(Compressor, buf.data(), buf.size(), CompressedBuffer.data(),
-                       CompressedBuffer.size(), &CompressedDataSize);
-    CloseCompressor(Compressor);
-    ofs.write(CompressedBuffer.data(), CompressedDataSize);
+    size_t const cBuffSize = ZSTD_compressBound(buf.size());
+    std::string  CompressedBuffer;
+    CompressedBuffer.resize(cBuffSize);
+    size_t const cSize =
+        ZSTD_compress(CompressedBuffer.data(), CompressedBuffer.size(), buf.data(), buf.size(), 1);
+    CompressedBuffer.resize(cSize);
+
+    ofs.write(CompressedBuffer.data(), CompressedBuffer.size());
     ofs.close();
 
     cache.push_back(layer);
