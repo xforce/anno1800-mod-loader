@@ -5,27 +5,28 @@
 
 #include <cstdio>
 
-XmlOperation::XmlOperation(std::shared_ptr<xmlDoc> doc, xmlNode *node)
+XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node)
 {
     doc_ = doc;
     ReadType(node);
     ReadPath(node);
     if (type_ != Type::Remove) {
-        node_ = node->children;
+        nodes_ = node.children();
     }
 }
 
-XmlOperation::XmlOperation(std::shared_ptr<xmlDoc> doc, xmlNode *node, std::string guid)
+XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
+                           std::string guid)
 {
     doc_ = doc;
     ReadPath(node, guid);
     ReadType(node);
     if (type_ != Type::Remove) {
-        node_ = node->children;
+        nodes_ = node.children();
     }
 }
 
-void XmlOperation::ReadPath(xmlNode *node, std::string guid)
+void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
 {
     if (!guid.empty()) {
         path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
@@ -45,7 +46,7 @@ void XmlOperation::ReadPath(xmlNode *node, std::string guid)
     }
 }
 
-void XmlOperation::ReadType(xmlNode *node)
+void XmlOperation::ReadType(pugi::xml_node node)
 {
     auto type = GetXmlPropString(node, "Type");
     if (type == "add") {
@@ -65,94 +66,68 @@ void XmlOperation::ReadType(xmlNode *node)
     }
 }
 
-void XmlOperation::Apply(xmlDocPtr doc)
+void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 {
-    auto path_expression = xmlXPathCompile(
-        reinterpret_cast<const xmlChar *>((std::string("/MEOW_XML_SUCKS") + GetPath()).c_str()));
-    if (!path_expression) {
-        spdlog::error("Failed to compile Path {}", GetPath());
-        return;
-    }
-    auto xpathCtx = xmlXPathNewContext(doc);
-    if (!xpathCtx) {
-        spdlog::error("Failed to create XPath context");
-        return;
-    }
-    auto xpathObj = xmlXPathCompiledEval(path_expression, xpathCtx);
-    if (!xpathObj) {
-        spdlog::error("Failed to evaluate Path {}", GetPath());
-        return;
-    }
-    if (xpathObj->nodesetval && xpathObj->nodesetval->nodeNr > 0) {
-        for (int i = 0; i < xpathObj->nodesetval->nodeNr; i++) {
-            auto game_node = xpathObj->nodesetval->nodeTab[i];
-            if (GetType() == XmlOperation::Type::Merge) {
-                auto patching_node = GetContentNode();
-                RecursiveMerge(game_node, patching_node);
-            } else if (GetType() == XmlOperation::Type::AddNextSibling) {
-                auto node        = xmlDocCopyNodeList(game_node->doc, GetContentNode());
-                auto node_to_add = node;
-                while (node_to_add) {
-                    game_node   = xmlAddNextSibling(game_node,
-                                                  xmlDocCopyNode(node_to_add, game_node->doc, 1));
-                    node_to_add = node_to_add->next;
-                }
-            } else if (GetType() == XmlOperation::Type::AddPrevSibling) {
-                auto node        = xmlDocCopyNodeList(game_node->doc, GetContentNode());
-                auto node_to_add = node;
-                while (node_to_add) {
-                    xmlAddPrevSibling(game_node, xmlDocCopyNode(node_to_add, game_node->doc, 1));
-                    node_to_add = node_to_add->next;
-                }
-            } else if (GetType() == XmlOperation::Type::Add) {
-                // TODO(alexander): Walking down next here adds nodes to unexpected places
-                auto node = xmlDocCopyNodeList(game_node->doc, GetContentNode());
-                if (game_node->type == XML_ELEMENT_NODE) {
-                    xmlAddChildList(game_node, node);
-                }
-                game_node = nullptr;
-            } else if (GetType() == XmlOperation::Type::Remove) {
-                xmlUnlinkNode(game_node);
-                game_node = game_node->next;
-            } else if (GetType() == XmlOperation::Type::Replace) {
-                auto node        = xmlDocCopyNodeList(game_node->doc, GetContentNode());
-                auto node_to_add = node;
-                while (node_to_add) {
-                    xmlAddPrevSibling(game_node, xmlDocCopyNode(node_to_add, game_node->doc, 1));
-                    node_to_add = node_to_add->next;
-                }
-                xmlUnlinkNode(game_node);
-            }
-        }
-    } else {
-        // TODO(alexander): Diagnostics
+    pugi::xpath_node_set results =
+        doc->select_nodes((std::string("/MEOW_XML_SUCKS") + GetPath()).c_str());
+    if (results.empty()) {
         spdlog::warn("No matching node for Path {}", GetPath());
+        return;
+    }
+    for (pugi::xpath_node xnode : results) {
+        pugi::xml_node game_node = xnode.node();
+        if (GetType() == XmlOperation::Type::Merge) {
+            auto content_node = GetContentNode();
+            if (content_node.begin() == content_node.end()) {
+                //
+                continue;
+            }
+            pugi::xml_node patching_node = *content_node.begin();
+            RecursiveMerge(game_node, patching_node);
+        } else if (GetType() == XmlOperation::Type::AddNextSibling) {
+            for (auto &&node : GetContentNode()) {
+                game_node.parent().insert_copy_after(node, game_node);
+            }
+        } else if (GetType() == XmlOperation::Type::AddPrevSibling) {
+            for (auto &&node : GetContentNode()) {
+                game_node.parent().insert_copy_before(node, game_node);
+            }
+        } else if (GetType() == XmlOperation::Type::Add) {
+            for (auto &node : GetContentNode()) {
+                game_node.append_copy(node);
+            }
+        } else if (GetType() == XmlOperation::Type::Remove) {
+            game_node.parent().remove_child(game_node);
+        } else if (GetType() == XmlOperation::Type::Replace) {
+            for (auto &node : GetContentNode()) {
+                game_node.parent().insert_copy_after(node, game_node);
+            }
+            game_node.parent().remove_child(game_node);
+        }
+        //
     }
 }
 
-std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<xmlDoc> doc)
+std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::xml_document> doc)
 {
-    auto root = xmlDocGetRootElement(doc.get());
+    pugi::xml_node root = doc->root();
     if (!root) {
         spdlog::error("Failed to get root element");
         return {};
     }
     std::vector<XmlOperation> mod_operations;
-    if (reinterpret_cast<const char *>(root->name) == std::string("ModOps")) {
-        xmlNode *cur_node      = nullptr;
-        xmlNode *previous_node = nullptr;
-
-        for (cur_node = root->children; cur_node; cur_node = cur_node->next) {
-            if (cur_node->type == XML_ELEMENT_NODE) {
-                if (reinterpret_cast<const char *>(cur_node->name) == std::string("ModOp")) {
-                    const auto guid = GetXmlPropString(cur_node, "GUID");
+    if (root.first_child().name() == std::string("ModOps")) {
+        for (pugi::xml_node node : root.first_child().children()) {
+            if (node.type() == pugi::xml_node_type::node_element) {
+                if (node.name() == std::string("ModOp")) {
+                    const auto guid = GetXmlPropString(node, "GUID");
                     if (!guid.empty()) {
                         std::vector<std::string> guids = absl::StrSplit(guid, ',');
                         for (auto g : guids) {
-                            mod_operations.emplace_back(doc, cur_node, g.data());
+                            mod_operations.emplace_back(doc, node, g.data());
                         }
                     } else {
-                        mod_operations.emplace_back(doc, cur_node);
+                        mod_operations.emplace_back(doc, node);
                     }
                 }
             }
@@ -163,81 +138,81 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<xmlDoc>
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path path)
 {
-    std::shared_ptr<xmlDoc> doc{xmlReadFile(path.string().c_str(), "UTF-8", 0),
-                                [](auto doc) { xmlFree(doc); }};
-    if (!doc) {
-        spdlog::error("Failed to parse {}", path.string());
-        return {};
-    }
+    std::shared_ptr<pugi::xml_document> doc = std::make_shared<pugi::xml_document>();
+    doc->load_file(path.string().c_str());
     return GetXmlOperations(doc);
 }
 
-void MergeProperties(xmlNode *game_node, xmlNode *patching_node)
+void MergeProperties(pugi::xml_node game_node, pugi::xml_node patching_node)
 {
-    xmlAttr *attribute = patching_node->properties;
-    while (attribute) {
-        xmlChar *value = xmlNodeListGetString(patching_node->doc, attribute->children, 1);
-        xmlSetProp(game_node, attribute->name, value);
-        xmlFree(value);
-        attribute = attribute->next;
+    for (pugi::xml_attribute &attr : patching_node.attributes()) {
+        if (auto at = game_node.find_attribute(
+                [attr](auto x) { return std::string(x.name()) == attr.name(); });
+            at) {
+            game_node.remove_attribute(at);
+        }
+        game_node.append_attribute(attr.name()).set_value(attr.value());
     }
 }
 
-static bool HasNonTextNode(xmlNode *node)
+static bool HasNonTextNode(pugi::xml_node node)
 {
     while (node) {
-        if (node->type != XML_TEXT_NODE) {
+        if (node.type() != pugi::xml_node_type::node_pcdata) {
             return true;
         }
-        node = node->next;
+        node = node.next_sibling();
     }
     return false;
 }
 
-void XmlOperation::RecursiveMerge(xmlNode *game_node, xmlNode *patching_node)
+void XmlOperation::RecursiveMerge(pugi::xml_node game_node, pugi::xml_node patching_node)
 {
     if (!patching_node) {
         return;
     }
-    const auto find_node_with_name = [](auto game_node, auto name) -> xmlNode * {
-        for (auto cur_node = game_node; cur_node; cur_node = cur_node->next) {
-            if (xmlStrcmp(cur_node->name, name) == 0) {
+
+    const auto find_node_with_name = [](pugi::xml_node game_node, auto name) -> pugi::xml_node {
+        auto cur_node = game_node;
+        while (cur_node) {
+            if (cur_node.name() == std::string(name)) {
                 return cur_node;
             }
+            cur_node = cur_node.next_sibling();
         }
-        return nullptr;
+        return {};
     };
 
     if (HasNonTextNode(patching_node)) {
-        while (patching_node && patching_node->type == XML_TEXT_NODE) {
-            patching_node = patching_node->next;
+        while (patching_node && patching_node.type() == pugi::xml_node_type::node_pcdata) {
+            patching_node = patching_node.next_sibling();
         }
     }
 
     if (HasNonTextNode(game_node)) {
-        while (game_node && game_node->type == XML_TEXT_NODE) {
-            game_node = game_node->next;
+        while (game_node && game_node.type() == pugi::xml_node_type::node_pcdata) {
+            game_node = game_node.next_sibling();
         }
     }
 
-    xmlNode *prev_game_node = nullptr;
-    for (auto cur_node = patching_node; cur_node; cur_node = cur_node->next) {
-        if (game_node && game_node->type != XML_TEXT_NODE) {
+    pugi::xml_node prev_game_node;
+    for (auto cur_node = patching_node; cur_node; cur_node = cur_node.next_sibling()) {
+        if (game_node && game_node.type() != pugi::xml_node_type::node_pcdata) {
             prev_game_node = game_node;
         }
-        game_node = find_node_with_name(game_node, cur_node->name);
+        game_node = find_node_with_name(game_node, cur_node.name());
         MergeProperties(game_node, cur_node);
         if (game_node) {
-            if (game_node->type == XML_TEXT_NODE) {
-                xmlNodeSetContent(game_node, cur_node->content);
+            if (game_node.type() == pugi::xml_node_type::node_pcdata) {
+                game_node.set_value(cur_node.value());
             } else {
-                RecursiveMerge(game_node->children, cur_node->children);
+                RecursiveMerge(game_node.first_child(), cur_node.first_child());
             }
         } else {
             if (cur_node && prev_game_node) {
                 while (prev_game_node) {
-                    RecursiveMerge(prev_game_node->children, cur_node);
-                    prev_game_node = prev_game_node->next;
+                    RecursiveMerge(prev_game_node.first_child(), cur_node);
+                    prev_game_node = prev_game_node.next_sibling();
                 }
             }
         }

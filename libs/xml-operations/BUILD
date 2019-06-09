@@ -15,5 +15,6 @@ cc_library(
         "//third_party:spdlog",
         "@com_google_absl//absl/strings",
         "@libxml",
+        "@pugixml",
     ],
 )

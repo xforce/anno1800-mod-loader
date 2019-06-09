@@ -19,6 +19,6 @@ cc_library(
         "@boringssl//:crypto",
         "@com_google_absl//absl/strings",
         "@com_github_facebook_zstd//:libzstd",
-        "@libxml",
+        "@pugixml",
     ],
 )

@@ -19,3 +19,6 @@
 [submodule "third_party/wil"]
 	path = third_party/wil
 	url = https://github.com/microsoft/wil.git
+[submodule "third_party/pugixml"]
+	path = third_party/pugixml
+	url = https://github.com/zeux/pugixml.git

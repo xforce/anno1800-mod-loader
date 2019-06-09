@@ -1,16 +1,17 @@
+#include "xml_operations.h"
 
 #include "libxml/parser.h"
 #include "libxml/parserInternals.h"
 #include "libxml/tree.h"
 #include "libxml/xmlreader.h"
 #include "libxml/xpath.h"
-
-#include "xml_operations.h"
+#include "pugixml.hpp"
 
 #include <cstdio>
-#include <fstream>
-#include <vector>
 #include <cstring>
+#include <fstream>
+#include <sstream>
+#include <vector>
 
 int main(int argc, const char **argv)
 {
@@ -23,25 +24,24 @@ int main(int argc, const char **argv)
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    std::string buffer;
-    xmlDocPtr   game_xml;
+    std::string                         buffer;
+    std::shared_ptr<pugi::xml_document> doc = std::make_shared<pugi::xml_document>();
     buffer.resize(size);
     if (file.read(buffer.data(), size)) {
-        buffer   = "<MEOW_XML_SUCKS>" + buffer + "</MEOW_XML_SUCKS>";
-        game_xml = xmlReadMemory(buffer.data(), buffer.size(), "", "UTF-8", XML_PARSE_RECOVER);
+        buffer = "<MEOW_XML_SUCKS>" + buffer + "</MEOW_XML_SUCKS>";
+        doc->load_buffer(buffer.data(), buffer.size());
     }
+
+    // Flatten shit
+    // Collect all groups in structure that makes sense
 
     auto operations = XmlOperation::GetXmlOperationsFromFile(argv[2]);
-    auto patch_xml  = xmlReadFile(argv[2], "UTF-8", 0);
-
-    xmlXPathOrderDocElems(game_xml);
     for (auto &&operation : operations) {
-        operation.Apply(game_xml);
+        operation.Apply(doc);
     }
 
-    xmlChar *xmlbuff;
-    int      buffersize;
-    xmlDocDumpFormatMemory(game_xml, &xmlbuff, &buffersize, 1);
+    std::stringstream ss;
+    doc->print(ss);
     FILE *fp;
     fp = fopen("patched.xml", "w+");
     if (!fp) {
@@ -49,7 +49,7 @@ int main(int argc, const char **argv)
 
         return 0;
     }
-    std::string buf = (const char *)(xmlbuff);
+    std::string buf = ss.str();
     buf             = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
     buf             = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
     fwrite(buf.data(), 1, buf.size(), fp);

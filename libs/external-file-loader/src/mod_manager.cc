@@ -23,6 +23,7 @@
 
 #include <fstream>
 #include <optional>
+#include <sstream>
 
 constexpr static auto PATCH_OP_VERSION = "1.2";
 
@@ -352,7 +353,7 @@ void ModManager::GameFilesReady()
                 spdlog::error("Failed to get original game file {}", game_path.string());
                 continue;
             }
-            xmlDocPtr game_xml           = nullptr;
+            std::shared_ptr<pugi::xml_document> game_xml = nullptr;
             game_file                    = "<MEOW_XML_SUCKS>" + game_file + "</MEOW_XML_SUCKS>";
             auto        game_file_hash   = GetDataHash(game_file);
             std::string last_valid_cache = "";
@@ -378,8 +379,8 @@ void ModManager::GameFilesReady()
                                          + ReadCacheLayer(game_path, last_valid_cache)
                                          + "</MEOW_XML_SUCKS>";
                         }
-                        game_xml = xmlReadMemory(cache_data.data(), cache_data.size(), "", "UTF-8",
-                                                 XML_PARSE_RECOVER);
+                        game_xml = std::make_shared<pugi::xml_document>();
+                        game_xml->load_buffer(cache_data.data(), cache_data.size());
                     }
 
                     // Cache miss
@@ -388,10 +389,9 @@ void ModManager::GameFilesReady()
                         operation.Apply(game_xml);
                     }
 
-                    xmlChar* xmlbuff;
-                    int      buffersize;
-                    xmlDocDumpFormatMemory(game_xml, &xmlbuff, &buffersize, 1);
-                    std::string buf = (const char*)(xmlbuff);
+                    std::stringstream ss;
+                    game_xml->print(ss);
+                    std::string buf = ss.str();
                     buf = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
                     buf = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
 
@@ -410,7 +410,6 @@ void ModManager::GameFilesReady()
 
             WriteCacheInfo(game_path);
 
-            xmlFree(game_xml);
             game_xml = nullptr;
         }
 

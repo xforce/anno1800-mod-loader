@@ -3,6 +3,7 @@
 #include "libxml/tree.h"
 #include "libxml/xmlreader.h"
 #include "libxml/xpath.h"
+#include "pugixml.hpp"
 
 #include "xml_operations.h"
 
@@ -11,18 +12,21 @@
 #include <vector>
 #include <string_view>
 #include <cstring>
+#include <sstream>
+#include <memory>
 
 class TestRunner
 {
 public:
     TestRunner(std::string_view input, std::string_view patch) {
         {
-            patch_doc_ = xmlReadMemory(patch.data(), patch.size(), "", "UTF-8", XML_PARSE_RECOVER);
-            auto root   = xmlDocGetRootElement(patch_doc_);
-            xml_operations_ = XmlOperation::GetXmlOperations(root);
+            patch_doc_ = std::make_shared<pugi::xml_document>();
+            patch_doc_->load_buffer(patch.data(), patch.size());
+            xml_operations_ = XmlOperation::GetXmlOperations(patch_doc_);
         }
         {
-            input_doc_ = xmlReadMemory(input.data(), input.size(), "", "UTF-8", XML_PARSE_RECOVER);
+            input_doc_ = std::make_shared<pugi::xml_document>();
+            input_doc_->load_buffer(input.data(), input.size());
         }
     }
 
@@ -37,37 +41,27 @@ public:
     }
 
     bool PathExists(std::string_view path) {
-        auto path_expression = xmlXPathCompile(reinterpret_cast<const xmlChar *>(("/MEOW_XML_SUCKS" + std::string(path.data())).c_str()));
-        auto xpathCtx = xmlXPathNewContext(input_doc_);
-        auto xpathObj = xmlXPathCompiledEval(path_expression, xpathCtx);
+        pugi::xpath_node_set results = input_doc_->select_nodes(("/MEOW_XML_SUCKS" + std::string(path.data())).c_str());
         bool exists = false;
-        if (xpathObj && xpathObj->nodesetval) {
-            exists = xpathObj->nodesetval->nodeNr > 0;
+        if (std::end(results) != std::begin(results)) {
+            exists = true;
         }
-        xmlFree(xpathObj);
-        xmlFree(xpathCtx);
-        xmlFree(path_expression);
         return exists;
     }
 
 
     std::string DumpXml() {
-        xmlChar* xmlbuff;
-        int      buffersize;
-        xmlDocDumpFormatMemory(input_doc_, &xmlbuff, &buffersize, 1);
-        std::string buf = (const char*)(xmlbuff);
+        std::stringstream ss;
+        input_doc_->print(ss);
+        std::string buf = ss.str();
         buf = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
         buf = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
-        xmlFree(xmlbuff);
         return buf;
     }
 
-    ~TestRunner() {
-        xmlFree(patch_doc_);
-        xmlFree(input_doc_);
-    }
+    ~TestRunner() = default;
 private:
     std::vector<XmlOperation> xml_operations_;
-    xmlDocPtr patch_doc_;
-    xmlDocPtr input_doc_;
+    std::shared_ptr<pugi::xml_document> patch_doc_ = nullptr;
+    std::shared_ptr<pugi::xml_document> input_doc_ = nullptr;
 };

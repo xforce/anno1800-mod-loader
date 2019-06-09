@@ -34,6 +34,13 @@ new_local_repository(
     path = "./third_party/libxml2",
 )
 
+new_local_repository(
+    name = "pugixml",
+    build_file = "pugixml.BUILD",
+    path = "./third_party/pugixml",
+)
+
+
 http_archive(
     name = "boringssl",
     strip_prefix = "boringssl-863837047be74b20f59369b5256c39ad00f015b3",

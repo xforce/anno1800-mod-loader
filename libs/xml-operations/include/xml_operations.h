@@ -1,7 +1,7 @@
-#include "libxml/parser.h"
-#include "libxml/xpath.h"
+#include "pugixml.hpp"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -12,12 +12,12 @@ class XmlOperation
   public:
     enum Type { Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
 
-    XmlOperation(std::shared_ptr<xmlDoc> doc, xmlNode *node);
-    XmlOperation(std::shared_ptr<xmlDoc> doc, xmlNode *node, std::string guid);
-    void     ReadPath();
-    xmlNode *GetContentNode()
+    XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node);
+    XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node, std::string guid);
+    void                                            ReadPath();
+    pugi::xml_object_range<pugi::xml_node_iterator> GetContentNode()
     {
-        return node_;
+        return *nodes_;
     }
 
     Type GetType() const
@@ -29,31 +29,28 @@ class XmlOperation
     {
         return path_;
     }
-    void                             Apply(xmlDocPtr doc);
-    static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<xmlDoc> doc);
+    void                             Apply(std::shared_ptr<pugi::xml_document> doc);
+    static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<pugi::xml_document> doc);
     static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path path);
 
   private:
-    Type                    type_;
-    std::string             path_;
-    std::string             guid_;
-    xmlNode *               node_ = nullptr;
-    std::shared_ptr<xmlDoc> doc_;
+    Type                                                           type_;
+    std::string                                                    path_;
+    std::string                                                    guid_;
+    std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes_;
+    std::shared_ptr<pugi::xml_document>                            doc_;
 
-    static inline std::string to_string(xmlChar *str)
+    /*static inline std::string to_string(xmlChar *str)
     {
         int charLength = xmlStrlen(str);
         return std::string{reinterpret_cast<const char *>(str), size_t(charLength)};
-    }
+    }*/
 
-    static std::string GetXmlPropString(xmlNode *node, std::string prop_name)
+    static std::string GetXmlPropString(pugi::xml_node node, std::string prop_name)
     {
-        auto prop   = xmlGetProp(node, (const xmlChar *)prop_name.c_str());
-        auto result = to_string(prop);
-        xmlFree(prop);
-        return result;
+        return node.attribute(prop_name.c_str()).as_string();
     }
-    void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node);
-    void ReadPath(xmlNode *node, std::string guid = "");
-    void ReadType(xmlNode *node);
+    void RecursiveMerge(pugi::xml_node game_node, pugi::xml_node patching_node);
+    void ReadPath(pugi::xml_node node, std::string guid = "");
+    void ReadType(pugi::xml_node node);
 };
