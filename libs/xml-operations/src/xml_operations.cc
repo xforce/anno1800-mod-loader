@@ -86,7 +86,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
             RecursiveMerge(game_node, patching_node);
         } else if (GetType() == XmlOperation::Type::AddNextSibling) {
             for (auto &&node : GetContentNode()) {
-                game_node.parent().insert_copy_after(node, game_node);
+                game_node = game_node.parent().insert_copy_after(node, game_node);
             }
         } else if (GetType() == XmlOperation::Type::AddPrevSibling) {
             for (auto &&node : GetContentNode()) {
