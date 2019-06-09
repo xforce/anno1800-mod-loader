@@ -59,6 +59,11 @@ Other file types can't be 'merged' obviously, so there we just load the version 
 
 # Installation
 
+Short shitty video to show how easy it is to install the loader.
+> Mods have to be installed seperately.
+
+<a href="https://files.guettler.space/98e3009f-1232-4705-b2a0-5936bd7ba477.mp4" target="_blank" title="Watch the video"><img src="https://files.guettler.space/98e3009f-1232-4705-b2a0-5936bd7ba477.jpeg" alt="Watch the video" /></a>
+
 Head over to the releases page and download the loader.zip from the latest release.  
 Unzip the contents to the location where Anno1800.exe is
 

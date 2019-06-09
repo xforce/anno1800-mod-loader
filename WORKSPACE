@@ -18,6 +18,16 @@ http_archive(
     urls = ["https://github.com/abseil/abseil-cpp/archive/2f76a9bf50046e396138cc8eeb3cdc17b7a5ac24.zip"],  # 2019-03-14
 )
 
+http_archive(
+    name = "com_github_facebook_zstd",
+	build_file = "@//:zstd.BUILD",
+    sha256 = "1333b186377b6e86607160b4f5659c86c266b6fb9e7e8b52c7947c3611fc8b5b",
+    strip_prefix = "zstd-83b51e9f886be7c2a4d477b6e7bc6db831791d8d",
+    urls = [
+            "https://github.com/facebook/zstd/archive/83b51e9f886be7c2a4d477b6e7bc6db831791d8d.tar.gz",
+    ]
+)
+
 new_local_repository(
     name = "libxml",
     build_file = "libxml.BUILD",
