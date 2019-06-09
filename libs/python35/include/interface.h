@@ -5,5 +5,6 @@
 #include <ksignals/ksignals.h>
 
 struct Events {
-    ksignals::Event<void()> DoHooking;
+    ksignals::Event<void()>                 DoHooking;
+    ksignals::Event<uintptr_t(std::string)> GetProcAddress;
 };

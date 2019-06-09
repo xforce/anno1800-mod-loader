@@ -2,6 +2,8 @@
 
 #include "nlohmann/json.hpp"
 
+#include <atomic>
+#include <condition_variable>
 #include <filesystem>
 #include <map>
 #include <mutex>
@@ -33,11 +35,17 @@ class ModManager
     const File& GetModdedFileInfo(const fs::path& path) const;
     void        GameFilesReady();
     Mod&        Create(const fs::path& path);
+    void        LoadMods();
+
+    static std::string ReadGameFile(fs::path path);
+
+    static fs::path MapAliasedPath(fs::path path);
 
   private:
-    bool        IsPatchableFile(const fs::path& file) const;
-    std::string ReadGameFile(fs::path path) const;
-    void        CollectPatchableFiles();
+    bool IsPatchableFile(const fs::path& file) const;
+    void CollectPatchableFiles();
+    void StartWatchingFiles();
+    void WaitModsReady() const;
 
     // Cache system stuff
     // This should be moved into it's own class
@@ -63,12 +71,18 @@ class ModManager
     friend void to_json(nlohmann::json& j, const ModManager::CacheLayer& p);
     friend void from_json(const nlohmann::json& j, ModManager::CacheLayer& p);
 
-    std::vector<Mod>                                      mods;
-    mutable std::mutex                                    file_cache_mutex;
-    std::unordered_map<fs::path, File>                    file_cache;
+    std::vector<Mod>                                      mods_;
+    mutable std::mutex                                    file_cache_mutex_;
+    std::unordered_map<fs::path, File>                    file_cache_;
     std::unordered_map<fs::path, std::vector<fs::path>>   modded_patchable_files_;
     std::unordered_map<fs::path, std::vector<CacheLayer>> modded_file_cache_info_;
-    mutable std::thread                                   patching_file_thread;
+    mutable std::thread                                   patching_file_thread_;
+    mutable std::thread                                   watch_file_thread_;
+    mutable std::thread                                   reload_mods_thread_;
+    std::atomic_bool                                      mods_change_wile_reload_ = false;
+    mutable std::condition_variable                       mods_ready_cv_;
+    mutable std::mutex                                    mods_ready_mx_;
+    std::atomic_bool                                      mods_ready_ = false;
 };
 
 inline void to_json(nlohmann::json& j, const ModManager::CacheLayer& p)

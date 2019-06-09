@@ -1,3 +1,5 @@
+#pragma once
+
 #include "hooking.h"
 
 #include <cstdint>
@@ -7,20 +9,20 @@ namespace anno
 {
 
 enum Address {
-    // GetContainerBlockInfo
-    // '13.10575.0.1471' === 140054880
-    // '13.12551.0.1532' === 140054880
     GET_CONTAINER_BLOCK_INFO,
-    // ReadFileFromContainer
-    // '13.10575.0.1471' === 14004F840
-    // '13.12551.0.1532' === 14004F840
     READ_FILE_FROM_CONTAINER,
-    //// GetContainerBlockInfo
-    //// '13.10575.0.1471' === 140054880
-    //// '13.12551.0.1532' === 140054880
-    //// GET_CONTAINER_BLOCK_INFO_JMP,
-    // '13.12551.0.1532' === 144EE8DF8
     SOME_GLOBAL_STRUCTURE_ARCHIVE,
+    // ToolOneDataHelper::ReloadData
+    //
+    TOOL_ONE_DATA_HELPER_RELOAD_DATA,
+
+    FILE_GET_FILE_SIZE,
+
+    READ_GAME_FILE,
+    READ_GAME_FILE_JMP,
+    FILE_READ_ALLOCATE_BUFFER,
+    FILE_READ_ALLOCATE_BUFFER_JMP,
+    SOME_GLOBAL_STRUCT_TOOL_ONE_HELPER_MAYBE,
     SIZE
 };
 
@@ -38,4 +40,11 @@ inline bool __fastcall ReadFileFromContainer(__int64             archive_file_ma
     return ((decltype(ReadFileFromContainer)*)GetAddress(READ_FILE_FROM_CONTAINER))(
         archive_file_map, file_path, output_data_pointer, output_data_size);
 }
+namespace ToolOneDataHelper
+{
+    inline void ReloadData()
+    {
+        return ((decltype(ReloadData)*)GetAddress(TOOL_ONE_DATA_HELPER_RELOAD_DATA))();
+    }
+} // namespace ToolOneDataHelper
 } // namespace anno

@@ -10,6 +10,7 @@
 
 #include "nlohmann/json.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
 
 #include <WinInet.h>
@@ -90,6 +91,17 @@ static std::string GetLatestVersion()
     return data;
 }
 
+HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+                     LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
+                     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
+{
+    if (std::wstring(lpFileName).find(L"assets.xml") != std::wstring::npos) {
+        __debugbreak();
+    }
+    return CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+                       dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+}
+
 FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
 {
     // A call to GetProcAddres indicates that all the copy protection is done
@@ -99,6 +111,20 @@ FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
     // But only do hooking once.
     static std::once_flag flag1;
     std::call_once(flag1, []() { events.DoHooking(); });
+
+    /*  if ((int)lpProcName > 0x1000 && lpProcName == std::string("CreateFileW")) {
+          return (FARPROC)CreateFileW_S;
+      }*/
+
+    if ((uintptr_t)lpProcName > 0x1000) {
+        auto procs = events.GetProcAddress(lpProcName);
+        for (auto& proc : procs) {
+            if (proc > 0) {
+                return (FARPROC)proc;
+            }
+        }
+    }
+
     return GetProcAddress(hModule, lpProcName);
 }
 
@@ -122,14 +148,21 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                     GetModuleFileNameW(module, path, sizeof(path));
                     fs::path dll_file(path);
                     try {
-                        auto logs_directory =
-                            fs::canonical(dll_file.parent_path() / ".." / ".." / "logs");
+                        auto logs_parent    = fs::canonical(dll_file.parent_path() / ".." / "..");
+                        auto logs_directory = logs_parent / "logs";
+
+                        fs::create_directories(logs_directory);
+
                         // Set the default logger to file logger
                         auto file_logger = spdlog::basic_logger_mt(
                             "default", (logs_directory / "mod-loader.log").wstring());
                         spdlog::set_default_logger(file_logger);
+
+                        file_logger->sinks().push_back(
+                            std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+
                         spdlog::flush_on(spdlog::level::info);
-                        spdlog::set_pattern("[%Y-%m-%d %T.%e] [%l] %v");
+                        spdlog::set_pattern("[%Y-%m-%d %T.%e] [%^%l%$] %v");
                     } catch (const fs::filesystem_error& e) {
                         // TODO(alexander): Logs
                         return;

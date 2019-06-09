@@ -12,5 +12,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//libs/hooking",
+         "//third_party:spdlog",
     ],
 )

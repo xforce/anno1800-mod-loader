@@ -28,13 +28,46 @@ constexpr static auto PATCH_OP_VERSION = "1.1";
 Mod& ModManager::Create(const fs::path& root)
 {
     spdlog::info("Loading mod {}", root.stem().string());
-    auto& mod = this->mods.emplace_back(root);
+    auto& mod = this->mods_.emplace_back(root);
     return mod;
+}
+
+static bool IsModEnabled(fs::path path)
+{
+    // If mod folder name starts with '-', we don't enable it.
+    return path.stem().wstring().find(L'-') != 0;
+}
+
+void ModManager::LoadMods()
+{
+    this->mods_.clear();
+    this->file_cache_.clear();
+
+    auto mods_directory = ModManager::GetModsDirectory();
+    if (mods_directory.empty()) {
+        return;
+    }
+
+    // We have a mods directory
+    // Now create a mod for each of these
+    std::vector<fs::path> mod_roots;
+    for (auto&& root : fs::directory_iterator(mods_directory)) {
+        if (root.is_directory()) {
+            if (IsModEnabled(root.path())) {
+                this->Create(root.path());
+            } else {
+                spdlog::info("Disabled mod {}", root.path().stem().string());
+            }
+        }
+    }
+    if (this->mods_.empty()) {
+        spdlog::info("No mods found in {}", mods_directory.string());
+    }
 }
 
 void ModManager::CollectPatchableFiles()
 {
-    for (const auto& mod : mods) {
+    for (const auto& mod : mods_) {
         mod.ForEachFile([this](const fs::path& game_path, const fs::path& file_path) {
             if (IsPatchableFile(game_path)) {
                 modded_patchable_files_[game_path].emplace_back(file_path);
@@ -45,12 +78,112 @@ void ModManager::CollectPatchableFiles()
                     LARGE_INTEGER lFileSize;
                     GetFileSizeEx(hFile, &lFileSize);
                     CloseHandle(hFile);
-                    file_cache[game_path] = {
+                    file_cache_[game_path] = {
                         static_cast<size_t>(lFileSize.QuadPart), false, {}, file_path};
                 }
             }
         });
     }
+}
+
+void ModManager::StartWatchingFiles()
+{
+    //
+    if (this->watch_file_thread_.joinable()) {
+        return;
+    }
+    this->watch_file_thread_ = std::thread([this]() {
+        const auto cache_directory = ModManager::GetModsDirectory();
+        if (cache_directory.empty()) {
+            return;
+        }
+
+        HANDLE hDir = CreateFileW(cache_directory.wstring().c_str(), FILE_LIST_DIRECTORY,
+                                  FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE, NULL,
+                                  OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+
+        while (TRUE) {
+            DWORD                   BytesReturned;
+            DWORD                   bytesRet = 0;
+            FILE_NOTIFY_INFORMATION Buffer[1024];
+            memset(Buffer, 0, sizeof(Buffer));
+
+            ReadDirectoryChangesW(hDir, Buffer, sizeof(Buffer), true,
+                                  FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME
+                                      | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE
+                                      | FILE_NOTIFY_CHANGE_CREATION,
+                                  &bytesRet, NULL, NULL);
+
+            bool  need_recreate_mods = false;
+            BYTE* pBase              = (BYTE*)Buffer;
+
+            for (;;) {
+                FILE_NOTIFY_INFORMATION& info = (FILE_NOTIFY_INFORMATION&)*pBase;
+                std::wstring             filename(info.FileName);
+                if (filename.find(L".cache") == 0) {
+                    if (!info.NextEntryOffset) {
+                        break;
+                    }
+                    continue;
+                }
+                /* switch (info->Action) {
+                     case FILE_ACTION_ADDED:
+                         break;
+                     case FILE_ACTION_MODIFIED:
+                         break;
+                     case FILE_ACTION_REMOVED:
+                         break;
+                     case FILE_ACTION_RENAMED_NEW_NAME:
+                         break;
+                     case FILE_ACTION_RENAMED_OLD_NAME:
+                         break;
+                 }*/
+                need_recreate_mods = true;
+                if (!info.NextEntryOffset) {
+                    break;
+                }
+                pBase += info.NextEntryOffset;
+            }
+
+            if (need_recreate_mods) {
+                if (!this->reload_mods_thread_.joinable()) {
+                    this->reload_mods_thread_ = std::thread([this]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                        {
+                            std::lock_guard<std::mutex> lk(mods_ready_mx_);
+                            mods_ready_.store(false);
+                        }
+
+                        spdlog::info("Reloading mods");
+                        LoadMods();
+                        GameFilesReady();
+                        spdlog::info("Waiting for mods to finish");
+                        WaitModsReady();
+                        spdlog::info("Triggering game reload");
+                        anno::ToolOneDataHelper::ReloadData();
+                        auto tool_one_helper =
+                            *(uint64_t*)GetAddress(anno::SOME_GLOBAL_STRUCT_TOOL_ONE_HELPER_MAYBE);
+                        auto magic_wait_time = *(uint64_t*)(tool_one_helper + 0x160);
+                        magic_wait_time      = magic_wait_time;
+                        *(uint64_t*)(tool_one_helper + 0x160) -=
+                            5000; // Remove stupid 5 second wait for reload
+                        // magic_wait_time
+                        this->reload_mods_thread_.detach();
+                        this->reload_mods_thread_ = {};
+                    });
+                } else {
+                    mods_change_wile_reload_.store(true);
+                }
+            }
+        }
+    });
+}
+
+void ModManager::WaitModsReady() const
+{
+    //
+    std::unique_lock<std::mutex> lk(this->mods_ready_mx_);
+    this->mods_ready_cv_.wait(lk, [this] { return this->mods_ready_.load(); });
 }
 
 void ModManager::ReadCache()
@@ -216,11 +349,11 @@ std::string ModManager::PushCacheLayer(const fs::path&    game_path,
 
 void ModManager::GameFilesReady()
 {
-    sort(begin(mods), end(mods), [](const auto& l, const auto& r) {
+    sort(begin(mods_), end(mods_), [](const auto& l, const auto& r) {
         return stricmp(l.Name().c_str(), r.Name().c_str()) < 0;
     });
 
-    patching_file_thread = std::thread([this]() {
+    patching_file_thread_ = std::thread([this]() {
         const auto cache_directory = ModManager::GetCacheDirectory();
 
         CollectPatchableFiles();
@@ -282,12 +415,12 @@ void ModManager::GameFilesReady()
                     }
                     last_valid_cache = PushCacheLayer(game_path, last_valid_cache, patch_file_hash,
                                                       buf, on_disk_file.string());
-                    file_cache[game_path] = {buf.size(), true, buf};
+                    file_cache_[game_path] = {buf.size(), true, buf};
                 }
             }
             if (!game_xml) {
-                auto cache_data       = ReadCacheLayer(game_path, last_valid_cache);
-                file_cache[game_path] = {cache_data.size(), true, cache_data};
+                auto cache_data        = ReadCacheLayer(game_path, last_valid_cache);
+                file_cache_[game_path] = {cache_data.size(), true, cache_data};
             }
 
             WriteCacheInfo(game_path);
@@ -295,12 +428,22 @@ void ModManager::GameFilesReady()
             xmlFree(game_xml);
             game_xml = nullptr;
         }
+
+        StartWatchingFiles();
+
+        {
+            std::lock_guard<std::mutex> lk(mods_ready_mx_);
+            mods_ready_.store(true);
+        }
+        mods_ready_cv_.notify_all();
     });
+    patching_file_thread_.detach();
+    patching_file_thread_ = {};
 }
 
 bool ModManager::IsFileModded(const fs::path& path) const
 {
-    for (const auto& mod : mods) {
+    for (const auto& mod : mods_) {
         if (mod.HasFile(path.lexically_normal())) {
             return true;
         }
@@ -312,13 +455,11 @@ const ModManager::File& ModManager::GetModdedFileInfo(const fs::path& path) cons
 {
     // If we are currently patching files
     // wait for it to finish
-    if (patching_file_thread.joinable()) {
-        patching_file_thread.join();
-    }
+    WaitModsReady();
     {
-        std::scoped_lock lk{file_cache_mutex};
-        if (file_cache.count(path) > 0) {
-            return file_cache.at(path);
+        std::scoped_lock lk{file_cache_mutex_};
+        if (file_cache_.count(path) > 0) {
+            return file_cache_.at(path);
         }
     }
     // File not in cache, yet?
@@ -336,6 +477,11 @@ fs::path ModManager::GetModsDirectory()
         GetModuleFileNameW(module, path, sizeof(path));
         fs::path dll_file(path);
         try {
+            auto mods_parent = fs::canonical(dll_file.parent_path() / ".." / "..");
+            mods_directory   = mods_parent / "mods";
+            if (!fs::exists(mods_directory)) {
+                fs::create_directories(mods_directory);
+            }
             mods_directory = fs::canonical(dll_file.parent_path() / ".." / ".." / "mods");
         } catch (const fs::filesystem_error& e) {
             spdlog::error("Failed to get current module directory {}", e.what());
@@ -386,7 +532,7 @@ std::string ModManager::GetDataHash(const std::string& data) const
     return result;
 }
 
-std::string ModManager::ReadGameFile(fs::path path) const
+std::string ModManager::ReadGameFile(fs::path path)
 {
     std::string output;
 
@@ -403,4 +549,18 @@ std::string ModManager::ReadGameFile(fs::path path) const
         game_free(buffer);
     }
     return output;
+}
+
+fs::path ModManager::MapAliasedPath(fs::path path)
+{
+    if (path == L"data/config/game/asset/assets.xml") {
+        return L"data/config/export/main/asset/assets.xml";
+    }
+    if (path == L"data/config/game/asset/properties.xml") {
+        return L"data/config/export/main/asset/properties.xml";
+    }
+    if (path == L"data/config/game/asset/templates.xml") {
+        return L"data/config/export/main/asset/templates.xml";
+    }
+    return path;
 }

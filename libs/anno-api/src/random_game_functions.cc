@@ -1,5 +1,7 @@
 #include "anno/random_game_functions.h"
 
+#include "spdlog/spdlog.h"
+
 #include <Windows.h>
 #include <xmmintrin.h>
 
@@ -16,8 +18,8 @@
 namespace anno
 {
 struct AddressInfo {
-    uintptr_t                  address;
     std::function<uintptr_t()> pattern_lookup;
+    uintptr_t                  address = 0;
 };
 
 struct PatternMatch {
@@ -285,40 +287,16 @@ std::vector<PatternMatch> SearchPattern(std::string pattern)
     return _matches;
 }
 
-static AddressInfo ADDRESSES[Address::SIZE] = {
-    {0x145394060,
-     []() {
-         auto matches =
-             SearchPattern("48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 83 79 78 00 44 89 C6");
-         if (matches.empty() || matches.size() > 1) {
-             // TODO(alexander): Notify user
-         }
-         return matches[0].addr();
-     }}, // GET_CONTAINER_BLOCK_INFO
-    {0x14004F840,
-     []() {
-         auto matches =
-             SearchPattern("4C 89 4C 24 20 4C 89 44 24 18 48 89 54 24 10 48 89 4C 24 08 55 53 "
-                           "56 57 48 8D AC 24 C8 FA FF FF");
-         if (matches.empty() || matches.size() > 1) {
-             // TODO(alexander): Notify user
-         }
-         return matches[0].addr();
-     }}, // READ_FILE_FROM_CONTAINER
-    {0x144EE8DF0,
-     []() {
-         auto matches = SearchPattern("75 3B B9 18 00 00 00");
-         if (matches.empty() || matches.size() > 1) {
-             // TODO(alexander): Notify user
-         }
-         auto address = matches[0].addr();
-         address -= 8; // "48 83 3D B1 D9 E6 04 00"
-         address += 3;
-         address += *(uint32_t *)(address);
-         address += 13;
-         return address;
-     }}, // SOME_GLOBAL_STRUCTURE_ARCHIVE
-};       // namespace anno
+inline uintptr_t extract_call(uintptr_t address)
+{
+    //
+    address += 1;
+    address += *(int32_t *)(address);
+    address += 4;
+    return address;
+}
+
+static AddressInfo ADDRESSES[Address::SIZE] = {};
 
 static std::atomic_bool initialized = false;
 static std::mutex       initialization_mutex;
@@ -338,6 +316,93 @@ uintptr_t GetAddress(Address address)
     // Check if we have to do pattern initialization
     if (!initialized) {
         std::scoped_lock lk{initialization_mutex};
+        ADDRESSES[GET_CONTAINER_BLOCK_INFO] = {[]() {
+            auto matches = SearchPattern(
+                "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 83 79 78 00 44 89 C6");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find GetContainerFileInfo");
+            }
+            return matches[0].addr();
+        }}; //
+
+        ADDRESSES[READ_FILE_FROM_CONTAINER] = {[]() {
+            auto matches = SearchPattern("E8 ? ? ? ? 0F B6 D8 48 8D 4D C0");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find ReadFileFromContainer");
+            }
+            return extract_call(matches[0].addr());
+        }};
+
+        ADDRESSES[SOME_GLOBAL_STRUCTURE_ARCHIVE]            = {[]() {
+            auto matches = SearchPattern("75 3B B9 18 00 00 00");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find SomeGlobalStructureArchive");
+            }
+            auto address = matches[0].addr();
+            address -= 8; // "48 83 3D B1 D9 E6 04 00"
+            address += 3;
+            address += *(int32_t *)(address);
+            address += 13;
+            return address;
+        }};
+        ADDRESSES[TOOL_ONE_DATA_HELPER_RELOAD_DATA]         = {[]() {
+            auto matches =
+                SearchPattern("40 55 48 8D 6C 24 ? 48 81 EC ? ? ? ? 48 C7 45 ? ? ? ? ? 48 "
+                              "89 9C 24 ? ? ? ? 48 8D 45 9F");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find TOOL_ONE_DATA_HELPER_RELOAD_DATA");
+            }
+            return matches[0].addr();
+        }};
+        ADDRESSES[FILE_GET_FILE_SIZE]                       = {[]() {
+            auto matches = SearchPattern("E8 ? ? ? ? 0F B6 D8 48 8D 4D B0");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find FILE_GET_FILE_SIZE");
+            }
+            return extract_call(matches[0].addr());
+        }};
+        ADDRESSES[READ_GAME_FILE]                           = {[]() {
+            auto matches =
+                SearchPattern("48 89 5C 24 ? 48 89 6C 24 ? 56 48 83 EC 30 48 8B 81 ? ? ? ?");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find READ_GAME_FILE");
+            }
+            return matches[0].addr();
+        }};
+        ADDRESSES[READ_GAME_FILE_JMP]                       = {[]() {
+            auto matches = SearchPattern("E8 ? ? ? ? 48 83 F8 30");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find READ_GAME_FILE_JMP");
+            }
+            return extract_call(matches[0].addr());
+        }};
+        ADDRESSES[FILE_READ_ALLOCATE_BUFFER]                = {[]() {
+            auto matches = SearchPattern("48 89 5C 24 ? 57 48 83 EC 20 31 FF 48 89 6C 24 ?");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find FILE_READ_ALLOCATE_BUFFER");
+            }
+            return matches[0].addr();
+        }};
+        ADDRESSES[FILE_READ_ALLOCATE_BUFFER_JMP]            = {[]() {
+            auto matches = SearchPattern("E8 ? ? ? ? 48 8B 43 48 48 85 C0");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find FILE_READ_ALLOCATE_BUFFER_JMP");
+            }
+            return extract_call(matches[0].addr());
+        }};
+        ADDRESSES[SOME_GLOBAL_STRUCT_TOOL_ONE_HELPER_MAYBE] = {[]() {
+            //
+            auto matches = SearchPattern("48 8B 0D ? ? ? ? E8 ? ? ? ? 90 48 8D 4D FF");
+            if (matches.empty() || matches.size() > 1) {
+                spdlog::error("Failed to find SOME_GLOBAL_STRUCT_TOOL_ONE_HELPER_MAYBE");
+            }
+            auto address = matches[0].addr();
+            address += 3;
+            address += *(int32_t *)(address);
+            address += 4;
+            return address;
+        }};
+        //
         if (!initialized) {
             for (auto &address : ADDRESSES) {
                 //
@@ -347,27 +412,12 @@ uintptr_t GetAddress(Address address)
                 if (pattern_matched_address) {
                     address.address = pattern_matched_address;
                 } else {
-                    address.address = adjust_address(address.address);
+                    spdlog::error("Failed to find address, please create an issue on GitHub");
                 }
             }
         }
         initialized = true;
     }
-
-    auto add = adjust_address(0x141345750);
-    auto add2 = adjust_address(0x14ED52939);
-    auto add3 = adjust_address(0x144EE9870);
-    auto add4 = adjust_address(0x14110D677);
-    // 0x141110B50
-    // 0x140D47990
-    // ^ // This is not working for some reason, time to find out....
-    // | // 0x140D4660C
-    // 0x140D44DF0
-    // 0x1400204E0
-    // 0x14ED52920 
-    // 0x14ED526BC
-    // 0x140D4505E
-
     return ADDRESSES[address].address;
 }
 void SetAddress(Address address, uint64_t add)

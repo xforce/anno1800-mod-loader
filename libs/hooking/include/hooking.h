@@ -7,15 +7,15 @@
 
 #include "udis86.h"
 
-bool         set_import(const std::string& name, uintptr_t func);
-inline void* AllocateFunctionStub(void* function)
+bool         set_import(const std::string &name, uintptr_t func);
+inline void *AllocateFunctionStub(void *function)
 {
-    char* code              = reinterpret_cast<char*>(malloc(20));
-    *(uint8_t*)code         = 0x48;
-    *(uint8_t*)(code + 1)   = 0xb8;
-    *(uint64_t*)(code + 2)  = (uint64_t)function;
-    *(uint16_t*)(code + 10) = 0xE0FF;
-    *(uint64_t*)(code + 12) = 0xCCCCCCCCCCCCCCCC;
+    char *code               = reinterpret_cast<char *>(malloc(20));
+    *(uint8_t *)code         = 0x48;
+    *(uint8_t *)(code + 1)   = 0xb8;
+    *(uint64_t *)(code + 2)  = (uint64_t)function;
+    *(uint16_t *)(code + 10) = 0xE0FF;
+    *(uint64_t *)(code + 12) = 0xCCCCCCCCCCCCCCCC;
     return code;
 }
 
@@ -27,12 +27,12 @@ inline uint64_t  adjust_address(uint64_t address)
 
 template <typename AddressType> inline void nop(AddressType address, size_t length)
 {
-    DWORD      oldProtect;
-    VirtualProtect((void*)(address), length, PAGE_EXECUTE_READWRITE, &oldProtect);
+    DWORD oldProtect;
+    VirtualProtect((void *)(address), length, PAGE_EXECUTE_READWRITE, &oldProtect);
 
-    memset((void*)(address), 0x90, length);
+    memset((void *)(address), 0x90, length);
 
-    VirtualProtect((void*)(address), length, oldProtect, &oldProtect);
+    VirtualProtect((void *)(address), length, oldProtect, &oldProtect);
 }
 
 template <typename ValueType, typename AddressType>
@@ -40,11 +40,11 @@ inline void put(AddressType address, ValueType value)
 {
     address = adjust_address(address);
     DWORD oldProtect;
-    VirtualProtect((void*)(address), sizeof(value), PAGE_EXECUTE_READWRITE, &oldProtect);
+    VirtualProtect((void *)(address), sizeof(value), PAGE_EXECUTE_READWRITE, &oldProtect);
 
-    memcpy((void*)(address), &value, sizeof(value));
+    memcpy((void *)(address), &value, sizeof(value));
 
-    VirtualProtect((void*)(address), sizeof(value), oldProtect, &oldProtect);
+    VirtualProtect((void *)(address), sizeof(value), oldProtect, &oldProtect);
 }
 
 template <typename AddressType> inline void retn(AddressType address, uint16_t stackSize = 0)
@@ -73,15 +73,15 @@ template <typename T, typename AT> inline void jump_abs(AT address, T func)
     patch.ptr     = (uint64_t)func;
     patch.jmp_rax = 0xE0FF;
     DWORD oldProtect;
-    VirtualProtect((void*)(address), sizeof(PatchCode), PAGE_EXECUTE_READWRITE, &oldProtect);
-    memcpy((void*)address, &patch, sizeof(PatchCode));
-    VirtualProtect((void*)(address), sizeof(PatchCode), oldProtect, &oldProtect);
+    VirtualProtect((void *)(address), sizeof(PatchCode), PAGE_EXECUTE_READWRITE, &oldProtect);
+    memcpy((void *)address, &patch, sizeof(PatchCode));
+    VirtualProtect((void *)(address), sizeof(PatchCode), oldProtect, &oldProtect);
 }
 
 template <typename ValueType, typename AddressType>
-inline uintptr_t* detour_func(AddressType address, ValueType target)
+inline uintptr_t *detour_func(AddressType address, ValueType target)
 {
-    auto* code = reinterpret_cast<char*>(AllocateFunctionStub(target));
+    auto *code = reinterpret_cast<char *>(AllocateFunctionStub(target));
     address    = adjust_address(address);
     ud_t ud;
     ud_init(&ud);
@@ -90,7 +90,7 @@ inline uintptr_t* detour_func(AddressType address, ValueType target)
 
     uint64_t k = address;
     ud_set_pc(&ud, k);
-    ud_set_input_buffer(&ud, reinterpret_cast<uint8_t*>(address), INT64_MAX);
+    ud_set_input_buffer(&ud, reinterpret_cast<uint8_t *>(address), INT64_MAX);
 
     auto opsize = ud_disassemble(&ud);
     while (opsize <= 12) {
@@ -99,39 +99,81 @@ inline uintptr_t* detour_func(AddressType address, ValueType target)
 
     opsize += 12;
 
-    auto orig_code = reinterpret_cast<char*>(malloc(opsize));
+    auto orig_code = reinterpret_cast<char *>(malloc(opsize));
 
     opsize -= 12;
 
-    memcpy(orig_code, (void*)address, opsize);
-    auto code2               = orig_code + opsize;
-    *(uint8_t*)code2         = 0x48;
-    *(uint8_t*)(code2 + 1)   = 0xb8;
-    *(uint64_t*)(code2 + 2)  = (uint64_t)(address + opsize);
-    *(uint16_t*)(code2 + 10) = 0xE0FF;
+    memcpy(orig_code, (void *)address, opsize);
+    auto code2                = orig_code + opsize;
+    *(uint8_t *)code2         = 0x48;
+    *(uint8_t *)(code2 + 1)   = 0xb8;
+    *(uint64_t *)(code2 + 2)  = (uint64_t)(address + opsize);
+    *(uint16_t *)(code2 + 10) = 0xE0FF;
 
     DWORD oldProtect;
-    VirtualProtect((void*)address, 12, PAGE_EXECUTE_READWRITE, &oldProtect);
+    VirtualProtect((void *)address, 12, PAGE_EXECUTE_READWRITE, &oldProtect);
 
-    memcpy((void*)address, code, 12);
+    memcpy((void *)address, code, 12);
 
-    VirtualProtect((void*)address, 12, oldProtect, &oldProtect);
-    VirtualProtect((void*)orig_code, opsize, PAGE_EXECUTE_READWRITE, &oldProtect);
-    return (uintptr_t*)orig_code;
+    VirtualProtect((void *)address, 12, oldProtect, &oldProtect);
+    VirtualProtect((void *)orig_code, opsize, PAGE_EXECUTE_READWRITE, &oldProtect);
+    return (uintptr_t *)orig_code;
 }
 
-template<typename T, typename AT>
-inline void call(AT address, T func)
+template <typename ValueType, typename AddressType>
+uintptr_t *detour_func_rdx(AddressType address, ValueType target)
+{
+    auto *code = reinterpret_cast<char *>(AllocateFunctionStub(target));
+    address    = adjust_address(address);
+    ud_t ud;
+    ud_init(&ud);
+
+    ud_set_mode(&ud, 64);
+
+    uint64_t k = address;
+    ud_set_pc(&ud, k);
+    ud_set_input_buffer(&ud, reinterpret_cast<uint8_t *>(address), INT64_MAX);
+
+    auto opsize = ud_disassemble(&ud);
+    while (opsize <= 12) {
+        opsize += ud_disassemble(&ud);
+    }
+
+    opsize += 12;
+
+    auto orig_code = reinterpret_cast<char *>(malloc(opsize));
+
+    opsize -= 12;
+
+    memcpy(orig_code, (void *)address, opsize);
+    auto code2                = orig_code + opsize;
+    *(uint8_t *)code2         = 0x48;
+    *(uint8_t *)(code2 + 1)   = 0xba;
+    *(uint64_t *)(code2 + 2)  = (uint64_t)(address + opsize);
+    *(uint16_t *)(code2 + 10) = 0xE0FF;
+
+    DWORD oldProtect;
+    VirtualProtect((void *)address, 12, PAGE_EXECUTE_READWRITE, &oldProtect);
+
+    memcpy((void *)address, code, 12);
+
+    VirtualProtect((void *)address, 12, oldProtect, &oldProtect);
+    VirtualProtect((void *)orig_code, opsize, PAGE_EXECUTE_READWRITE, &oldProtect);
+    return (uintptr_t *)orig_code;
+}
+
+template <typename T, typename AT> inline void call(AT address, T func)
 {
     put<uint8_t>(address, 0xE8);
-    put<int32_t>(static_cast<int64_t>((uintptr_t)address + 1), static_cast<int32_t>((intptr_t)func - (intptr_t)address - 5));
+    put<int32_t>(static_cast<int64_t>((uintptr_t)address + 1),
+                 static_cast<int32_t>((intptr_t)func - (intptr_t)address - 5));
 }
 
-template<typename T, typename AT>
-inline void jump(AT address, T func)
+template <typename T, typename AT> inline void jump(AT address, T func)
 {
     put<uint8_t>(address, 0xE9);
-    put<int32_t>(static_cast<int64_t>((uintptr_t)address + 1), static_cast<int32_t>((intptr_t)func - (intptr_t)address - 5));
+    put<int32_t>(static_cast<int64_t>((uintptr_t)address + 1),
+                 static_cast<int32_t>((intptr_t)func - (intptr_t)address - 5));
 }
 
 template <typename R> static R __thiscall func_call(uint64_t addr)
@@ -151,9 +193,9 @@ template <typename R, typename... Args> struct func_call_member_helper {
 template <typename R, class T, typename... Args>
 R func_call_member(uint64_t addr, T _this, Args... args)
 {
-    const func_call_member_helper<R, Args...>* helper =
-        reinterpret_cast<const func_call_member_helper<R, Args...>*>(_this);
-    auto           func_ptr = *(typename std::remove_pointer_t<decltype(helper)>::func_t*)(&addr);
+    const func_call_member_helper<R, Args...> *helper =
+        reinterpret_cast<const func_call_member_helper<R, Args...> *>(_this);
+    auto           func_ptr = *(typename std::remove_pointer_t<decltype(helper)>::func_t *)(&addr);
     return helper->operator()(func_ptr, args...);
 }
 
@@ -172,4 +214,3 @@ func_call(uint64_t addr, T _this, Args... args)
     addr = adjust_address(addr);
     return func_call_member<R, T, Args...>(addr, _this, args...);
 }
-
