@@ -4,8 +4,6 @@
 #include "xml_operations.h"
 
 #include "absl/strings/str_cat.h"
-#include "libxml/parser.h"
-#include "libxml/tree.h"
 #include "spdlog/spdlog.h"
 
 #define ZSTD_STATIC_LINKING_ONLY /* ZSTD_compressContinue, ZSTD_compressBlock */

@@ -29,12 +29,6 @@ http_archive(
 )
 
 new_local_repository(
-    name = "libxml",
-    build_file = "libxml.BUILD",
-    path = "./third_party/libxml2",
-)
-
-new_local_repository(
     name = "pugixml",
     build_file = "pugixml.BUILD",
     path = "./third_party/pugixml",

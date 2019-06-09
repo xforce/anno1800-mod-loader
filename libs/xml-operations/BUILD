@@ -14,7 +14,6 @@ cc_library(
         "//third_party:libudis86",
         "//third_party:spdlog",
         "@com_google_absl//absl/strings",
-        "@libxml",
         "@pugixml",
     ],
 )

@@ -1,8 +1,3 @@
-#include "libxml/parser.h"
-#include "libxml/parserInternals.h"
-#include "libxml/tree.h"
-#include "libxml/xmlreader.h"
-#include "libxml/xpath.h"
 #include "pugixml.hpp"
 
 #include "xml_operations.h"
