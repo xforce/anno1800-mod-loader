@@ -1,19 +1,29 @@
 #include "Python.h"
 
+#include "mod_manager.h"
+
+#include "spdlog/spdlog.h"
+
 #include <string>
 
+static bool     scripts_done = false;
 extern "C" void Py_Initialize_S()
 {
-    // PyImport_AppendInittab("aview", PyInit_aview);
     Py_Initialize();
-    // PyImport_ImportModule("aview");
 }
 
 extern "C" PyObject* PyRun_StringFlags_S(const char* str, int start, PyObject* globals,
                                          PyObject* locals, PyCompilerFlags* flags)
 {
-    std::string meow   = str;
-    auto*       result = PyRun_StringFlags(meow.c_str(), start, globals, locals, flags);
+    auto* result = PyRun_StringFlags(str, start, globals, locals, flags);
+    if (!scripts_done) {
+        scripts_done               = true;
+        const auto& python_scripts = ModManager::instance().GetPythonScripts();
+        for (const auto& str : python_scripts) {
+            spdlog::info("Python: {}", str);
+            PyRun_StringFlags(str.c_str(), start, globals, locals, flags);
+        }
+    }
     return result;
 }
 

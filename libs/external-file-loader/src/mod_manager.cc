@@ -68,6 +68,11 @@ void ModManager::LoadMods()
     }
 }
 
+const std::vector<std::string>& ModManager::GetPythonScripts() const
+{
+    return python_scripts_;
+}
+
 void ModManager::CollectPatchableFiles()
 {
     for (const auto& mod : mods_) {
@@ -75,14 +80,23 @@ void ModManager::CollectPatchableFiles()
             if (IsPatchableFile(game_path)) {
                 modded_patchable_files_[game_path].emplace_back(file_path);
             } else {
-                auto hFile = CreateFileW(file_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
-                                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-                if (hFile != INVALID_HANDLE_VALUE) {
-                    LARGE_INTEGER lFileSize;
-                    GetFileSizeEx(hFile, &lFileSize);
-                    CloseHandle(hFile);
-                    file_cache_[game_path] = {
-                        static_cast<size_t>(lFileSize.QuadPart), false, {}, file_path};
+                if (IsPythonStartScript(file_path)) {
+                    auto        mods_directory = ModManager::GetModsDirectory();
+                    std::string start_script   = "console.startScript('mods\\"
+                                               + fs::relative(file_path, mods_directory).string()
+                                               + "')";
+                    spdlog::info("Loading ptyhon script {}", start_script);
+                    python_scripts_.emplace_back(start_script);
+                } else {
+                    auto hFile = CreateFileW(file_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                                             OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                    if (hFile != INVALID_HANDLE_VALUE) {
+                        LARGE_INTEGER lFileSize;
+                        GetFileSizeEx(hFile, &lFileSize);
+                        CloseHandle(hFile);
+                        file_cache_[game_path] = {
+                            static_cast<size_t>(lFileSize.QuadPart), false, {}, file_path};
+                    }
                 }
             }
         });
@@ -558,7 +572,11 @@ fs::path ModManager::GetCacheDirectory()
 {
     return ModManager::GetModsDirectory() / ".cache";
 }
-
+bool ModManager::IsPythonStartScript(const fs::path& file) const
+{
+    const auto filename = file.filename();
+    return filename == "start_script.py";
+}
 bool ModManager::IsPatchableFile(const fs::path& file) const
 {
     // We can only patch xml files at the moment

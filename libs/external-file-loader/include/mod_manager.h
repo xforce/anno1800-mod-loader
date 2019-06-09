@@ -31,11 +31,12 @@ class ModManager
     static fs::path GetModsDirectory();
     static fs::path GetCacheDirectory();
 
-    bool        IsFileModded(const fs::path& path) const;
-    const File& GetModdedFileInfo(const fs::path& path) const;
-    void        GameFilesReady();
-    Mod&        Create(const fs::path& path);
-    void        LoadMods();
+    bool                            IsFileModded(const fs::path& path) const;
+    const File&                     GetModdedFileInfo(const fs::path& path) const;
+    void                            GameFilesReady();
+    Mod&                            Create(const fs::path& path);
+    void                            LoadMods();
+    const std::vector<std::string>& GetPythonScripts() const;
 
     static std::string ReadGameFile(fs::path path);
 
@@ -43,6 +44,7 @@ class ModManager
 
   private:
     bool IsPatchableFile(const fs::path& file) const;
+    bool IsPythonStartScript(const fs::path& file) const;
     void CollectPatchableFiles();
     void StartWatchingFiles();
     void WaitModsReady() const;
@@ -72,6 +74,7 @@ class ModManager
     friend void from_json(const nlohmann::json& j, ModManager::CacheLayer& p);
 
     std::vector<Mod>                                      mods_;
+    std::vector<std::string>                              python_scripts_;
     mutable std::mutex                                    file_cache_mutex_;
     std::unordered_map<fs::path, File>                    file_cache_;
     std::unordered_map<fs::path, std::vector<fs::path>>   modded_patchable_files_;
