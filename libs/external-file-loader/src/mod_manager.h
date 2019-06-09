@@ -36,6 +36,7 @@ class ModManager
 
   private:
     bool        IsPatchableFile(const fs::path& file) const;
+	bool        IsPythonStartScript(const fs::path& file) const;
     std::string ReadGameFile(fs::path path) const;
     void        CollectPatchableFiles();
 
