@@ -12,9 +12,9 @@ class XmlOperation
   public:
     enum Type { Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
 
-    explicit XmlOperation(xmlNode *node);
-    XmlOperation(xmlNode *node, std::string guid);
-    void ReadPath();
+    XmlOperation(std::shared_ptr<xmlDoc> doc, xmlNode *node);
+    XmlOperation(std::shared_ptr<xmlDoc> doc, xmlNode *node, std::string guid);
+    void     ReadPath();
     xmlNode *GetContentNode()
     {
         return node_;
@@ -30,14 +30,15 @@ class XmlOperation
         return path_;
     }
     void                             Apply(xmlDocPtr doc);
-    static std::vector<XmlOperation> GetXmlOperations(xmlNode *a_node);
+    static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<xmlDoc> doc);
     static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path path);
 
   private:
-    Type        type_;
-    std::string path_;
-    std::string guid_;
-    xmlNode *   node_ = nullptr;
+    Type                    type_;
+    std::string             path_;
+    std::string             guid_;
+    xmlNode *               node_ = nullptr;
+    std::shared_ptr<xmlDoc> doc_;
 
     static inline std::string to_string(xmlChar *str)
     {
@@ -53,6 +54,6 @@ class XmlOperation
         return result;
     }
     void RecursiveMerge(xmlNode *game_node, xmlNode *patching_node);
-    void ReadPath(xmlNode* node, std::string guid = "");
+    void ReadPath(xmlNode *node, std::string guid = "");
     void ReadType(xmlNode *node);
 };

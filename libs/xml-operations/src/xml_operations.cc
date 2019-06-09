@@ -5,8 +5,9 @@
 
 #include <cstdio>
 
-XmlOperation::XmlOperation(xmlNode *node)
+XmlOperation::XmlOperation(std::shared_ptr<xmlDoc> doc, xmlNode *node)
 {
+    doc_ = doc;
     ReadType(node);
     ReadPath(node);
     if (type_ != Type::Remove) {
@@ -14,8 +15,9 @@ XmlOperation::XmlOperation(xmlNode *node)
     }
 }
 
-XmlOperation::XmlOperation(xmlNode *node, std::string guid)
+XmlOperation::XmlOperation(std::shared_ptr<xmlDoc> doc, xmlNode *node, std::string guid)
 {
+    doc_ = doc;
     ReadPath(node, guid);
     ReadType(node);
     if (type_ != Type::Remove) {
@@ -128,24 +130,29 @@ void XmlOperation::Apply(xmlDocPtr doc)
     }
 }
 
-std::vector<XmlOperation> XmlOperation::GetXmlOperations(xmlNode *a_node)
+std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<xmlDoc> doc)
 {
+    auto root = xmlDocGetRootElement(doc.get());
+    if (!root) {
+        spdlog::error("Failed to get root element");
+        return {};
+    }
     std::vector<XmlOperation> mod_operations;
-    if (reinterpret_cast<const char *>(a_node->name) == std::string("ModOps")) {
+    if (reinterpret_cast<const char *>(root->name) == std::string("ModOps")) {
         xmlNode *cur_node      = nullptr;
         xmlNode *previous_node = nullptr;
 
-        for (cur_node = a_node->children; cur_node; cur_node = cur_node->next) {
+        for (cur_node = root->children; cur_node; cur_node = cur_node->next) {
             if (cur_node->type == XML_ELEMENT_NODE) {
                 if (reinterpret_cast<const char *>(cur_node->name) == std::string("ModOp")) {
                     const auto guid = GetXmlPropString(cur_node, "GUID");
                     if (!guid.empty()) {
                         std::vector<std::string> guids = absl::StrSplit(guid, ',');
                         for (auto g : guids) {
-                            mod_operations.emplace_back(cur_node, g.data());
+                            mod_operations.emplace_back(doc, cur_node, g.data());
                         }
                     } else {
-                        mod_operations.emplace_back(cur_node);
+                        mod_operations.emplace_back(doc, cur_node);
                     }
                 }
             }
@@ -156,22 +163,13 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(xmlNode *a_node)
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path path)
 {
-    auto doc = xmlReadFile(path.string().c_str(), "UTF-8", 0);
+    std::shared_ptr<xmlDoc> doc{xmlReadFile(path.string().c_str(), "UTF-8", 0),
+                                [](auto doc) { xmlFree(doc); }};
     if (!doc) {
         spdlog::error("Failed to parse {}", path.string());
         return {};
     }
-    auto root = xmlDocGetRootElement(doc);
-    if (!root) {
-        spdlog::error("Failed to get root element from {}", path.string());
-        return {};
-    }
-    auto result = GetXmlOperations(root);
-    // TODO(alexander): we have to do this at some point in the future
-    // but we can't do it here, we have to wait until all the operations
-    // have been applied
-    // xmlFree(doc);
-    return result;
+    return GetXmlOperations(doc);
 }
 
 void MergeProperties(xmlNode *game_node, xmlNode *patching_node)
