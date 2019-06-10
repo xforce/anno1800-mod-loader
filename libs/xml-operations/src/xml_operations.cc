@@ -36,20 +36,30 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     auto prop_path = GetXmlPropString(node, "Path");
     if (prop_path.find("/") != 0) {
         path_ += "/";
+        speculative_path_ += "/";
     }
     path_ += GetXmlPropString(node, "Path");
+    speculative_path_ += GetXmlPropString(node, "Path");
     if (path_ == "/") {
         path_ = "/*";
+    }
+    if (speculative_path_ == "/") {
+        speculative_path_ = "/*";
     }
     if (path_.length() > 0) {
         if (path_[path_.length() - 1] == '/') {
             path_ = path_.substr(0, path_.length() - 1);
         }
     }
+    if (speculative_path_.length() > 0) {
+        if (speculative_path_[speculative_path_.length() - 1] == '/') {
+            speculative_path_ = speculative_path_.substr(0, speculative_path_.length() - 1);
+        }
+    }
 
     if (path_.find("//Assets[") == 0) {
         auto npath        = path_.substr(strlen("//Assets["));
-        path_             = "/AssetList/Groups/Group/Assets[" + path_;
+        path_             = "/AssetList/Groups/Group/Assets[" + npath;
         speculative_path_ = "/AssetList/Groups/Group[1]/Assets[" + npath;
     } else if (path_.find("//Asset") == 0) {
         auto npath        = path_.substr(strlen("//Asset"));

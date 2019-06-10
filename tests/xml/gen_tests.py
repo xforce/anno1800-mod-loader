@@ -24,7 +24,7 @@ def main():
                         test_type_dir, base_name + "_patch.xml")
                     with open(base_name_input, "r") as in_file:
                         f.write("char input[] = {\n")
-                        content = "<MEOW_XML_SUCKS>" + in_file.read() + "</MEOW_XML_SUCKS>"
+                        content = in_file.read()
                         for c in content:
                             if c != '':
                                 f.write("0x%02X," % ord(c))

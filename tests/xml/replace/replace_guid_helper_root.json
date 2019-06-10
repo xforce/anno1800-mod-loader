@@ -4,12 +4,8 @@
         "/AssetList",
         "/AssetList/Groups",
         "/AssetList/Groups/Group",
-        "/AssetList/Groups/Group/Groups",
-        "/AssetList/Groups/Group/Groups/Group",
-        "/AssetList/Groups/Group/Groups/Group/Groups",
-        "/AssetList/Groups/Group/Groups/Group/Groups/Group",
-        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets",
-        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Item",
-        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Item[Vehicle='Meow']"
+        "/AssetList/Groups/Group/Assets",
+        "/AssetList/Groups/Group/Assets/Item",
+        "/AssetList/Groups/Group/Assets/Item[Vehicle='Meow']"
     ]
 }

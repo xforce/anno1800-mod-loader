@@ -36,7 +36,7 @@ public:
     }
 
     bool PathExists(std::string_view path) {
-        pugi::xpath_node_set results = input_doc_->select_nodes(("/MEOW_XML_SUCKS" + std::string(path.data())).c_str());
+        pugi::xpath_node_set results = input_doc_->select_nodes(path.data());
         bool exists = false;
         if (std::end(results) != std::begin(results)) {
             exists = true;
@@ -49,8 +49,6 @@ public:
         std::stringstream ss;
         input_doc_->print(ss);
         std::string buf = ss.str();
-        buf = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
-        buf = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
         return buf;
     }
 
