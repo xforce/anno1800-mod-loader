@@ -137,6 +137,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 #if defined(INTERNAL_ENABLED)
             EnableDebugging(events);
 #endif
+
+            std::wstring command_line(GetCommandLineW());
+            if (command_line.find(L"gamelauncher_wait_handle") != std::wstring::npos
+                && command_line.find(L"upc_uplay_id") != std::wstring::npos) {
+                return TRUE;
+            }
+
             // Version Check
             events.DoHooking.connect([]() {
                 // Let's start loading the list of files we want to have

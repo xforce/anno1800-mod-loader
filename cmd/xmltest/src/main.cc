@@ -23,7 +23,6 @@ int main(int argc, const char **argv)
     std::shared_ptr<pugi::xml_document> doc = std::make_shared<pugi::xml_document>();
     buffer.resize(size);
     if (file.read(buffer.data(), size)) {
-        buffer = "<MEOW_XML_SUCKS>" + buffer + "</MEOW_XML_SUCKS>";
         doc->load_buffer(buffer.data(), buffer.size());
     }
 
@@ -45,8 +44,6 @@ int main(int argc, const char **argv)
         return 0;
     }
     std::string buf = ss.str();
-    buf             = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
-    buf             = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
     fwrite(buf.data(), 1, buf.size(), fp);
     fclose(fp);
     return 0;

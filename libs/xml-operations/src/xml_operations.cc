@@ -29,7 +29,9 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
 void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
 {
     if (!guid.empty()) {
-        path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
+        path_ = "/AssetList/Groups/Group/Assets/Asset[Values/Standard/GUID='" + guid + "']";
+        speculative_path_ =
+            "/AssetList/Groups/Group[1]/Assets/Asset[Values/Standard/GUID='" + guid + "']";
     }
     auto prop_path = GetXmlPropString(node, "Path");
     if (prop_path.find("/") != 0) {
@@ -43,6 +45,16 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
         if (path_[path_.length() - 1] == '/') {
             path_ = path_.substr(0, path_.length() - 1);
         }
+    }
+
+    if (path_.find("//Assets[") == 0) {
+        auto npath        = path_.substr(strlen("//Assets["));
+        path_             = "/AssetList/Groups/Group/Assets[" + path_;
+        speculative_path_ = "/AssetList/Groups/Group[1]/Assets[" + npath;
+    } else if (path_.find("//Asset") == 0) {
+        auto npath        = path_.substr(strlen("//Asset"));
+        path_             = "/AssetList/Groups/Group/Assets/Asset" + npath;
+        speculative_path_ = "/AssetList/Groups/Group[1]/Assets/Asset" + npath;
     }
 }
 
@@ -68,8 +80,13 @@ void XmlOperation::ReadType(pugi::xml_node node)
 
 void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 {
-    pugi::xpath_node_set results =
-        doc->select_nodes((std::string("/MEOW_XML_SUCKS") + GetPath()).c_str());
+    pugi::xpath_node_set results;
+    if (!speculative_path_.empty()) {
+        results = doc->select_nodes(speculative_path_.c_str());
+    }
+    if (results.empty()) {
+        results = doc->select_nodes(GetPath().c_str());
+    }
     if (results.empty()) {
         spdlog::warn("No matching node for Path {}", GetPath());
         return;

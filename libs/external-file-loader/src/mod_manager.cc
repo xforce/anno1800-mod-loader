@@ -1,5 +1,7 @@
 #include "mod_manager.h"
 
+#include "meow_hash_x64_aesni.h"
+
 #include "anno/random_game_functions.h"
 #include "xml_operations.h"
 
@@ -23,7 +25,7 @@
 #include <optional>
 #include <sstream>
 
-constexpr static auto PATCH_OP_VERSION = "1.2";
+constexpr static auto PATCH_OP_VERSION = "1.7";
 
 Mod& ModManager::Create(const fs::path& root)
 {
@@ -42,6 +44,7 @@ void ModManager::LoadMods()
 {
     this->mods_.clear();
     this->file_cache_.clear();
+    this->modded_patchable_files_.clear();
 
     auto mods_directory = ModManager::GetModsDirectory();
     if (mods_directory.empty()) {
@@ -338,6 +341,8 @@ void ModManager::GameFilesReady()
     });
 
     patching_file_thread_ = std::thread([this]() {
+        spdlog::info("Start applying xml operations");
+
         const auto cache_directory = ModManager::GetCacheDirectory();
 
         CollectPatchableFiles();
@@ -351,11 +356,78 @@ void ModManager::GameFilesReady()
                 spdlog::error("Failed to get original game file {}", game_path.string());
                 continue;
             }
-            std::shared_ptr<pugi::xml_document> game_xml = nullptr;
-            game_file                    = "<MEOW_XML_SUCKS>" + game_file + "</MEOW_XML_SUCKS>";
-            auto        game_file_hash   = GetDataHash(game_file);
-            std::string last_valid_cache = "";
-            std::string next_input_hash  = game_file_hash;
+            std::shared_ptr<pugi::xml_document> game_xml         = nullptr;
+            auto                                game_file_hash   = GetDataHash(game_file);
+            std::string                         last_valid_cache = "";
+            std::string                         next_input_hash  = game_file_hash;
+
+            if (game_path.wstring().find(L"assets.xml") != std::wstring::npos) {
+                const auto output_hash = CheckCacheLayer(game_path, next_input_hash, "cookie3");
+                if (output_hash) {
+                    // Cache hit
+                    last_valid_cache = *output_hash;
+                    next_input_hash  = *output_hash;
+                } else {
+                    game_xml = std::make_shared<pugi::xml_document>();
+                    game_xml->load_buffer(game_file.data(), game_file.size());
+
+                    std::vector<pugi::xml_node> assets;
+                    auto                        nodes = game_xml->select_nodes("//Assets");
+                    for (pugi::xpath_node node : nodes) {
+                        for (pugi::xml_node asset : node.node().children()) {
+                            assets.push_back(asset);
+                        }
+                    }
+
+                    auto new_doc = std::make_shared<pugi::xml_document>();
+                    auto groups  = new_doc->root().append_child("AssetList").append_child("Groups");
+                    auto assets_xml = groups.append_child("Group").append_child("Assets");
+                    for (pugi::xml_node asset : assets) {
+                        auto guid = asset.parent().parent().find_child(
+                            [](pugi::xml_node x) { return x.name() == std::string("GUID"); });
+                        if (!guid) {
+                            assets_xml.append_copy(asset);
+                        } else {
+                            // Check if we have already created this one
+                            std::string guid_str = guid.first_child().value();
+                            auto        group    = new_doc->select_nodes(
+                                ("/AssetList/Groups/Group[GUID='" + guid_str + "']/Assets")
+                                    .c_str());
+                            pugi::xml_node group_xml;
+                            if (std::begin(group) == std::end(group)) {
+                                // No group create new
+                                group_xml = groups.append_child("Group");
+                                group_xml.append_child("GUID")
+                                    .append_child(pugi::xml_node_type::node_pcdata)
+                                    .set_value(guid_str.c_str());
+                                group_xml = group_xml.append_child("Assets");
+                            } else {
+                                group_xml = std::begin(group)->node();
+                            }
+                            group_xml.append_copy(asset);
+                        }
+                    }
+
+                    struct xml_string_writer : pugi::xml_writer {
+                        std::string result;
+
+                        virtual void write(const void* data, size_t size)
+                        {
+                            absl::StrAppend(&result, std::string_view{(const char*)data, size});
+                        }
+                    };
+
+                    xml_string_writer writer;
+                    new_doc->print(writer);
+                    if (last_valid_cache.empty()) {
+                        last_valid_cache = game_file_hash;
+                    }
+                    last_valid_cache = PushCacheLayer(game_path, last_valid_cache, "cookie3",
+                                                      writer.result, "internal");
+                    next_input_hash  = last_valid_cache;
+                    game_xml         = nullptr;
+                }
+            }
 
             for (auto&& on_disk_file : on_disk_files) {
                 auto       patch_file_hash = GetFileHash(on_disk_file);
@@ -373,9 +445,7 @@ void ModManager::GameFilesReady()
                         if (last_valid_cache.empty()) {
                             cache_data = game_file;
                         } else {
-                            cache_data = "<MEOW_XML_SUCKS>"
-                                         + ReadCacheLayer(game_path, last_valid_cache)
-                                         + "</MEOW_XML_SUCKS>";
+                            cache_data = ReadCacheLayer(game_path, last_valid_cache);
                         }
                         game_xml = std::make_shared<pugi::xml_document>();
                         game_xml->load_buffer(cache_data.data(), cache_data.size());
@@ -387,11 +457,18 @@ void ModManager::GameFilesReady()
                         operation.Apply(game_xml);
                     }
 
-                    std::stringstream ss;
-                    game_xml->print(ss);
-                    std::string buf = ss.str();
-                    buf = buf.substr(buf.find("<MEOW_XML_SUCKS>") + strlen("<MEOW_XML_SUCKS>"));
-                    buf = buf.substr(0, buf.find("</MEOW_XML_SUCKS>"));
+                    struct xml_string_writer : pugi::xml_writer {
+                        std::string result;
+
+                        virtual void write(const void* data, size_t size)
+                        {
+                            absl::StrAppend(&result, std::string_view{(const char*)data, size});
+                        }
+                    };
+
+                    xml_string_writer writer;
+                    game_xml->print(writer);
+                    std::string& buf = writer.result;
 
                     if (last_valid_cache.empty()) {
                         last_valid_cache = game_file_hash;
@@ -417,6 +494,7 @@ void ModManager::GameFilesReady()
             std::lock_guard<std::mutex> lk(mods_ready_mx_);
             mods_ready_.store(true);
         }
+        spdlog::info("Finished applying xml operations");
         mods_ready_cv_.notify_all();
     });
     patching_file_thread_.detach();
@@ -505,13 +583,26 @@ std::string ModManager::GetFileHash(const fs::path& path) const
 
 std::string ModManager::GetDataHash(const std::string& data) const
 {
-    uint8_t digest[SHA256_DIGEST_LENGTH];
-    SHA256(reinterpret_cast<const uint8_t*>(data.data()), data.size(), digest);
-    std::string result;
-    for (auto& n : digest) {
-        absl::StrAppend(&result, absl::Hex(n, absl::kZeroPad2));
+    int regs[4];
+    __cpuid(regs, 1);
+    int have_aes_ni = (regs[2] >> 25) & 1;
+
+    if (have_aes_ni) {
+        meow_u128   Hash = MeowHash(MeowDefaultSeed, data.size(), (char*)data.data());
+        std::string result;
+        for (auto& n : Hash.m128i_i8) {
+            absl::StrAppend(&result, absl::Hex(n, absl::kZeroPad2));
+        }
+        return result;
+    } else {
+        uint8_t digest[SHA_DIGEST_LENGTH];
+        SHA1(reinterpret_cast<const uint8_t*>(data.data()), data.size(), digest);
+        std::string result;
+        for (auto& n : digest) {
+            absl::StrAppend(&result, absl::Hex(n, absl::kZeroPad2));
+        }
+        return result;
     }
-    return result;
 }
 
 std::string ModManager::ReadGameFile(fs::path path)

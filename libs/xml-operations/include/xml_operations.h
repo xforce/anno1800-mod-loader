@@ -36,6 +36,7 @@ class XmlOperation
   private:
     Type                                                           type_;
     std::string                                                    path_;
+    std::string                                                    speculative_path_;
     std::string                                                    guid_;
     std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes_;
     std::shared_ptr<pugi::xml_document>                            doc_;
