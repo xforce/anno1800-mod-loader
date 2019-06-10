@@ -2,6 +2,8 @@
 
 #include "nlohmann/json.hpp"
 
+#include <Windows.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <filesystem>
@@ -27,6 +29,10 @@ class ModManager
         std::string data;
         fs::path    disk_path;
     };
+
+    ~ModManager();
+
+    void Shutdown();
 
     static fs::path GetModsDirectory();
     static fs::path GetCacheDirectory();
@@ -81,11 +87,13 @@ class ModManager
     std::unordered_map<fs::path, std::vector<CacheLayer>> modded_file_cache_info_;
     mutable std::thread                                   patching_file_thread_;
     mutable std::thread                                   watch_file_thread_;
+    OVERLAPPED                                            watch_file_ov_;
     mutable std::thread                                   reload_mods_thread_;
     std::atomic_bool                                      mods_change_wile_reload_ = false;
     mutable std::condition_variable                       mods_ready_cv_;
     mutable std::mutex                                    mods_ready_mx_;
-    std::atomic_bool                                      mods_ready_ = false;
+    std::atomic_bool                                      mods_ready_     = false;
+    std::atomic_bool                                      shuttding_down_ = false;
 };
 
 inline void to_json(nlohmann::json& j, const ModManager::CacheLayer& p)

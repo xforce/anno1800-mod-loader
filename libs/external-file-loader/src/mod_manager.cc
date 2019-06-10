@@ -118,6 +118,8 @@ void ModManager::StartWatchingFiles()
         HANDLE hDir = CreateFileW(cache_directory.wstring().c_str(), FILE_LIST_DIRECTORY,
                                   FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE, NULL,
                                   OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+        watch_file_ov_.OffsetHigh = 0;
+        watch_file_ov_.hEvent     = CreateEvent(NULL, TRUE, FALSE, NULL);
 
         while (TRUE) {
             DWORD                   BytesReturned;
@@ -130,7 +132,10 @@ void ModManager::StartWatchingFiles()
                                       | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE
                                       | FILE_NOTIFY_CHANGE_CREATION,
                                   &bytesRet, NULL, NULL);
-
+            WaitForSingleObject(watch_file_ov_.hEvent, INFINITE);
+            if (shuttding_down_.load()) {
+                return;
+            }
             bool  need_recreate_mods = false;
             BYTE* pBase              = (BYTE*)Buffer;
 
@@ -363,6 +368,10 @@ void ModManager::GameFilesReady()
         ReadCache();
 
         for (auto&& modded_file : modded_patchable_files_) {
+            if (shuttding_down_.load()) {
+                return;
+            }
+
             auto&& [game_path, on_disk_files] = modded_file;
 
             auto game_file = ReadGameFile(game_path);
@@ -385,8 +394,12 @@ void ModManager::GameFilesReady()
                     last_valid_cache = *output_hash;
                     next_input_hash  = *output_hash;
                 } else {
-                    game_xml = std::make_shared<pugi::xml_document>();
-                    game_xml->load_buffer(game_file.data(), game_file.size());
+                    game_xml          = std::make_shared<pugi::xml_document>();
+                    auto parse_result = game_xml->load_buffer(game_file.data(), game_file.size());
+                    if (!parse_result) {
+                        spdlog::error("Failed to parse {}: {}", game_path.string(),
+                                      parse_result.description());
+                    }
 
                     std::vector<pugi::xml_node> assets;
                     auto                        nodes = game_xml->select_nodes("//Assets");
@@ -447,6 +460,9 @@ void ModManager::GameFilesReady()
             }
 
             for (auto&& on_disk_file : on_disk_files) {
+                if (shuttding_down_.load()) {
+                    return;
+                }
                 auto       patch_file_hash = GetFileHash(on_disk_file);
                 const auto output_hash =
                     CheckCacheLayer(game_path, next_input_hash, patch_file_hash);
@@ -465,7 +481,12 @@ void ModManager::GameFilesReady()
                             cache_data = ReadCacheLayer(game_path, last_valid_cache);
                         }
                         game_xml = std::make_shared<pugi::xml_document>();
-                        game_xml->load_buffer(cache_data.data(), cache_data.size());
+                        auto parse_result =
+                            game_xml->load_buffer(cache_data.data(), cache_data.size());
+                        if (!parse_result) {
+                            spdlog::error("Failed to parse cache {}: {}", on_disk_file.string(),
+                                          parse_result.description());
+                        }
                     }
 
                     // Cache miss
@@ -514,8 +535,6 @@ void ModManager::GameFilesReady()
         spdlog::info("Finished applying xml operations");
         mods_ready_cv_.notify_all();
     });
-    patching_file_thread_.detach();
-    patching_file_thread_ = {};
 }
 
 bool ModManager::IsFileModded(const fs::path& path) const
@@ -541,6 +560,31 @@ const ModManager::File& ModManager::GetModdedFileInfo(const fs::path& path) cons
     }
     // File not in cache, yet?
     throw std::logic_error("GetModdedFileInfo shouldn't be called on a file that is not modded");
+}
+
+ModManager::~ModManager()
+{
+    Shutdown();
+}
+
+void ModManager::Shutdown()
+{
+    shuttding_down_.store(true);
+    //
+    // Trigger watch abort
+    if (watch_file_thread_.joinable()) {
+        std::thread thread = {};
+        std::swap(thread, watch_file_thread_);
+        SetEvent(watch_file_ov_.hEvent);
+        thread.join();
+        thread = {};
+    }
+    if (patching_file_thread_.joinable()) {
+        std::thread thread = {};
+        std::swap(thread, patching_file_thread_);
+        thread.join();
+        thread = {};
+    }
 }
 
 fs::path ModManager::GetModsDirectory()

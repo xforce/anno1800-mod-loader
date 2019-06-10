@@ -29,7 +29,7 @@ class XmlOperation
     {
         return path_;
     }
-    void                             Apply(std::shared_ptr<pugi::xml_document> doc);
+    void Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_path = {});
     static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<pugi::xml_document> doc);
     static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path path);
 

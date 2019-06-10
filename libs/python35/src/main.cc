@@ -7,6 +7,7 @@
 #endif
 #include "hooking.h"
 #include "libs/external-file-loader/include/external-file-loader.h"
+#include "libs/external-file-loader/include/mod_manager.h"
 
 #include "nlohmann/json.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
@@ -221,9 +222,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             set_import("GetProcAddress", (uintptr_t)GetProcAddress_S);
         }
         case DLL_THREAD_ATTACH:
-        case DLL_THREAD_DETACH:
-        case DLL_PROCESS_DETACH:
             break;
+        case DLL_THREAD_DETACH:
+            break;
+        case DLL_PROCESS_DETACH: {
+            FreeConsole();
+            ModManager::instance().Shutdown();
+        } break;
     }
     return TRUE;
 }

@@ -4,9 +4,8 @@ cc_library(
         "src/**/*.cc",
     ]) + glob([
         "src/**/*.h",
-        "include/**/*.h",
     ]),
-    hdrs = ["include/external-file-loader.h", "include/mod.h", "include/mod_manager.h"],
+    hdrs =  glob(["include/**/*.h"]),
     includes = ["include"],
     visibility = ["//visibility:public"],
     deps = [
