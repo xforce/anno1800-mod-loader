@@ -111,7 +111,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
                     continue;
                 }
                 pugi::xml_node patching_node = *content_node.begin();
-                RecursiveMerge(game_node, patching_node);
+                RecursiveMerge(game_node, game_node, patching_node);
             } else if (GetType() == XmlOperation::Type::AddNextSibling) {
                 for (auto &&node : GetContentNode()) {
                     game_node = game_node.parent().insert_copy_after(node, game_node);
@@ -237,13 +237,23 @@ static bool HasNonTextNode(pugi::xml_node node)
     return false;
 }
 
-void XmlOperation::RecursiveMerge(pugi::xml_node game_node, pugi::xml_node patching_node)
+void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node game_node,
+                                  pugi::xml_node patching_node)
 {
     if (!patching_node) {
         return;
     }
 
     const auto find_node_with_name = [](pugi::xml_node game_node, auto name) -> pugi::xml_node {
+        if (game_node.name() == std::string(name)) {
+            return game_node;
+        }
+        auto children = game_node.children();
+        for (pugi::xml_node cur_node : children) {
+            if (cur_node.name() == std::string(name)) {
+                return cur_node;
+            }
+        }
         auto cur_node = game_node;
         while (cur_node) {
             if (cur_node.name() == std::string(name)) {
@@ -277,12 +287,15 @@ void XmlOperation::RecursiveMerge(pugi::xml_node game_node, pugi::xml_node patch
             if (game_node.type() == pugi::xml_node_type::node_pcdata) {
                 game_node.set_value(cur_node.value());
             } else {
-                RecursiveMerge(game_node.first_child(), cur_node.first_child());
+                RecursiveMerge(root_game_node, game_node.first_child(), cur_node.first_child());
             }
         } else {
             if (cur_node && prev_game_node) {
                 while (prev_game_node) {
-                    RecursiveMerge(prev_game_node.first_child(), cur_node);
+                    RecursiveMerge(root_game_node, prev_game_node.first_child(), cur_node);
+                    if (prev_game_node == game_node) {
+                        break;
+                    }
                     prev_game_node = prev_game_node.next_sibling();
                 }
             }

@@ -1,0 +1,7 @@
+{
+    "name": "Merge single child only",
+    "expected": [
+        "//Values/Cost/Costs/Item[Ingredient='1010017' and Amount='100']",
+        "//Values/Cost/Costs/Item[Ingredient='1010196' and Amount='10']"
+    ]
+}
