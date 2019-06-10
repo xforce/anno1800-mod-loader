@@ -131,7 +131,7 @@ void ModManager::StartWatchingFiles()
                                   FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME
                                       | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE
                                       | FILE_NOTIFY_CHANGE_CREATION,
-                                  &bytesRet, NULL, NULL);
+                                  &bytesRet, &watch_file_ov_, NULL);
             WaitForSingleObject(watch_file_ov_.hEvent, INFINITE);
             if (shuttding_down_.load()) {
                 return;
