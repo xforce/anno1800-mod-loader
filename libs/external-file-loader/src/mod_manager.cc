@@ -25,7 +25,7 @@
 #include <optional>
 #include <sstream>
 
-constexpr static auto PATCH_OP_VERSION = "1.7";
+constexpr static auto PATCH_OP_VERSION = "1.3";
 
 Mod& ModManager::Create(const fs::path& root)
 {
@@ -362,7 +362,7 @@ void ModManager::GameFilesReady()
             std::string                         next_input_hash  = game_file_hash;
 
             if (game_path.wstring().find(L"assets.xml") != std::wstring::npos) {
-                const auto output_hash = CheckCacheLayer(game_path, next_input_hash, "cookie3");
+                const auto output_hash = CheckCacheLayer(game_path, next_input_hash, "cookie");
                 if (output_hash) {
                     // Cache hit
                     last_valid_cache = *output_hash;
@@ -422,7 +422,7 @@ void ModManager::GameFilesReady()
                     if (last_valid_cache.empty()) {
                         last_valid_cache = game_file_hash;
                     }
-                    last_valid_cache = PushCacheLayer(game_path, last_valid_cache, "cookie3",
+                    last_valid_cache = PushCacheLayer(game_path, last_valid_cache, "cookie",
                                                       writer.result, "internal");
                     next_input_hash  = last_valid_cache;
                     game_xml         = nullptr;
