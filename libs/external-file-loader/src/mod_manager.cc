@@ -367,7 +367,10 @@ void ModManager::GameFilesReady()
 
             auto game_file = ReadGameFile(game_path);
             if (game_file.empty()) {
-                spdlog::error("Failed to get original game file {}", game_path.string());
+                for (auto& on_disk_file : on_disk_files) {
+                    spdlog::error("Failed to get original game file {} {}", game_path.string(),
+                                  on_disk_file.string());
+                }
                 continue;
             }
             std::shared_ptr<pugi::xml_document> game_xml         = nullptr;
