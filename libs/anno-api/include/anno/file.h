@@ -20,7 +20,8 @@ namespace rdsdk
         HANDLE*      file_handle;  // 0x78
         char         no_idea[0x8]; // 0x80
         size_t       size;         // 0x88
-        char         pad2[0x10];   // 0x90
+        size_t       offset;       // 0x90
+        char         pad2[0x8];    // 0x98
         std::string  buffer;       // 0xA0
 
         static std::string ReadFile(fs::path path)

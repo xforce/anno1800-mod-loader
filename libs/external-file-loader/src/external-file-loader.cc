@@ -44,7 +44,7 @@ bool __fastcall ReadFileFromContainer(__int64 archive_file_map, const std::wstri
             LARGE_INTEGER lFileSize;
             GetFileSizeEx(hFile, &lFileSize);
             DWORD read = 0;
-            ReadFile(hFile, *output_data_pointer, lFileSize.QuadPart, &read, NULL);
+            ReadFile(hFile, *output_data_pointer, *output_data_size, &read, NULL);
             CloseHandle(hFile);
         }
         return true;
@@ -69,8 +69,9 @@ bool GetContainerBlockInfo(anno::rdsdk::CFile* file, const std::wstring& file_pa
     const auto game_size = anno::rdsdk::CFile::GetFileSize(file_path);
     if (game_size == 0) {
         // File does not exist in RDA
-        if (ModManager::instance().IsFileModded(file_path)
-            || m.find(L"data/config/game/asset") == 0) {
+        if ((ModManager::instance().IsFileModded(file_path)
+             || m.find(L"data/config/game/asset") == 0)
+            && m.find(L"data/shaders/cache") != 0) {
             m = L"mods/dummy";
         }
     }
@@ -177,12 +178,27 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             if (hFile == INVALID_HANDLE_VALUE) {
                 return 0;
             }
-            LARGE_INTEGER lFileSize;
-            GetFileSizeEx(hFile, &lFileSize);
-            DWORD read = 0;
-            ReadFile(hFile, lpBuffer, lFileSize.QuadPart, &read, NULL);
-            CloseHandle(hFile);
-            return lFileSize.QuadPart;
+
+            auto    current_offset                  = file->offset;
+            int64_t bytes_left_in_buffer_read_count = 0;
+
+            if (file->size != current_offset) {
+                bytes_left_in_buffer_read_count = file->size - current_offset;
+            }
+            if (nNumberOfBytesToRead < bytes_left_in_buffer_read_count) {
+                bytes_left_in_buffer_read_count = nNumberOfBytesToRead;
+            }
+            if (bytes_left_in_buffer_read_count) {
+                SetFilePointer(hFile, current_offset, NULL, FILE_BEGIN);
+                DWORD         read = 0;
+                LARGE_INTEGER lFileSize;
+                GetFileSizeEx(hFile, &lFileSize);
+                ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, &read, NULL);
+                CloseHandle(hFile);
+                file->offset += read;
+                return read;
+            }
+            return bytes_left_in_buffer_read_count;
         }
     } else {
         auto size = anno::rdsdk::CFile::GetFileSize(m);
