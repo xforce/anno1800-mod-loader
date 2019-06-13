@@ -69,7 +69,7 @@ int main(int argc, const char **argv)
     }
 
     std::stringstream ss;
-    doc->print(ss);
+    new_doc->print(ss);
     FILE *fp;
     fp = fopen("patched.xml", "w+");
     if (!fp) {
