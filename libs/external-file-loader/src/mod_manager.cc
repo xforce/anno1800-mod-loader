@@ -142,7 +142,8 @@ void ModManager::StartWatchingFiles()
             for (;;) {
                 FILE_NOTIFY_INFORMATION& info = (FILE_NOTIFY_INFORMATION&)*pBase;
                 std::wstring             filename(info.FileName);
-                if (filename.find(L".cache") == 0) {
+                if (filename.find(L".cache") == 0
+                    || filename.find(L"start_script.py") != std::wstring::npos) {
                     if (!info.NextEntryOffset) {
                         break;
                     }
