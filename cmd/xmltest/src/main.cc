@@ -1,6 +1,8 @@
 #include "xml_operations.h"
 
+#include "absl/strings/str_cat.h"
 #include "pugixml.hpp"
+#include "spdlog/spdlog.h"
 
 #include <cstdio>
 #include <cstring>
@@ -26,50 +28,25 @@ int main(int argc, const char **argv)
         doc->load_buffer(buffer.data(), buffer.size());
     }
 
-    // Flatten shit
-    std::vector<pugi::xml_node> assets;
-    auto                        nodes = doc->select_nodes("//Assets");
-    for (pugi::xpath_node node : nodes) {
-        for (pugi::xml_node asset : node.node().children()) {
-            assets.push_back(asset);
-        }
-    }
-
-    auto new_doc    = std::make_shared<pugi::xml_document>();
-    auto groups     = new_doc->root().append_child("AssetList").append_child("Groups");
-    auto assets_xml = groups.append_child("Group").append_child("Assets");
-    for (pugi::xml_node asset : assets) {
-        auto guid = asset.parent().parent().find_child(
-            [](pugi::xml_node x) { return x.name() == std::string("GUID"); });
-        if (!guid) {
-            assets_xml.append_copy(asset);
-        } else {
-            // Check if we have already created this one
-            std::string guid_str = guid.first_child().value();
-            auto        group    = new_doc->select_nodes(
-                ("/AssetList/Groups/Group[GUID='" + guid_str + "']/Assets").c_str());
-            pugi::xml_node group_xml;
-            if (std::begin(group) == std::end(group)) {
-                // No group create new
-                group_xml = groups.append_child("Group");
-                group_xml.append_child("GUID")
-                    .append_child(pugi::xml_node_type::node_pcdata)
-                    .set_value(guid_str.c_str());
-                group_xml = group_xml.append_child("Assets");
-            } else {
-                group_xml = std::begin(group)->node();
-            }
-            group_xml.append_copy(asset);
-        }
-    }
-
     auto operations = XmlOperation::GetXmlOperationsFromFile(argv[2]);
     for (auto &&operation : operations) {
-        operation.Apply(new_doc);
+        operation.Apply(doc);
     }
 
-    std::stringstream ss;
-    new_doc->print(ss);
+    struct xml_string_writer : pugi::xml_writer {
+        std::string result;
+
+        virtual void write(const void *data, size_t size)
+        {
+            absl::StrAppend(&result, std::string_view{(const char *)data, size});
+        }
+    };
+
+    xml_string_writer writer;
+    spdlog::info("Start writing");
+    writer.result.reserve(100 * 1024 * 1024);
+    doc->print(writer);
+    spdlog::info("Finished writing");
     FILE *fp;
     fp = fopen("patched.xml", "w+");
     if (!fp) {
@@ -77,8 +54,7 @@ int main(int argc, const char **argv)
 
         return 0;
     }
-    std::string buf = ss.str();
-    fwrite(buf.data(), 1, buf.size(), fp);
+    fwrite(writer.result.data(), 1, writer.result.size(), fp);
     fclose(fp);
     return 0;
 }

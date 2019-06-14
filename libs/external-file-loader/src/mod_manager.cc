@@ -25,7 +25,7 @@
 #include <optional>
 #include <sstream>
 
-constexpr static auto PATCH_OP_VERSION = "1.3";
+constexpr static auto PATCH_OP_VERSION = "1.4";
 
 Mod& ModManager::Create(const fs::path& root)
 {
@@ -387,78 +387,6 @@ void ModManager::GameFilesReady()
             std::string                         last_valid_cache = "";
             std::string                         next_input_hash  = game_file_hash;
 
-            if (game_path.wstring().find(L"assets.xml") != std::wstring::npos) {
-                const auto output_hash = CheckCacheLayer(game_path, next_input_hash, "cookie");
-                if (output_hash) {
-                    // Cache hit
-                    last_valid_cache = *output_hash;
-                    next_input_hash  = *output_hash;
-                } else {
-                    game_xml          = std::make_shared<pugi::xml_document>();
-                    auto parse_result = game_xml->load_buffer(game_file.data(), game_file.size());
-                    if (!parse_result) {
-                        spdlog::error("Failed to parse {}: {}", game_path.string(),
-                                      parse_result.description());
-                    }
-
-                    std::vector<pugi::xml_node> assets;
-                    auto                        nodes = game_xml->select_nodes("//Assets");
-                    for (pugi::xpath_node node : nodes) {
-                        for (pugi::xml_node asset : node.node().children()) {
-                            assets.push_back(asset);
-                        }
-                    }
-
-                    auto new_doc = std::make_shared<pugi::xml_document>();
-                    auto groups  = new_doc->root().append_child("AssetList").append_child("Groups");
-                    auto assets_xml = groups.append_child("Group").append_child("Assets");
-                    for (pugi::xml_node asset : assets) {
-                        auto guid = asset.parent().parent().find_child(
-                            [](pugi::xml_node x) { return x.name() == std::string("GUID"); });
-                        if (!guid) {
-                            assets_xml.append_copy(asset);
-                        } else {
-                            // Check if we have already created this one
-                            std::string guid_str = guid.first_child().value();
-                            auto        group    = new_doc->select_nodes(
-                                ("/AssetList/Groups/Group[GUID='" + guid_str + "']/Assets")
-                                    .c_str());
-                            pugi::xml_node group_xml;
-                            if (std::begin(group) == std::end(group)) {
-                                // No group create new
-                                group_xml = groups.append_child("Group");
-                                group_xml.append_child("GUID")
-                                    .append_child(pugi::xml_node_type::node_pcdata)
-                                    .set_value(guid_str.c_str());
-                                group_xml = group_xml.append_child("Assets");
-                            } else {
-                                group_xml = std::begin(group)->node();
-                            }
-                            group_xml.append_copy(asset);
-                        }
-                    }
-
-                    struct xml_string_writer : pugi::xml_writer {
-                        std::string result;
-
-                        virtual void write(const void* data, size_t size)
-                        {
-                            absl::StrAppend(&result, std::string_view{(const char*)data, size});
-                        }
-                    };
-
-                    xml_string_writer writer;
-                    new_doc->print(writer);
-                    if (last_valid_cache.empty()) {
-                        last_valid_cache = game_file_hash;
-                    }
-                    last_valid_cache = PushCacheLayer(game_path, last_valid_cache, "cookie",
-                                                      writer.result, "internal");
-                    next_input_hash  = last_valid_cache;
-                    game_xml         = nullptr;
-                }
-            }
-
             for (auto&& on_disk_file : on_disk_files) {
                 if (shuttding_down_.load()) {
                     return;
@@ -505,6 +433,7 @@ void ModManager::GameFilesReady()
                     };
 
                     xml_string_writer writer;
+                    writer.result.reserve(100 * 1024 * 1024);
                     game_xml->print(writer);
                     std::string& buf = writer.result;
 

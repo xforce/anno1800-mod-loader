@@ -25,12 +25,11 @@ uintptr_t* ReadFileFromContainerOIP = nullptr;
 bool __fastcall ReadFileFromContainer(__int64 archive_file_map, const std::wstring& file_path,
                                       char** output_data_pointer, size_t* output_data_size)
 {
-    auto m = file_path;
     // archive_file_map is a pointer to a struct identifying which rda this file resides in
     // as each rda is actually just a memory mapped file
     // but we don't care about that at the moment, probably never will
-    if (ModManager::instance().IsFileModded(m)) {
-        auto info = ModManager::instance().GetModdedFileInfo(m);
+    if (ModManager::instance().IsFileModded(file_path)) {
+        auto info = ModManager::instance().GetModdedFileInfo(file_path);
         if (info.is_patched) {
             memcpy(*output_data_pointer, info.data.data(), info.data.size());
         } else {

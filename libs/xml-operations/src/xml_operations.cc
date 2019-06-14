@@ -18,7 +18,8 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
 XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                            std::string guid)
 {
-    doc_ = doc;
+    doc_  = doc;
+    guid_ = guid;
     ReadPath(node, guid);
     ReadType(node);
     if (type_ != Type::Remove) {
@@ -28,43 +29,36 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
 
 void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
 {
-    if (!guid.empty()) {
-        path_ = "/AssetList/Groups/Group/Assets/Asset[Values/Standard/GUID='" + guid + "']";
-        speculative_path_ =
-            "/AssetList/Groups/Group[1]/Assets/Asset[Values/Standard/GUID='" + guid + "']";
-    }
     auto prop_path = GetXmlPropString(node, "Path");
+    if (!guid.empty()) {
+        path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
+    }
     if (prop_path.find("/") != 0) {
         path_ += "/";
-        speculative_path_ += "/";
     }
-    path_ += GetXmlPropString(node, "Path");
-    speculative_path_ += GetXmlPropString(node, "Path");
+    path_ += prop_path;
     if (path_ == "/") {
         path_ = "/*";
-    }
-    if (speculative_path_ == "/") {
-        speculative_path_ = "/*";
     }
     if (path_.length() > 0) {
         if (path_[path_.length() - 1] == '/') {
             path_ = path_.substr(0, path_.length() - 1);
         }
     }
-    if (speculative_path_.length() > 0) {
-        if (speculative_path_[speculative_path_.length() - 1] == '/') {
-            speculative_path_ = speculative_path_.substr(0, speculative_path_.length() - 1);
-        }
-    }
 
-    if (path_.find("//Assets[") == 0) {
-        auto npath        = path_.substr(strlen("//Assets["));
-        path_             = "/AssetList/Groups/Group/Assets[" + npath;
-        speculative_path_ = "/AssetList/Groups/Group[1]/Assets[" + npath;
-    } else if (path_.find("//Asset") == 0) {
-        auto npath        = path_.substr(strlen("//Asset"));
-        path_             = "/AssetList/Groups/Group/Assets/Asset" + npath;
-        speculative_path_ = "/AssetList/Groups/Group[1]/Assets/Asset" + npath;
+    if (!guid.empty()) {
+        speculative_path_ += prop_path;
+        if (speculative_path_ == "/") {
+            speculative_path_ = "/*";
+        }
+        if (speculative_path_.length() > 0) {
+            if (speculative_path_[path_.length() - 1] == '/') {
+                speculative_path_ = speculative_path_.substr(0, speculative_path_.length() - 1);
+            }
+        }
+        if (speculative_path_.find("/") == 0) {
+            speculative_path_ = speculative_path_.substr(1);
+        }
     }
 }
 
@@ -88,12 +82,44 @@ void XmlOperation::ReadType(pugi::xml_node node)
     }
 }
 
+std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node)
+{
+    //
+    if (node.name() == std::string("Asset")) {
+        pugi::xml_node g = node.first_element_by_path("Values/Standard/GUID");
+        if (g.text().get() == guid) {
+            return node;
+        }
+        return {};
+    }
+
+    for (pugi::xml_node n : node.children()) {
+        if (auto found = FindAsset(guid, n); found) {
+            return found;
+        }
+    }
+
+    return {};
+}
+
+std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc, std::string guid)
+{
+    return FindAsset(guid, doc->root());
+}
+
 void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_path)
 {
     try {
+        spdlog::info("Looking up {}", path_);
         pugi::xpath_node_set results;
-        if (!speculative_path_.empty()) {
-            results = doc->select_nodes(speculative_path_.c_str());
+        if (!guid_.empty()) {
+            auto node = FindAsset(doc, guid_);
+            if (node) {
+                results = node->select_nodes(speculative_path_.c_str());
+            }
+            if (results.empty()) {
+                spdlog::debug("Speculative path failed to find node {}", GetPath());
+            }
         }
         if (results.empty()) {
             results = doc->select_nodes(GetPath().c_str());
@@ -102,6 +128,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
             spdlog::warn("No matching node for Path {}", GetPath());
             return;
         }
+        spdlog::info("Looking finished {}", path_);
         for (pugi::xpath_node xnode : results) {
             pugi::xml_node game_node = xnode.node();
             if (GetType() == XmlOperation::Type::Merge) {
