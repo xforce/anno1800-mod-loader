@@ -30,6 +30,9 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
 void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
 {
     auto prop_path = GetXmlPropString(node, "Path");
+    if (prop_path.empty()) {
+        prop_path = "/";
+    }
     if (!guid.empty()) {
         path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
     }
@@ -38,7 +41,7 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     }
     path_ += prop_path;
     if (path_ == "/") {
-        path_ = "/*";
+        path_ = "self";
     }
     if (path_.length() > 0) {
         if (path_[path_.length() - 1] == '/') {
@@ -49,7 +52,7 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     if (!guid.empty()) {
         speculative_path_ += prop_path;
         if (speculative_path_ == "/") {
-            speculative_path_ = "/*";
+            speculative_path_ = "self";
         }
         if (speculative_path_.length() > 0) {
             if (speculative_path_[path_.length() - 1] == '/') {
@@ -115,7 +118,9 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
         if (!guid_.empty()) {
             auto node = FindAsset(doc, guid_);
             if (node) {
-                results = node->select_nodes(speculative_path_.c_str());
+                if (speculative_path_ != "*") {
+                    results = node->select_nodes(speculative_path_.c_str());
+                }
             }
             if (results.empty()) {
                 spdlog::debug("Speculative path failed to find node {}", GetPath());
@@ -313,9 +318,11 @@ void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node 
         if (game_node) {
             if (game_node.type() == pugi::xml_node_type::node_pcdata) {
                 game_node.set_value(cur_node.value());
+                return;
             } else {
                 RecursiveMerge(root_game_node, game_node.first_child(), cur_node.first_child());
             }
+            game_node = game_node.next_sibling();
         } else {
             if (cur_node && prev_game_node) {
                 while (prev_game_node) {

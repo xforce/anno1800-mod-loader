@@ -1,0 +1,6 @@
+{
+    "name": "Simple add next sibling root",
+    "expected": [
+        "//Asset[Values/Standard/GUID='1010521']/following-sibling::Meow[GUID='3']"
+    ]
+}
