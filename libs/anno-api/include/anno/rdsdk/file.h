@@ -1,6 +1,6 @@
 #pragma once
 
-#include "random_game_functions.h"
+#include "anno/random_game_functions.h"
 
 #include <Windows.h>
 
@@ -11,10 +11,24 @@ namespace anno
 namespace rdsdk
 {
 #pragma pack(push, 1)
-    class CFile
+    class IFileInterface
     {
       public:
-        uintptr_t*   pad0;
+        virtual ~IFileInterface()                                          = 0;
+        virtual const std::wstring& GetFilePath() const                    = 0;
+        virtual size_t              Write(const void* buffer, size_t size) = 0;
+        virtual size_t              Read(void* buffer, size_t size)        = 0;
+        virtual size_t              Seek(size_t offset, int seek_mode)     = 0;
+        virtual size_t              GetPosition() const                    = 0;
+        virtual size_t              GetLength() const                      = 0;
+    };
+
+    class CFile : public IFileInterface
+    {
+      public:
+        virtual bool Open(void* unk, int flags) = 0;
+        virtual bool Close()                    = 0;
+
         std::wstring file_path;    // 0x8
         char         pad[0x50];    //
         HANDLE*      file_handle;  // 0x78
@@ -70,12 +84,26 @@ namespace rdsdk
                             path.wstring(), &size);
             return size;
         }
+
+        static void SIZE_CHECK()
+        {
+            static_assert(offsetof(CFile, file_path) == 0x8);
+            static_assert(offsetof(CFile, file_handle) == 0x78);
+            static_assert(offsetof(CFile, buffer) == 0xA0);
+        }
+    };
+
+    class CArchiveFile : public CFile
+    {
+      public:
+    };
+
+    class CFileDatabase
+    {
+      public:
+        virtual ~CFileDatabase() = 0;
     };
 #pragma pack(pop)
-
-    static_assert(offsetof(CFile, file_handle) == 0x78);
-    static_assert(offsetof(CFile, file_path) == 0x8);
-    static_assert(offsetof(CFile, buffer) == 0xA0);
 
 } // namespace rdsdk
 } // namespace anno

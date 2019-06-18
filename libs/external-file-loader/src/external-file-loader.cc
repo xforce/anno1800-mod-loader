@@ -2,8 +2,9 @@
 #include "mod.h"
 #include "mod_manager.h"
 
-#include "anno/file.h"
 #include "anno/random_game_functions.h"
+#include "anno/rdsdk/file.h"
+
 #include "hooking.h"
 
 #include "spdlog/spdlog.h"
@@ -236,6 +237,8 @@ void EnableExtenalFileLoading(Events& events)
         detour_func(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER_JMP), FileReadAllocateBuffer);
 
         // *(uint32_t*)(0x1458D4E16) = 0x0;
+
+        // nop(0x14248220C, 5);
 
         // retn(0x148423610); // Disables UI rendering...
     });

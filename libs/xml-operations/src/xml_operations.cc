@@ -116,14 +116,21 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
         spdlog::info("Looking up {}", path_);
         pugi::xpath_node_set results;
         if (!guid_.empty()) {
-            auto node = FindAsset(doc, guid_);
-            if (node) {
-                if (speculative_path_ != "*") {
-                    results = node->select_nodes(speculative_path_.c_str());
+            try {
+                auto node = FindAsset(doc, guid_);
+                if (node) {
+                    if (speculative_path_ != "*") {
+                        results = node->select_nodes(speculative_path_.c_str());
+                    }
                 }
-            }
-            if (results.empty()) {
-                spdlog::debug("Speculative path failed to find node {}", GetPath());
+                if (results.empty()) {
+                    spdlog::debug("Speculative path failed to find node {}", GetPath());
+                }
+            } catch (const pugi::xpath_exception &e) {
+                spdlog::warn("Speculative path lookup failed {} (GUID={}) in {}: {}. Please create "
+                             "an issue with the mod op that caused this! Falling back to regular "
+                             "'slow' lookup.",
+                             speculative_path_, guid_, mod_path.string(), e.what());
             }
         }
         if (results.empty()) {
@@ -167,7 +174,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
             //
         }
     } catch (const pugi::xpath_exception &e) {
-        spdlog::error("Failed to parse path {} in {}: ", GetPath(), mod_path.string(), e.what());
+        spdlog::error("Failed to parse path {} in {}: {}", GetPath(), mod_path.string(), e.what());
     }
 }
 

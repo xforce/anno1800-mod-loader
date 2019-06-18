@@ -421,7 +421,7 @@ void ModManager::GameFilesReady()
                     // Cache miss
                     auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
                     for (auto&& operation : operations) {
-                        operation.Apply(game_xml);
+                        operation.Apply(game_xml, on_disk_file);
                     }
 
                     struct xml_string_writer : pugi::xml_writer {
