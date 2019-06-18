@@ -43,7 +43,8 @@ def _impl(ctx):
     envs = _make_envs(ctx)
     ctx.actions.run(
         outputs = ctx.outputs.outs,
-        inputs = depset(direct = ctx.files.srcs, transitive = [tool_inputs]),
+        inputs = ctx.files.srcs,
+        tools = tool_inputs,
         executable = ctx.executable.tool,
         arguments = args,
         mnemonic = "RunBinary",
