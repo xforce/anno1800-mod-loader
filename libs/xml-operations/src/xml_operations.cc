@@ -113,7 +113,7 @@ std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc,
 void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_path)
 {
     try {
-        spdlog::info("Looking up {}", path_);
+        spdlog::debug("Looking up {}", path_);
         pugi::xpath_node_set results;
         if (!guid_.empty()) {
             try {
@@ -140,7 +140,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
             spdlog::warn("No matching node for Path {}", GetPath());
             return;
         }
-        spdlog::info("Looking finished {}", path_);
+        spdlog::debug("Looking finished {}", path_);
         for (pugi::xpath_node xnode : results) {
             pugi::xml_node game_node = xnode.node();
             if (GetType() == XmlOperation::Type::Merge) {
