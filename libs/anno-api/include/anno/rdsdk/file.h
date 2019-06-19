@@ -36,7 +36,10 @@ namespace rdsdk
         size_t       size;         // 0x88
         size_t       offset;       // 0x90
         char         pad2[0x8];    // 0x98
-        std::string  buffer;       // 0xA0
+        struct {
+            char*  data;
+            size_t size;
+        } buffer; // 0xA0
 
         static std::string ReadFile(fs::path path)
         {

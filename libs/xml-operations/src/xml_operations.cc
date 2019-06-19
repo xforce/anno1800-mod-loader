@@ -41,7 +41,7 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     }
     path_ += prop_path;
     if (path_ == "/") {
-        path_ = "self";
+        path_ = "/*";
     }
     if (path_.length() > 0) {
         if (path_[path_.length() - 1] == '/') {

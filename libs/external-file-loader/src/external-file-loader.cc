@@ -185,7 +185,13 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             if (file->size != current_offset) {
                 bytes_left_in_buffer_read_count = file->size - current_offset;
             }
-            if (nNumberOfBytesToRead < bytes_left_in_buffer_read_count) {
+            // NOTE(alexander): This is not how the game actually handles this
+            // but because we are using a 'fake' 0 byte file in this case, we tell the game what
+            // size it actually is, so we are guaranteed to have a buffer large enough to hold the
+            // file but sometiems the games tries to query the size of that file using the fake file
+            // handle which because it's 0 bytes we sometimes get 0 bytes to read here
+            if (nNumberOfBytesToRead > 0
+                && nNumberOfBytesToRead < bytes_left_in_buffer_read_count) {
                 bytes_left_in_buffer_read_count = nNumberOfBytesToRead;
             }
             if (bytes_left_in_buffer_read_count) {
@@ -193,11 +199,12 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
                 DWORD         read = 0;
                 LARGE_INTEGER lFileSize;
                 GetFileSizeEx(hFile, &lFileSize);
-                ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, &read, NULL);
+                ReadFile(hFile, lpBuffer, bytes_left_in_buffer_read_count, &read, NULL);
                 CloseHandle(hFile);
                 file->offset += read;
                 return read;
             }
+            CloseHandle(hFile);
             return bytes_left_in_buffer_read_count;
         }
     } else {
@@ -237,9 +244,7 @@ void EnableExtenalFileLoading(Events& events)
         detour_func(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER_JMP), FileReadAllocateBuffer);
 
         // *(uint32_t*)(0x1458D4E16) = 0x0;
-
         // nop(0x14248220C, 5);
-
         // retn(0x148423610); // Disables UI rendering...
     });
 }
