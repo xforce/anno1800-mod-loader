@@ -3,6 +3,7 @@
 #include "mod_manager.h"
 
 #include "anno/random_game_functions.h"
+#include "anno/rdgs/regrow_manager.h"
 #include "anno/rdsdk/file.h"
 
 #include "hooking.h"
@@ -221,6 +222,34 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
     }
 }
 
+struct StrangePlantTreeConfig {
+    char     pad[0x20];
+    uint64_t growth_time; // 0x20 NOTE(alexander): Must be at least 2 and should be divisible by 2
+};
+
+uintptr_t* PlantTree = 0x0;
+void       PlantTrees_S(uintptr_t* rcx, signed int x, signed int y, StrangePlantTreeConfig* unk,
+                        float meow /* This appears to be useless */)
+{
+    using anno::rdgs::CRegrowManager;
+    auto& regrow_manager = CRegrowManager::Instance();
+    if (x < 0) {
+        return;
+    }
+    for (int xi = -50; xi < 50; ++xi) {
+        for (int yi = -50; yi < 50; ++yi) {
+            float k[2] = {static_cast<float>(x + xi), static_cast<float>(y + yi)};
+            CRegrowManager::StrangePlantTreeConfig conf;
+            conf.growth_time = 2;
+            if (!regrow_manager.HasTreeAtPos(k)) {
+                regrow_manager.PlantTree(x + xi, y + yi, conf, meow);
+            }
+        }
+    }
+    func_call<void>(0x14035E170, rcx, x, y, unk, meow);
+    //
+}
+
 void EnableExtenalFileLoading(Events& events)
 {
     ModManager::instance().LoadMods();
@@ -242,6 +271,9 @@ void EnableExtenalFileLoading(Events& events)
                                          GetContainerBlockInfo)));
         detour_func(GetAddress(anno::READ_GAME_FILE_JMP), ReadGameFile);
         detour_func(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER_JMP), FileReadAllocateBuffer);
+
+        // call(0x146C03F35, 0x14035E343);
+        // jump_abs(0x14035E343, PlantTrees_S);
 
         // *(uint32_t*)(0x1458D4E16) = 0x0;
         // nop(0x14248220C, 5);
