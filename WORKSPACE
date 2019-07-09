@@ -20,12 +20,12 @@ http_archive(
 
 http_archive(
     name = "com_github_facebook_zstd",
-	build_file = "@//:zstd.BUILD",
+    build_file = "@//:zstd.BUILD",
     sha256 = "1333b186377b6e86607160b4f5659c86c266b6fb9e7e8b52c7947c3611fc8b5b",
     strip_prefix = "zstd-83b51e9f886be7c2a4d477b6e7bc6db831791d8d",
     urls = [
-            "https://github.com/facebook/zstd/archive/83b51e9f886be7c2a4d477b6e7bc6db831791d8d.tar.gz",
-    ]
+        "https://github.com/facebook/zstd/archive/83b51e9f886be7c2a4d477b6e7bc6db831791d8d.tar.gz",
+    ],
 )
 
 new_local_repository(
@@ -34,12 +34,16 @@ new_local_repository(
     path = "./third_party/pugixml",
 )
 
-
 http_archive(
     name = "boringssl",
-    strip_prefix = "boringssl-863837047be74b20f59369b5256c39ad00f015b3",
     sha256 = "55c19c2db2e8b23fc3d19ad707209f992da5b3b6cfbe3812e6aadcee1786669c",
+    strip_prefix = "boringssl-863837047be74b20f59369b5256c39ad00f015b3",
     urls = [
-        "https://github.com/google/boringssl/archive/863837047be74b20f59369b5256c39ad00f015b3.zip"
+        "https://github.com/google/boringssl/archive/863837047be74b20f59369b5256c39ad00f015b3.zip",
     ],
+)
+
+local_repository(
+    name = "meow_hook",
+    path = "third_party/meow-hook",
 )

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "meow_hook/util.h"
+
 namespace anno::rdgs
 {
 #pragma pack(push, 1)
@@ -8,12 +10,12 @@ class CRegrowManager
   public:
     [[nodiscard]] static CRegrowManager& Instance()
     {
-        return *func_call<CRegrowManager*>(0x1403B4A30);
+        return *meow_hook::func_call<CRegrowManager*>(0x1403B4A30);
     }
 
     bool HasTreeAtPos(float pos[2]) const
     {
-        return func_call<bool>(0x14035E020, this, pos);
+        return meow_hook::func_call<bool>(0x14035E020, this, pos);
     }
 
     struct StrangePlantTreeConfig {
@@ -23,7 +25,7 @@ class CRegrowManager
     };
     void PlantTree(int x, int y, const StrangePlantTreeConfig& conf, float unk)
     {
-        func_call<void>(0x14035E170, this, x, y, conf, unk);
+        meow_hook::func_call<void>(0x14035E170, this, x, y, conf, unk);
     }
 };
 #pragma pack(pop)

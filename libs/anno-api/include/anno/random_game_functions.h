@@ -1,6 +1,6 @@
 #pragma once
 
-#include "hooking.h"
+#include "meow_hook/util.h"
 
 #include <cstdint>
 #include <string>
@@ -31,7 +31,7 @@ void      SetAddress(Address address, uint64_t add);
 
 inline bool GetContainerBlockInfo(uintptr_t* a1, const std::wstring& file_path, int a3)
 {
-    return func_call<bool>(GetAddress(GET_CONTAINER_BLOCK_INFO), a1, file_path, a3);
+    return meow_hook::func_call<bool>(GetAddress(GET_CONTAINER_BLOCK_INFO), a1, file_path, a3);
 }
 inline bool __fastcall ReadFileFromContainer(__int64             archive_file_map,
                                              const std::wstring& file_path,

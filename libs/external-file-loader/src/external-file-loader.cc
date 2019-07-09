@@ -6,8 +6,7 @@
 #include "anno/rdgs/regrow_manager.h"
 #include "anno/rdsdk/file.h"
 
-#include "hooking.h"
-
+#include "meow_hook/detour.h"
 #include "spdlog/spdlog.h"
 
 #include <Windows.h>
@@ -24,8 +23,8 @@ class Mod;
 std::vector<Mod> mods;
 
 uintptr_t* ReadFileFromContainerOIP = nullptr;
-bool __fastcall ReadFileFromContainer(__int64 archive_file_map, const std::wstring& file_path,
-                                      char** output_data_pointer, size_t* output_data_size)
+bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& file_path,
+                                 char** output_data_pointer, size_t* output_data_size)
 {
     // archive_file_map is a pointer to a struct identifying which rda this file resides in
     // as each rda is actually just a memory mapped file
@@ -159,7 +158,7 @@ void FileReadAllocateBuffer(Cookie* a1, size_t size)
     if (size == 0) {
         size = GetFileSize(ModManager::MapAliasedPath(a1->path));
     }
-    func_call<void>(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER), a1, size);
+    meow_hook::func_call<void>(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER), a1, size);
 }
 
 uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOfBytesToRead)
@@ -217,8 +216,8 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
                 (char**)&lpBuffer, &output_data_size);
             return output_data_size;
         }
-        return func_call<uint64_t>(GetAddress(anno::READ_GAME_FILE), file, lpBuffer,
-                                   nNumberOfBytesToRead);
+        return meow_hook::func_call<uint64_t>(GetAddress(anno::READ_GAME_FILE), file, lpBuffer,
+                                              nNumberOfBytesToRead);
     }
 }
 
@@ -246,8 +245,84 @@ void       PlantTrees_S(uintptr_t* rcx, signed int x, signed int y, StrangePlant
             }
         }
     }
-    func_call<void>(0x14035E170, rcx, x, y, unk, meow);
+    meow_hook::func_call<void>(0x14035E170, rcx, x, y, unk, meow);
     //
+}
+
+static bool set_import(const std::string& name, uintptr_t func)
+{
+    static uint64_t image_base = 0;
+
+    if (image_base == 0) {
+        image_base = uint64_t(GetModuleHandleA(NULL));
+    }
+
+    bool result    = false;
+    auto dosHeader = (PIMAGE_DOS_HEADER)(image_base);
+    if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
+        throw std::runtime_error("Invalid DOS Signature");
+    }
+
+    auto header = (PIMAGE_NT_HEADERS)((image_base + (dosHeader->e_lfanew * sizeof(char))));
+    if (header->Signature != IMAGE_NT_SIGNATURE) {
+        throw std::runtime_error("Invalid NT Signature");
+    }
+
+    // BuildImportTable
+    PIMAGE_DATA_DIRECTORY directory =
+        &header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+
+    if (directory->Size > 0) {
+        auto importDesc = (PIMAGE_IMPORT_DESCRIPTOR)(header->OptionalHeader.ImageBase
+                                                     + directory->VirtualAddress);
+        for (; !IsBadReadPtr(importDesc, sizeof(IMAGE_IMPORT_DESCRIPTOR)) && importDesc->Name;
+             importDesc++) {
+            wchar_t      buf[0xFFF] = {};
+            auto         name2      = (LPCSTR)(header->OptionalHeader.ImageBase + importDesc->Name);
+            std::wstring sname;
+            size_t       converted;
+            mbstowcs_s(&converted, buf, name2, sizeof(buf));
+            sname       = buf;
+            auto csname = sname.c_str();
+
+            HMODULE handle = LoadLibraryW(csname);
+
+            if (handle == nullptr) {
+                SetLastError(ERROR_MOD_NOT_FOUND);
+                break;
+            }
+
+            auto* thunkRef =
+                (uintptr_t*)(header->OptionalHeader.ImageBase + importDesc->OriginalFirstThunk);
+            auto* funcRef = (FARPROC*)(header->OptionalHeader.ImageBase + importDesc->FirstThunk);
+
+            if (!importDesc->OriginalFirstThunk) // no hint table
+            {
+                thunkRef = (uintptr_t*)(header->OptionalHeader.ImageBase + importDesc->FirstThunk);
+            }
+
+            for (; *thunkRef, *funcRef; thunkRef++, (void)funcRef++) {
+                if (!IMAGE_SNAP_BY_ORDINAL(*thunkRef)) {
+                    std::string import =
+                        (LPCSTR)
+                        & ((PIMAGE_IMPORT_BY_NAME)(header->OptionalHeader.ImageBase + (*thunkRef)))
+                              ->Name;
+
+                    if (import == name) {
+                        DWORD oldProtect;
+                        VirtualProtect((void*)funcRef, sizeof(FARPROC), PAGE_EXECUTE_READWRITE,
+                                       &oldProtect);
+
+                        *funcRef = (FARPROC)func;
+
+                        VirtualProtect((void*)funcRef, sizeof(FARPROC), oldProtect, &oldProtect);
+                        result = true;
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }
 
 void EnableExtenalFileLoading(Events& events)
@@ -263,14 +338,24 @@ void EnableExtenalFileLoading(Events& events)
     set_import("FindFirstFileW", (uintptr_t)FindFirstFileW_S);
 
     events.DoHooking.connect([]() {
-        SetAddress(anno::READ_FILE_FROM_CONTAINER,
-                   uintptr_t(detour_func(GetAddress(anno::READ_FILE_FROM_CONTAINER),
-                                         ReadFileFromContainer)));
-        SetAddress(anno::GET_CONTAINER_BLOCK_INFO,
-                   uintptr_t(detour_func(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
-                                         GetContainerBlockInfo)));
-        detour_func(GetAddress(anno::READ_GAME_FILE_JMP), ReadGameFile);
-        detour_func(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER_JMP), FileReadAllocateBuffer);
+        {
+            SetAddress(anno::READ_FILE_FROM_CONTAINER,
+                       uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::READ_FILE_FROM_CONTAINER),
+                                                  ReadFileFromContainer)));
+        }
+
+        {
+            SetAddress(anno::GET_CONTAINER_BLOCK_INFO,
+                       uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
+                                                  GetContainerBlockInfo)));
+        }
+
+        MH_STATIC_DETOUR(GetAddress(anno::READ_GAME_FILE_JMP), ReadGameFile);
+        MH_STATIC_DETOUR(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER_JMP), FileReadAllocateBuffer);
+
+        /*static meow_hook::detour<void(uintptr_t * rcx, signed int x, signed int y,
+                                      StrangePlantTreeConfig* unk, float meow)>
+            plant_tree_hook(0x14035E170, PlantTrees_S);*/
 
         // call(0x146C03F35, 0x14035E343);
         // jump_abs(0x14035E343, PlantTrees_S);

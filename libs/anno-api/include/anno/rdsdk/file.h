@@ -2,6 +2,8 @@
 
 #include "anno/random_game_functions.h"
 
+#include "meow_hook/util.h"
+
 #include <Windows.h>
 
 #include <cstdint>
@@ -82,9 +84,9 @@ namespace rdsdk
         static size_t GetFileSize(fs::path path)
         {
             size_t size = 0;
-            func_call<bool>(GetAddress(anno::FILE_GET_FILE_SIZE),
-                            *(uintptr_t*)GetAddress(anno::SOME_GLOBAL_STRUCTURE_ARCHIVE),
-                            path.wstring(), &size);
+            meow_hook::func_call<bool>(GetAddress(anno::FILE_GET_FILE_SIZE),
+                                       *(uintptr_t*)GetAddress(anno::SOME_GLOBAL_STRUCTURE_ARCHIVE),
+                                       path.wstring(), &size);
             return size;
         }
 

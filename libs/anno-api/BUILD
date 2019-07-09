@@ -11,7 +11,7 @@ cc_library(
     includes = ["include"],
     visibility = ["//visibility:public"],
     deps = [
-        "//libs/hooking",
-         "//third_party:spdlog",
+        "//third_party:spdlog",
+         "@meow_hook//:meow-hook",
     ],
 )

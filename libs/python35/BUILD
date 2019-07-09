@@ -21,11 +21,12 @@ cc_binary(
     deps = [
         ":loader_interface",
         "//third_party:json",
-        "//libs/hooking:hooking",
         "//libs/external-file-loader:external-file-loader",
+        "//libs/python-binding:python-binding",
         "//third_party:python",
         "//third_party:ksignals",
         "//third_party:spdlog",
+        "@meow_hook//:meow-hook",
     ] + select({
         ":internal": [
             "//libs/internal/debuggable:debuggable",
