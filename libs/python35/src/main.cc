@@ -257,13 +257,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                     return;
                 }
 
-                static int32_t current_version[3] = {VERSION_MAJOR, VERSION_MINOR,
-                                                     VERSION_REVISION};
-
                 try {
                     auto        body        = GetLatestVersion();
                     const auto& data        = nlohmann::json::parse(body);
                     const auto& version_str = data["version"].get<std::string>();
+
+                    static int32_t current_version[3] = {VERSION_MAJOR, VERSION_MINOR,
+                                                         VERSION_REVISION};
 
                     int32_t latest_version[3] = {0};
                     std::sscanf(version_str.c_str(), "%d.%d.%d", &latest_version[0],

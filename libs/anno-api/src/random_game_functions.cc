@@ -89,20 +89,11 @@ uintptr_t GetAddress(Address address)
                 .get(0)
                 .as<uintptr_t>();
         }};
-        ADDRESSES[READ_GAME_FILE_JMP]                       = {[]() {
-            return meow_hook::pattern("E8 ? ? ? ? 48 83 F8 30").count(1).get(0).extract_call();
-        }};
         ADDRESSES[FILE_READ_ALLOCATE_BUFFER]                = {[]() {
             return meow_hook::pattern("48 89 5C 24 ? 57 48 83 EC 20 31 FF 48 89 6C 24 ?")
                 .count(1)
                 .get(0)
                 .as<uintptr_t>();
-        }};
-        ADDRESSES[FILE_READ_ALLOCATE_BUFFER_JMP]            = {[]() {
-            return meow_hook::pattern("E8 ? ? ? ? 48 8B 43 48 48 85 C0")
-                .count(1)
-                .get(0)
-                .extract_call();
         }};
         ADDRESSES[SOME_GLOBAL_STRUCT_TOOL_ONE_HELPER_MAYBE] = {[]() {
             return meow_hook::pattern("48 8B 0D ? ? ? ? E8 ? ? ? ? 90 48 8D 4D FF")
