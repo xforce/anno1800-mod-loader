@@ -330,6 +330,8 @@ void EnableExtenalFileLoading(Events& events)
         }
 
         ReadGameFile_QIP = MH_STATIC_DETOUR(GetAddress(anno::READ_GAME_FILE), ReadGameFile);
-        MH_STATIC_DETOUR(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER_JMP), FileReadAllocateBuffer);
+        SetAddress(anno::FILE_READ_ALLOCATE_BUFFER,
+                   uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER),
+                                              FileReadAllocateBuffer)));
     });
 }
