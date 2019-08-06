@@ -3,7 +3,7 @@ pool:
 
 steps:
 - checkout: self
-  submodules: true
+  submodules: recursive
 
 - task: gep13.chocolatey-azuredevops.chocolatey-azuredevops.ChocolateyCommand@0
   displayName: 'Chocolatey install'
