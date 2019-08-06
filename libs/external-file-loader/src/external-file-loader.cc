@@ -161,6 +161,8 @@ void FileReadAllocateBuffer(Cookie* a1, size_t size)
     meow_hook::func_call<void>(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER), a1, size);
 }
 
+uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOfBytesToRead);
+decltype(ReadGameFile)* ReadGameFile_QIP = nullptr;
 uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOfBytesToRead)
 {
     auto m         = ModManager::MapAliasedPath(file->file_path);
@@ -216,8 +218,7 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
                 (char**)&lpBuffer, &output_data_size);
             return output_data_size;
         }
-        return meow_hook::func_call<uint64_t>(GetAddress(anno::READ_GAME_FILE), file, lpBuffer,
-                                              nNumberOfBytesToRead);
+        return ReadGameFile_QIP(file, lpBuffer, nNumberOfBytesToRead);
     }
 }
 
@@ -226,29 +227,7 @@ struct StrangePlantTreeConfig {
     uint64_t growth_time; // 0x20 NOTE(alexander): Must be at least 2 and should be divisible by 2
 };
 
-uintptr_t* PlantTree = 0x0;
-void       PlantTrees_S(uintptr_t* rcx, signed int x, signed int y, StrangePlantTreeConfig* unk,
-                        float meow /* This appears to be useless */)
-{
-    using anno::rdgs::CRegrowManager;
-    auto& regrow_manager = CRegrowManager::Instance();
-    if (x < 0) {
-        return;
-    }
-    for (int xi = -50; xi < 50; ++xi) {
-        for (int yi = -50; yi < 50; ++yi) {
-            float k[2] = {static_cast<float>(x + xi), static_cast<float>(y + yi)};
-            CRegrowManager::StrangePlantTreeConfig conf;
-            conf.growth_time = 2;
-            if (!regrow_manager.HasTreeAtPos(k)) {
-                regrow_manager.PlantTree(x + xi, y + yi, conf, meow);
-            }
-        }
-    }
-    meow_hook::func_call<void>(0x14035E170, rcx, x, y, unk, meow);
-    //
-}
-
+// TODO(alexander): Implement something for this in meow-hook!
 static bool set_import(const std::string& name, uintptr_t func)
 {
     static uint64_t image_base = 0;
@@ -350,18 +329,7 @@ void EnableExtenalFileLoading(Events& events)
                                                   GetContainerBlockInfo)));
         }
 
-        MH_STATIC_DETOUR(GetAddress(anno::READ_GAME_FILE_JMP), ReadGameFile);
+        ReadGameFile_QIP = MH_STATIC_DETOUR(GetAddress(anno::READ_GAME_FILE), ReadGameFile);
         MH_STATIC_DETOUR(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER_JMP), FileReadAllocateBuffer);
-
-        /*static meow_hook::detour<void(uintptr_t * rcx, signed int x, signed int y,
-                                      StrangePlantTreeConfig* unk, float meow)>
-            plant_tree_hook(0x14035E170, PlantTrees_S);*/
-
-        // call(0x146C03F35, 0x14035E343);
-        // jump_abs(0x14035E343, PlantTrees_S);
-
-        // *(uint32_t*)(0x1458D4E16) = 0x0;
-        // nop(0x14248220C, 5);
-        // retn(0x148423610); // Disables UI rendering...
     });
 }
