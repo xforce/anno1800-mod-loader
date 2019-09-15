@@ -54,6 +54,7 @@ class ModManager
     void CollectPatchableFiles();
     void StartWatchingFiles();
     void WaitModsReady() const;
+    Mod& GetModContainingFile(const fs::path& file);
 
     // Cache system stuff
     // This should be moved into it's own class

@@ -209,6 +209,18 @@ void ModManager::WaitModsReady() const
     this->mods_ready_cv_.wait(lk, [this] { return this->mods_ready_.load(); });
 }
 
+Mod& ModManager::GetModContainingFile(const fs::path& file)
+{
+    for (auto& mod : mods_) {
+        if (file.lexically_normal().generic_string().find(mod.Path().lexically_normal().generic_string()) == 0) {
+            return mod;
+        }
+    }
+    static Mod null_mod;
+    assert(false);
+    return null_mod;
+}
+
 void ModManager::ReadCache()
 {
     const auto cache_directory = ModManager::GetCacheDirectory();
@@ -421,7 +433,8 @@ void ModManager::GameFilesReady()
                     // Cache miss
                     auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
                     for (auto&& operation : operations) {
-                        operation.Apply(game_xml, on_disk_file);
+                        auto &mod = GetModContainingFile(on_disk_file);
+                        operation.Apply(game_xml, mod.Name(), game_path, on_disk_file);
                     }
 
                     struct xml_string_writer : pugi::xml_writer {

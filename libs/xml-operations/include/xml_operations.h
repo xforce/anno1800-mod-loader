@@ -29,7 +29,8 @@ class XmlOperation
     {
         return path_;
     }
-    void Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_path = {});
+    void Apply(std::shared_ptr<pugi::xml_document> doc, std::string mod_name = "",
+               fs::path game_path = {}, fs::path mod_path = {});
     static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<pugi::xml_document> doc);
     static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path path);
 
@@ -40,6 +41,7 @@ class XmlOperation
     std::string                                                    guid_;
     std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes_;
     std::shared_ptr<pugi::xml_document>                            doc_;
+    pugi::xml_node                                                 node_;
 
     /*static inline std::string to_string(xmlChar *str)
     {

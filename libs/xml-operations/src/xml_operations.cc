@@ -5,8 +5,45 @@
 
 #include <cstdio>
 
+using offset_data_t = std::vector<ptrdiff_t>;
+
+namespace {
+static bool build_offset_data(offset_data_t &result, const char *file)
+{
+    FILE *f = fopen(file, "rb");
+    if (!f)
+        return false;
+
+    ptrdiff_t offset = 0;
+
+    char   buffer[1024];
+    size_t size;
+
+    while ((size = fread(buffer, 1, sizeof(buffer), f)) > 0) {
+        for (size_t i = 0; i < size; ++i)
+            if (buffer[i] == '\n')
+                result.push_back(offset + i);
+
+        offset += size;
+    }
+
+    fclose(f);
+
+    return true;
+}
+
+static std::pair<size_t, size_t> get_location(const offset_data_t &data, ptrdiff_t offset)
+{
+    offset_data_t::const_iterator it    = std::lower_bound(data.begin(), data.end(), offset);
+    size_t                        index = it - data.begin();
+
+    return std::make_pair(1 + index, index == 0 ? offset + 1 : offset - data[index - 1]);
+}
+}
+
 XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node)
 {
+    node_ = node;
     doc_ = doc;
     ReadType(node);
     ReadPath(node);
@@ -18,6 +55,7 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
 XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                            std::string guid)
 {
+    node_ = node;
     doc_  = doc;
     guid_ = guid;
     ReadPath(node, guid);
@@ -110,7 +148,7 @@ std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc,
     return FindAsset(guid, doc->root());
 }
 
-void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_path)
+void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mod_name, fs::path game_path, fs::path mod_path)
 {
     try {
         spdlog::debug("Looking up {}", path_);
@@ -137,7 +175,10 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
             results = doc->select_nodes(GetPath().c_str());
         }
         if (results.empty()) {
-            spdlog::warn("No matching node for Path {}", GetPath());
+            offset_data_t offset_data;
+            build_offset_data(offset_data, mod_path.string().c_str());
+            auto [line, column]= get_location(offset_data, node_.offset_debug());
+            spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name, game_path.string(), line);
             return;
         }
         spdlog::debug("Looking finished {}", path_);
@@ -204,39 +245,6 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
         }
     }
     return mod_operations;
-}
-
-using offset_data_t = std::vector<ptrdiff_t>;
-static bool build_offset_data(offset_data_t &result, const char *file)
-{
-    FILE *f = fopen(file, "rb");
-    if (!f)
-        return false;
-
-    ptrdiff_t offset = 0;
-
-    char   buffer[1024];
-    size_t size;
-
-    while ((size = fread(buffer, 1, sizeof(buffer), f)) > 0) {
-        for (size_t i = 0; i < size; ++i)
-            if (buffer[i] == '\n')
-                result.push_back(offset + i);
-
-        offset += size;
-    }
-
-    fclose(f);
-
-    return true;
-}
-
-static std::pair<size_t, size_t> get_location(const offset_data_t &data, ptrdiff_t offset)
-{
-    offset_data_t::const_iterator it    = std::lower_bound(data.begin(), data.end(), offset);
-    size_t                        index = it - data.begin();
-
-    return std::make_pair(1 + index, index == 0 ? offset + 1 : offset - data[index - 1]);
 }
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path path)

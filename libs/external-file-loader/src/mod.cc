@@ -34,3 +34,8 @@ void Mod::ForEachFile(std::function<void(const fs::path&, const fs::path&)> fn) 
         fn(game_path, file_path);
     });
 }
+
+fs::path Mod::Path() const
+{
+    return root_path;
+}
