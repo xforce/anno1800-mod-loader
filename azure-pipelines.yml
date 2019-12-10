@@ -30,6 +30,15 @@ steps:
     flattenFolders: true
 
 - task: CopyFiles@2
+  displayName: 'Copy loader pdb'
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    Contents: |
+     bazel-bin/libs/python35/?(*.pdb)
+    TargetFolder: '$(Build.BinariesDirectory)/python35-dbg/'
+    flattenFolders: true
+
+- task: CopyFiles@2
   displayName: 'Copy Files xmltest'
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)'
@@ -50,6 +59,13 @@ steps:
     rootFolderOrFile: '$(Build.BinariesDirectory)/python35/'
     includeRootFolder: false
     archiveFile: '$(Build.ArtifactStagingDirectory)/loader.zip'
+
+- task: ArchiveFiles@2
+  displayName: 'Archive loader pdb'
+  inputs:
+    rootFolderOrFile: '$(Build.BinariesDirectory)/python35-dbg/'
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/loader-dbg.zip'    
 
 - task: GitHubRelease@0
   displayName: 'GitHub release (create)'
