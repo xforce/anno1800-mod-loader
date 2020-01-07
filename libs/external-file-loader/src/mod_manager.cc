@@ -562,7 +562,7 @@ bool ModManager::IsPatchableFile(const fs::path& file) const
     // We can only patch xml files at the moment
     // Other files have to be replaced entirely
     const auto extension = file.extension();
-    return extension == ".xml";
+    return extension == ".xml" || extension == ".cfg" || extention == ".ifo";
 }
 
 std::string ModManager::GetFileHash(const fs::path& path) const
