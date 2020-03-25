@@ -56,7 +56,8 @@ cc_library(
 cc_library(
     name = "spdlog",
     defines = [
-        "SPDLOG_WCHAR_FILENAMES"
+        "SPDLOG_WCHAR_FILENAMES",
+        "SPDLOG_WCHAR_TO_UTF8_SUPPORT",
     ],
     hdrs = glob(["spdlog/include/**/*.h"]),
     includes = [

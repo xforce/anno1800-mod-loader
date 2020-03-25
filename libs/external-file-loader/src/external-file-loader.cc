@@ -30,6 +30,7 @@ bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& f
     // as each rda is actually just a memory mapped file
     // but we don't care about that at the moment, probably never will
     if (ModManager::instance().IsFileModded(file_path)) {
+        spdlog::debug(L"Read Modded File From Container {} {}", file_path, *output_data_size);
         auto info = ModManager::instance().GetModdedFileInfo(file_path);
         if (info.is_patched) {
             memcpy(*output_data_pointer, info.data.data(), info.data.size());
@@ -66,13 +67,12 @@ bool GetContainerBlockInfo(anno::rdsdk::CFile* file, const std::wstring& file_pa
         fs.close();
     }
     auto       m         = file_path;
-    const auto game_size = anno::rdsdk::CFile::GetFileSize(file_path);
-    if (game_size == 0) {
-        // File does not exist in RDA
-        if ((ModManager::instance().IsFileModded(file_path)
-             || m.find(L"data/config/game/asset") == 0)
-            && m.find(L"data/shaders/cache") != 0) {
-            m = L"mods/dummy";
+    if (ModManager::instance().IsFileModded(file_path)) {
+        spdlog::debug(L"GetContainerBlockInfo Modded {} Size {} Handle {}", file_path, file->size, (uintptr_t)file->file_handle);
+        //
+        a3 = 1;
+        if (!file_path.empty()) {
+            spdlog::debug(L"GetContainerBlockInfo {} Flags {}", file_path, a3);
         }
     }
     auto result = anno::GetContainerBlockInfo((uintptr_t*)file, m, a3);
@@ -81,6 +81,10 @@ bool GetContainerBlockInfo(anno::rdsdk::CFile* file, const std::wstring& file_pa
     }
     if (ModManager::instance().IsFileModded(file_path)) {
         auto info  = ModManager::instance().GetModdedFileInfo(file_path);
+        if (!file_path.empty()) {
+            spdlog::debug(L"GetContainerBlockInfo Modded {} Size {} Info Size {} Handle {}", file_path, file->size,
+                            info.size, (uintptr_t)file->file_handle);
+        }
         file->size = info.size;
     } else {
         m = ModManager::MapAliasedPath(file_path);
@@ -118,11 +122,41 @@ inline size_t GetFileSize(fs::path m)
     return size;
 }
 
+inline bool FileGetSize(uintptr_t a1, std::wstring &file_path, size_t* output_size) {
+    spdlog::debug(L"FileGetSize {}", file_path);
+    if (ModManager::instance().IsFileModded(file_path)) {
+        const auto& info = ModManager::instance().GetModdedFileInfo(file_path);
+        if (info.is_patched) {
+            *output_size = info.data.size();
+        } else {
+            // This is not a file that we can patch
+            // Just load it from disk
+            auto hFile = CreateFileW(info.disk_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                                     OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+            if (hFile == INVALID_HANDLE_VALUE) {
+                *output_size = 0;
+                return false;
+            }
+            LARGE_INTEGER lFileSize;
+            GetFileSizeEx(hFile, &lFileSize);
+            CloseHandle(hFile);
+
+            *output_size = lFileSize.QuadPart;
+        }
+    } else {
+        return anno::rdsdk::CFile::GetFileSize(a1, file_path, output_size);
+    }
+    return true;
+}
+
 HANDLE FindFirstFileW_S(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 {
     auto n = FindFirstFileW(lpFileName, lpFindFileData);
     //
     auto w_str    = std::wstring(lpFileName);
+    if (!w_str.empty()) {
+        spdlog::debug(L"FindFirstFileW_S {}", w_str);
+    }
     auto mod_path = ModManager::MapAliasedPath(w_str);
     if (ModManager::instance().IsFileModded(mod_path)
         || w_str.find(L"data/config/game/asset") == 0) {
@@ -147,24 +181,13 @@ HANDLE FindFirstFileW_S(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
     return n;
 }
 
-struct Cookie {
-    uintptr_t*   vtable_maybe;
-    char         pad[0x8];
-    std::wstring path;
-};
-
-void FileReadAllocateBuffer(Cookie* a1, size_t size)
-{
-    if (size == 0) {
-        size = GetFileSize(ModManager::MapAliasedPath(a1->path));
-    }
-    meow_hook::func_call<void>(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER), a1, size);
-}
-
 uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOfBytesToRead);
 decltype(ReadGameFile)* ReadGameFile_QIP = nullptr;
 uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOfBytesToRead)
 {
+    if (!file->file_path.empty()) {
+        spdlog::debug(L"ReadGameFile {} {}", file->file_path, nNumberOfBytesToRead);
+    }
     auto m         = ModManager::MapAliasedPath(file->file_path);
     auto file_path = file->file_path;
     if (ModManager::instance().IsFileModded(m)) {
@@ -317,21 +340,47 @@ void EnableExtenalFileLoading(Events& events)
     set_import("FindFirstFileW", (uintptr_t)FindFirstFileW_S);
 
     events.DoHooking.connect([]() {
+        if (!anno::FindAddresses()) {
+#define VER_FILE_DESCRIPTION_STR "Anno 1800 Mod Loader"
+            std::string msg = "This version is not compatible with your current Game Version.\n\n";
+            msg.append("Do you want to go to the GitHub to report an issue or check for a newer version?\n");
+
+            if (MessageBoxA(NULL, msg.c_str(), VER_FILE_DESCRIPTION_STR,
+                            MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)
+                == IDYES) {
+                auto result =
+                    ShellExecuteA(nullptr, "open",
+                                  "https://github.com/xforce/anno1800-mod-loader",
+                                  nullptr, nullptr, SW_SHOWNORMAL);
+                result = result;
+                TerminateProcess(GetCurrentProcess(), 0);
+            }
+            spdlog::error("Failed to find addresses, aborting mod loader, please create an issue on GitHub");
+            return;
+        }
+        spdlog::debug("Patching ReadFileFromContainer");
         {
             SetAddress(anno::READ_FILE_FROM_CONTAINER,
                        uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::READ_FILE_FROM_CONTAINER),
                                                   ReadFileFromContainer)));
         }
 
+        spdlog::debug("Patching GetContainerBlockInfo");
         {
             SetAddress(anno::GET_CONTAINER_BLOCK_INFO,
                        uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
                                                   GetContainerBlockInfo)));
         }
 
+        spdlog::debug("Patching ReadGameFile");
         ReadGameFile_QIP = MH_STATIC_DETOUR(GetAddress(anno::READ_GAME_FILE), ReadGameFile);
-        SetAddress(anno::FILE_READ_ALLOCATE_BUFFER,
-                   uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::FILE_READ_ALLOCATE_BUFFER),
-                                              FileReadAllocateBuffer)));
+
+        {
+
+            spdlog::debug("Patching FileGetSize");
+            SetAddress(
+                anno::FILE_GET_FILE_SIZE,
+                uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::FILE_GET_FILE_SIZE), FileGetSize)));
+        }
     });
 }

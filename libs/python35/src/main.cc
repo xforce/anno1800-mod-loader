@@ -246,6 +246,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                         file_logger->sinks().push_back(
                             std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
 
+                        spdlog::set_level(spdlog::level::info);
                         spdlog::flush_on(spdlog::level::info);
                         spdlog::set_pattern("[%Y-%m-%d %T.%e] [%^%l%$] %v");
                     } catch (const fs::filesystem_error& e) {
