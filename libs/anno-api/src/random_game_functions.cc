@@ -155,6 +155,7 @@ bool FindAddresses() {
         }};
         //
         bool any_address_failed = false;
+        int  index              = 0;
         for (auto &address : ADDRESSES) {
             //
             auto pattern_matched_address = address.pattern_lookup();
@@ -166,8 +167,9 @@ bool FindAddresses() {
                 spdlog::debug("Matched address {}", pattern_matched_address);
             } else {
                 any_address_failed = true;
-                spdlog::error("Failed to find address, please create an issue on GitHub");
+                spdlog::error("Failed to find address, please create an issue on GitHub {}", index);
             }
+            ++index;
         }
         return !any_address_failed;
     }
