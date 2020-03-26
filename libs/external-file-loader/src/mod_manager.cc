@@ -25,7 +25,7 @@
 #include <optional>
 #include <sstream>
 
-constexpr static auto PATCH_OP_VERSION = "1.5";
+constexpr static auto PATCH_OP_VERSION = "1.7";
 
 Mod& ModManager::Create(const fs::path& root)
 {
@@ -236,11 +236,16 @@ void ModManager::ReadCache()
                 std::vector<std::string> layer_order      = data["layers"]["order"];
                 std::string              patch_op_version = data.at("version").get<std::string>();
                 if (PATCH_OP_VERSION == patch_op_version) {
+                    spdlog::debug("Loading from cache {} vs {}",
+                                  patch_op_version, PATCH_OP_VERSION);
                     std::vector<CacheLayer> cache_layers;
                     for (auto&& layer : layer_order) {
                         cache_layers.emplace_back(data["layers"].at(layer).get<CacheLayer>());
                     }
                     modded_file_cache_info_[game_path] = std::move(cache_layers);
+                } else {
+                    spdlog::debug("Skipping cache because Patch Op Version mismatch {} vs {}",
+                                  patch_op_version, PATCH_OP_VERSION);
                 }
             } catch (const nlohmann::json::exception&) {
             }

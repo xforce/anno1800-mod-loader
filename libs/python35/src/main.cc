@@ -15,6 +15,7 @@
 
 #include <WinInet.h>
 #include <Windows.h>
+#include <tlhelp32.h>
 
 #pragma comment(lib, "Wininet.lib")
 
@@ -206,11 +207,46 @@ bool set_import(const std::string& name, uintptr_t func)
     return result;
 }
 
+HANDLE GetParentProcess()
+{
+    HANDLE Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+    PROCESSENTRY32 ProcessEntry = {};
+    ProcessEntry.dwSize         = sizeof(PROCESSENTRY32);
+
+    if (Process32First(Snapshot, &ProcessEntry)) {
+        DWORD CurrentProcessId = GetCurrentProcessId();
+
+        do {
+            if (ProcessEntry.th32ProcessID == CurrentProcessId)
+                break;
+        } while (Process32Next(Snapshot, &ProcessEntry));
+    }
+
+    CloseHandle(Snapshot);
+
+    return OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, ProcessEntry.th32ParentProcessID);
+}
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH: {
             DisableThreadLibraryCalls(hModule);
+
+            auto parent_handle = GetParentProcess();
+            wchar_t process_name[1024] = { 0 };
+            DWORD  process_name_size = 1024;
+            QueryFullProcessImageNameW(parent_handle, 0, process_name, &process_name_size);
+            std::filesystem::path process_file_path(process_name);
+
+            if (_wcsicmp(process_file_path.filename().wstring().c_str(), L"UbisoftGameLauncher.exe")
+                    != 0
+                && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                            L"UbisoftGameLauncher64.exe")
+                       != 0) {
+                return TRUE;
+            }
 
 #if defined(INTERNAL_ENABLED)
             EnableDebugging(events);
@@ -246,8 +282,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                         file_logger->sinks().push_back(
                             std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
 
-                        spdlog::set_level(spdlog::level::info);
-                        spdlog::flush_on(spdlog::level::info);
+                        #if defined(INTERNAL_ENABLED)
+                            spdlog::set_level(spdlog::level::debug);
+                            spdlog::flush_on(spdlog::level::debug);
+                        #else
+                            spdlog::set_level(spdlog::level::info);
+                            spdlog::flush_on(spdlog::level::info);
+                        #endif
                         spdlog::set_pattern("[%Y-%m-%d %T.%e] [%^%l%$] %v");
                     } catch (const fs::filesystem_error& e) {
                         // TODO(alexander): Logs

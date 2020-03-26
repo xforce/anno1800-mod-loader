@@ -106,19 +106,19 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
 void XmlOperation::ReadType(pugi::xml_node node)
 {
     auto type = GetXmlPropString(node, "Type");
-    if (type == "add") {
+    if (stricmp(type.c_str(), "add") == 0) {
         type_ = Type::Add;
-    } else if (type == "addNextSibling") {
+    } else if (stricmp(type.c_str(), "addNextSibling") == 0) {
         type_ = Type::AddNextSibling;
-    } else if (type == "addPrevSibling") {
+    } else if (stricmp(type.c_str(), "addPrevSibling") == 0) {
         type_ = Type::AddPrevSibling;
-    } else if (type == "add") {
+    } else if (stricmp(type.c_str(), "add") == 0) {
         type_ = Type::Add;
-    } else if (type == "remove") {
+    } else if (stricmp(type.c_str(),  "remove") == 0) {
         type_ = Type::Remove;
-    } else if (type == "replace") {
+    } else if (stricmp(type.c_str(), "replace") == 0) {
         type_ = Type::Replace;
-    } else if (type == "merge") {
+    } else if (stricmp(type.c_str(), "merge") == 0) {
         type_ = Type::Merge;
     }
 }
@@ -126,7 +126,7 @@ void XmlOperation::ReadType(pugi::xml_node node)
 std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node)
 {
     //
-    if (node.name() == std::string("Asset")) {
+    if (stricmp(node.name(), "Asset") == 0) {
         pugi::xml_node g = node.first_element_by_path("Values/Standard/GUID");
         if (g.text().get() == guid) {
             return node;
@@ -170,6 +170,8 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mo
                              "'slow' lookup.",
                              speculative_path_, guid_, mod_path.string(), e.what());
             }
+        } else {
+            spdlog::debug("Not doing speculative path lookup :(");
         }
         if (results.empty()) {
             results = doc->select_nodes(GetPath().c_str());
@@ -181,7 +183,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mo
             spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name, game_path.string(), line);
             return;
         }
-        spdlog::debug("Looking finished {}", path_);
+        spdlog::debug("Lookup finished {}", path_);
         for (pugi::xpath_node xnode : results) {
             pugi::xml_node game_node = xnode.node();
             if (GetType() == XmlOperation::Type::Merge) {
@@ -227,10 +229,10 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
         return {};
     }
     std::vector<XmlOperation> mod_operations;
-    if (root.first_child().name() == std::string("ModOps")) {
+    if (stricmp(root.first_child().name(), "ModOps") == 0) {
         for (pugi::xml_node node : root.first_child().children()) {
             if (node.type() == pugi::xml_node_type::node_element) {
-                if (node.name() == std::string("ModOp")) {
+                if (stricmp(node.name(), "ModOp") == 0) {
                     const auto guid = GetXmlPropString(node, "GUID");
                     if (!guid.empty()) {
                         std::vector<std::string> guids = absl::StrSplit(guid, ',');
