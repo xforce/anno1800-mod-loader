@@ -17,6 +17,8 @@ int main(int argc, const char **argv)
         return -1;
     }
 
+    spdlog::set_level(spdlog::level::debug);
+
     std::ifstream   file(argv[1], std::ios::binary | std::ios::ate);
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
@@ -43,6 +45,7 @@ int main(int argc, const char **argv)
     };
 
     xml_string_writer writer;
+
     spdlog::info("Start writing");
     writer.result.reserve(100 * 1024 * 1024);
     doc->print(writer);

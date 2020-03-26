@@ -71,6 +71,7 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     if (prop_path.empty()) {
         prop_path = "/";
     }
+
     if (!guid.empty()) {
         path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
     }
@@ -90,7 +91,7 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     if (!guid.empty()) {
         speculative_path_ += prop_path;
         if (speculative_path_ == "/") {
-            speculative_path_ = "self";
+            speculative_path_ = "self::node()";
         }
         if (speculative_path_.length() > 0) {
             if (speculative_path_[path_.length() - 1] == '/') {
@@ -127,9 +128,17 @@ std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node)
 {
     //
     if (stricmp(node.name(), "Asset") == 0) {
-        pugi::xml_node g = node.first_element_by_path("Values/Standard/GUID");
-        if (g.text().get() == guid) {
-            return node;
+        auto values = node.child("Values");
+        if (values) {
+            auto standard = values.child("Standard");
+            if (standard) {
+                auto GUID = standard.child("GUID");
+                if (GUID) {
+                    if (GUID.text().get() == guid) {
+                        return node;
+                    }
+                }
+            }
         }
         return {};
     }
@@ -160,9 +169,12 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mo
                     if (speculative_path_ != "*") {
                         results = node->select_nodes(speculative_path_.c_str());
                     }
+                } else {
+                  spdlog::debug("Speculative path failed to find node {}", GetPath());
                 }
                 if (results.empty()) {
-                    spdlog::debug("Speculative path failed to find node {}", GetPath());
+                    spdlog::debug("Speculative path failed to find node with path {} {}", GetPath(),
+                                  speculative_path_);
                 }
             } catch (const pugi::xpath_exception &e) {
                 spdlog::warn("Speculative path lookup failed {} (GUID={}) in {}: {}. Please create "
