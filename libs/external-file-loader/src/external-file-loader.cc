@@ -22,6 +22,8 @@ class Mod;
 
 std::vector<Mod> mods;
 
+// #define ADVANCED_HOOK_LOGS 1
+
 uintptr_t* ReadFileFromContainerOIP = nullptr;
 bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& file_path,
                                  char** output_data_pointer, size_t* output_data_size)

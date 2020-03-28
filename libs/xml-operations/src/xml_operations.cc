@@ -71,10 +71,23 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     if (prop_path.empty()) {
         prop_path = "/";
     }
-
-    if (!guid.empty()) {
-        path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
+    
+    if (guid.empty()) {
+        // //Assets[Asset/Values/Standard/GUID='102119']
+        int g;
+        if (sscanf(prop_path.c_str(), "//Assets[Asset/Values/Standard/GUID='%d']", &g) > 0) {
+            if (std::string("//Assets[Asset/Values/Standard/GUID='") + std::to_string(g) + "']"
+                == prop_path) {
+                guid                   = std::to_string(g);
+                guid_                  = std::to_string(g);
+                speculative_path_type_ = SpeculativePathType::ASSET_CONTAINER;
+            }
+        }
+    } else {
+        speculative_path_type_ = SpeculativePathType::SINGLE_ASSET;
+        path_                  = "//Asset[Values/Standard/GUID='" + guid + "']";
     }
+
     if (prop_path.find("/") != 0) {
         path_ += "/";
     }
@@ -89,7 +102,11 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     }
 
     if (!guid.empty()) {
-        speculative_path_ += prop_path;
+        if (speculative_path_type_ == SpeculativePathType::ASSET_CONTAINER) {
+            speculative_path_ = "/";
+        } else {
+            speculative_path_ += prop_path;
+        }
         if (speculative_path_ == "/") {
             speculative_path_ = "self::node()";
         }
@@ -101,6 +118,8 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
         if (speculative_path_.find("/") == 0) {
             speculative_path_ = speculative_path_.substr(1);
         }
+    } else {
+     
     }
 }
 
@@ -124,23 +143,40 @@ void XmlOperation::ReadType(pugi::xml_node node)
     }
 }
 
-std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node)
+std::optional<pugi::xml_node> XmlOperation::FindAsset(std::string guid, pugi::xml_node node)
 {
     //
     if (stricmp(node.name(), "Asset") == 0) {
         auto values = node.child("Values");
-        if (values) {
-            auto standard = values.child("Standard");
-            if (standard) {
-                auto GUID = standard.child("GUID");
-                if (GUID) {
-                    if (GUID.text().get() == guid) {
-                        return node;
-                    }
-                }
-            }
+        if (!values) {
+            return {};
         }
-        return {};
+
+        auto standard = values.child("Standard");
+        if (!standard) {
+            return {};
+        }
+
+        auto GUID = standard.child("GUID");
+        if (!GUID) {
+            return {};
+        }
+
+        if (GUID.text().get() != guid) {
+            return {};
+        }
+        if (speculative_path_type_ == SpeculativePathType::ASSET_CONTAINER) {
+            auto parent = node.parent();
+            while (parent && stricmp(parent.name(), "Assets") != 0) {
+                parent = parent.parent();
+            }
+            if (stricmp(parent.name(), "Assets") == 0) {
+                return parent;
+            }
+            return {};
+        } else {
+            return node;
+        }
     }
 
     for (pugi::xml_node n : node.children()) {
@@ -152,7 +188,8 @@ std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node)
     return {};
 }
 
-std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc, std::string guid)
+std::optional<pugi::xml_node> XmlOperation::FindAsset(std::shared_ptr<pugi::xml_document> doc,
+                                                    std::string                         guid)
 {
     return FindAsset(guid, doc->root());
 }

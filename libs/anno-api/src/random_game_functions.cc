@@ -113,8 +113,6 @@ bool FindAddresses() {
                 pattern.matches()) {
                 return pattern.count(1).get(0).as<uintptr_t>();
             }
-
-            return uintptr_t(0xDEAD + 1);
            
             return uintptr_t(0xDEAD);
         }};
@@ -155,21 +153,28 @@ bool FindAddresses() {
         }};
         //
         bool any_address_failed = false;
-        int  index              = 0;
-        for (auto &address : ADDRESSES) {
-            //
-            auto pattern_matched_address = address.pattern_lookup();
+        for (int attempt = 0; attempt < 5; ++attempt) {
+            any_address_failed = false;
+            int  index              = 0;
+            for (auto &address : ADDRESSES) {
+                //
+                auto pattern_matched_address = address.pattern_lookup();
 
-            // If we fail to find an address, we are in trouble :)
-            // Mod loader needs updating
-            if (pattern_matched_address != 0xDEAD && pattern_matched_address != 0) {
-                address.address = pattern_matched_address;
-                spdlog::debug("Matched address {}", pattern_matched_address);
-            } else {
-                any_address_failed = true;
-                spdlog::error("Failed to find address, please create an issue on GitHub {}", index);
+                // If we fail to find an address, we are in trouble :)
+                // Mod loader needs updating
+                if (pattern_matched_address != 0xDEAD && pattern_matched_address != 0) {
+                    address.address = pattern_matched_address;
+                    spdlog::debug("Matched address {}", pattern_matched_address);
+                } else {
+                    any_address_failed = true;
+                    spdlog::error("Failed to find address, please create an issue on GitHub {}",
+                                  index);
+                }
+                ++index;
             }
-            ++index;
+            if (!any_address_failed) {
+                return true;
+            }
         }
         return !any_address_failed;
     }

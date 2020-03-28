@@ -1,3 +1,5 @@
+#pragma once
+
 #include "pugixml.hpp"
 
 #include <filesystem>
@@ -43,11 +45,13 @@ class XmlOperation
     std::shared_ptr<pugi::xml_document>                            doc_;
     pugi::xml_node                                                 node_;
 
-    /*static inline std::string to_string(xmlChar *str)
-    {
-        int charLength = xmlStrlen(str);
-        return std::string{reinterpret_cast<const char *>(str), size_t(charLength)};
-    }*/
+    enum SpeculativePathType {
+        NONE,
+        SINGLE_ASSET,
+        ASSET_CONTAINER,
+    };
+
+    SpeculativePathType speculative_path_type_ = SpeculativePathType::NONE;
 
     static std::string GetXmlPropString(pugi::xml_node node, std::string prop_name)
     {
@@ -57,4 +61,7 @@ class XmlOperation
                         pugi::xml_node patching_node);
     void ReadPath(pugi::xml_node node, std::string guid = "");
     void ReadType(pugi::xml_node node);
+    std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node);
+    std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc,
+                                            std::string                         guid);
 };

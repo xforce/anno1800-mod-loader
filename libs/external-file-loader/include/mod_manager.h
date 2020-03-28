@@ -1,3 +1,5 @@
+#pragma once
+
 #include "mod.h"
 
 #include "nlohmann/json.hpp"
