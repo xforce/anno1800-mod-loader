@@ -31,11 +31,12 @@ bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& f
     // archive_file_map is a pointer to a struct identifying which rda this file resides in
     // as each rda is actually just a memory mapped file
     // but we don't care about that at the moment, probably never will
-    if (ModManager::instance().IsFileModded(file_path)) {
+    auto mapped_path = ModManager::MapAliasedPath(file_path);
+    if (ModManager::instance().IsFileModded(mapped_path)) {
 #if defined(ADVANCED_HOOK_LOGS)
-        spdlog::debug(L"Read Modded File From Container {} {}", file_path, *output_data_size);
+        spdlog::debug(L"Read Modded File From Container {} {}", mapped_path.wstring(), *output_data_size);
 #endif
-        auto info = ModManager::instance().GetModdedFileInfo(file_path);
+        auto info = ModManager::instance().GetModdedFileInfo(mapped_path);
         if (info.is_patched) {
             memcpy(*output_data_pointer, info.data.data(), info.data.size());
         } else {
@@ -54,7 +55,7 @@ bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& f
         }
         return true;
     }
-    auto result = anno::ReadFileFromContainer(archive_file_map, file_path, output_data_pointer,
+    auto result = anno::ReadFileFromContainer(archive_file_map, mapped_path, output_data_pointer,
                                               output_data_size);
     result      = result;
     return result;
@@ -104,6 +105,9 @@ bool GetContainerBlockInfo(anno::rdsdk::CFile* file, const std::wstring& file_pa
 }
 inline size_t GetFileSize(fs::path m)
 {
+#if defined(ADVANCED_HOOK_LOGS)
+    spdlog::debug("Custom GetFileSize {}", m.string());
+#endif
     size_t size = 0;
     if (ModManager::instance().IsFileModded(m)) {
         const auto& info = ModManager::instance().GetModdedFileInfo(m);
@@ -133,8 +137,9 @@ inline bool FileGetSize(uintptr_t a1, std::wstring &file_path, size_t* output_si
 #if defined(ADVANCED_HOOK_LOGS)
     spdlog::debug(L"FileGetSize {}", file_path);
 #endif
-    if (ModManager::instance().IsFileModded(file_path)) {
-        const auto& info = ModManager::instance().GetModdedFileInfo(file_path);
+    auto mapped_path = ModManager::MapAliasedPath(file_path);
+    if (ModManager::instance().IsFileModded(mapped_path)) {
+        const auto& info = ModManager::instance().GetModdedFileInfo(mapped_path);
         if (info.is_patched) {
             *output_size = info.data.size();
         } else {
@@ -153,7 +158,11 @@ inline bool FileGetSize(uintptr_t a1, std::wstring &file_path, size_t* output_si
             *output_size = lFileSize.QuadPart;
         }
     } else {
-        return anno::rdsdk::CFile::GetFileSize(a1, file_path, output_size);
+        auto r = anno::rdsdk::CFile::GetFileSize(a1, mapped_path.wstring(), output_size);
+#if defined(ADVANCED_HOOK_LOGS)
+        spdlog::debug(L"rdsdk::CFile::GetFileSize {} {}", mapped_path.wstring(), *output_size);
+#endif
+        return r;
     }
     return true;
 }
@@ -168,14 +177,14 @@ HANDLE FindFirstFileW_S(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
         spdlog::debug(L"FindFirstFileW_S {}", w_str);
 #endif
     }
-    auto mod_path = ModManager::MapAliasedPath(w_str);
-    if (ModManager::instance().IsFileModded(mod_path)
+    auto mapped_path = ModManager::MapAliasedPath(w_str);
+    if (ModManager::instance().IsFileModded(mapped_path)
         || w_str.find(L"data/config/game/asset") == 0) {
         //
         if (n != INVALID_HANDLE_VALUE) {
             FindClose(n);
         }
-        size_t         size = GetFileSize(mod_path);
+        size_t         size = GetFileSize(mapped_path);
         ULARGE_INTEGER nsize;
         nsize.QuadPart = size;
 
@@ -201,10 +210,10 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
         spdlog::debug(L"ReadGameFile {} {}", file->file_path, nNumberOfBytesToRead);
 #endif
     }
-    auto m         = ModManager::MapAliasedPath(file->file_path);
+    auto mapped_path = ModManager::MapAliasedPath(file->file_path);
     auto file_path = file->file_path;
-    if (ModManager::instance().IsFileModded(m)) {
-        const auto& info = ModManager::instance().GetModdedFileInfo(m);
+    if (ModManager::instance().IsFileModded(mapped_path)) {
+        const auto& info = ModManager::instance().GetModdedFileInfo(mapped_path);
         if (info.is_patched) {
             memcpy(lpBuffer, info.data.data(), info.data.size());
             return info.data.size();
@@ -246,11 +255,11 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             return bytes_left_in_buffer_read_count;
         }
     } else {
-        auto size = anno::rdsdk::CFile::GetFileSize(m);
+        auto size = anno::rdsdk::CFile::GetFileSize(mapped_path);
         if (size > 0 && file->file_handle) {
             size_t output_data_size = 0;
             anno::ReadFileFromContainer(
-                *(uintptr_t*)GetAddress(anno::SOME_GLOBAL_STRUCTURE_ARCHIVE), m.c_str(),
+                *(uintptr_t*)GetAddress(anno::SOME_GLOBAL_STRUCTURE_ARCHIVE), mapped_path.wstring(),
                 (char**)&lpBuffer, &output_data_size);
             return output_data_size;
         }
