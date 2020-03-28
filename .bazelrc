@@ -1,1 +1,1 @@
-build --cpu=x64_windows --host_cpu=x64_windows --shell_executable="cmd" --copt="/D_ITERATOR_DEBUG_LEVEL=0" --linkopt="/DEBUG:FULL" --cxxopt=-std:c++latest --define internal=1
+build --cpu=x64_windows --host_cpu=x64_windows --shell_executable="cmd" --copt="/D_ITERATOR_DEBUG_LEVEL=0" --linkopt="/DEBUG:FULL" --cxxopt=-std:c++latest
