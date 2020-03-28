@@ -25,7 +25,7 @@
 #include <optional>
 #include <sstream>
 
-constexpr static auto PATCH_OP_VERSION = "1.6";
+constexpr static auto PATCH_OP_VERSION = "1.16";
 
 Mod& ModManager::Create(const fs::path& root)
 {
@@ -332,6 +332,8 @@ std::string ModManager::PushCacheLayer(const fs::path&    game_path,
                                        const std::string& patch_file_hash, const std::string& buf,
                                        const std::string& mod_name)
 {
+    spdlog::debug("PushCacheLayer {} {} {} {}", game_path.string(), last_valid_cache, patch_file_hash,
+                  mod_name);
     CacheLayer layer;
     layer.input_hash  = last_valid_cache;
     layer.output_hash = GetDataHash(buf);

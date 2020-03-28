@@ -92,15 +92,31 @@ static std::string GetLatestVersion()
     return data;
 }
 
+static bool   checked_hooking = false;
 HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                      LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
                      DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
-    if (std::wstring(lpFileName).find(L"assets.xml") != std::wstring::npos) {
-        __debugbreak();
+    if (!checked_hooking && std::wstring(lpFileName).find(L"maindata/file.db") != std::string::npos) {
+        checked_hooking = true;
+        static std::once_flag flag1;
+        std::call_once(flag1, []() { events.DoHooking(); });
     }
     return CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+}
+
+HWND WINAPI CreateWindowExW_S(_In_ DWORD dwExStyle, _In_opt_ LPCWSTR lpClassName,
+                            _In_opt_ LPCWSTR lpWindowName, _In_ DWORD dwStyle, _In_ int X,
+                            _In_ int Y, _In_ int nWidth, _In_ int nHeight, _In_opt_ HWND hWndParent,
+                            _In_opt_ HMENU hMenu, _In_opt_ HINSTANCE hInstance, _In_opt_ LPVOID lpParam)
+{
+    spdlog::debug("Create Window");
+    auto r = CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight,
+                          hWndParent, hMenu, hInstance, lpParam);
+
+   
+     return r;
 }
 
 FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
@@ -110,14 +126,17 @@ FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
     // those would have usually been in the import table.
     // This means we are ready to do some hooking
     // But only do hooking once.
-    static std::once_flag flag1;
-    std::call_once(flag1, []() { events.DoHooking(); });
-
-    /*  if ((int)lpProcName > 0x1000 && lpProcName == std::string("CreateFileW")) {
-          return (FARPROC)CreateFileW_S;
-      }*/
+ 
 
     if ((uintptr_t)lpProcName > 0x1000) {
+        if (lpProcName == std::string("CreateFileW")) {
+            return (FARPROC)CreateFileW_S;
+        }
+        if (lpProcName == std::string("CreateWindowExW")) {
+            // 
+            return (FARPROC)CreateWindowExW_S;
+        }
+        spdlog::debug("GetProcAddress {}", lpProcName);
         auto procs = events.GetProcAddress(lpProcName);
         for (auto& proc : procs) {
             if (proc > 0) {
@@ -234,18 +253,27 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         case DLL_PROCESS_ATTACH: {
             DisableThreadLibraryCalls(hModule);
 
-            auto parent_handle = GetParentProcess();
-            wchar_t process_name[1024] = { 0 };
-            DWORD  process_name_size = 1024;
-            QueryFullProcessImageNameW(parent_handle, 0, process_name, &process_name_size);
-            std::filesystem::path process_file_path(process_name);
+            {
+                auto    parent_handle      = GetParentProcess();
+                wchar_t process_name[1024] = {0};
+                DWORD   process_name_size  = 1024;
+                QueryFullProcessImageNameW(parent_handle, 0, process_name, &process_name_size);
+                std::filesystem::path process_file_path(process_name);
 
-            if (_wcsicmp(process_file_path.filename().wstring().c_str(), L"UbisoftGameLauncher.exe")
-                    != 0
-                && _wcsicmp(process_file_path.filename().wstring().c_str(),
-                            L"UbisoftGameLauncher64.exe")
-                       != 0) {
-                return TRUE;
+                if (_wcsicmp(process_file_path.filename().wstring().c_str(),
+                             L"UbisoftGameLauncher.exe")
+                        != 0
+                    && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                                L"UbisoftGameLauncher64.exe")
+                           != 0
+                    && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                                L"Anno1800_plus.exe")
+                           != 0
+                    && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                                L"Anno1800.exe")
+                           != 0) {
+                    return TRUE;
+                }
             }
 
 #if defined(INTERNAL_ENABLED)
@@ -256,6 +284,22 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             if (command_line.find(L"gamelauncher_wait_handle") != std::wstring::npos
                 && command_line.find(L"upc_uplay_id") != std::wstring::npos) {
                 return TRUE;
+            }
+
+            {
+                wchar_t process_name[1024] = {0};
+                DWORD   process_name_size  = 1024;
+                QueryFullProcessImageNameW(GetCurrentProcess(), 0, process_name, &process_name_size);
+                std::filesystem::path process_file_path(process_name);
+
+                if (_wcsicmp(process_file_path.filename().wstring().c_str(),
+                             L"Anno1800_plus.exe")
+                        != 0
+                    && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                                L"Anno1800.exe")
+                           != 0) {
+                    return TRUE;
+                }
             }
 
             // Version Check

@@ -45,7 +45,7 @@ namespace ToolOneDataHelper
 {
     inline void ReloadData()
     {
-        // return ((decltype(ReloadData)*)GetAddress(TOOL_ONE_DATA_HELPER_RELOAD_DATA))();
+        return ((decltype(ReloadData)*)GetAddress(TOOL_ONE_DATA_HELPER_RELOAD_DATA))();
     }
 } // namespace ToolOneDataHelper
 } // namespace anno
