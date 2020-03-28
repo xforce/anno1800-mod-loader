@@ -111,7 +111,7 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
             speculative_path_ = "self::node()";
         }
         if (speculative_path_.length() > 0) {
-            if (speculative_path_[path_.length() - 1] == '/') {
+            if (speculative_path_[speculative_path_.length() - 1] == '/') {
                 speculative_path_ = speculative_path_.substr(0, speculative_path_.length() - 1);
             }
         }

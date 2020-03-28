@@ -25,7 +25,7 @@
 #include <optional>
 #include <sstream>
 
-constexpr static auto PATCH_OP_VERSION = "1.16";
+constexpr static auto PATCH_OP_VERSION = "1.17";
 
 Mod& ModManager::Create(const fs::path& root)
 {
