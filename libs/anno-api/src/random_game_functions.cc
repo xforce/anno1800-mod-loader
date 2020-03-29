@@ -280,10 +280,15 @@ bool FindAddresses()
                 try {
                     pattern_matched_address = address.pattern_lookup({});
                 } catch (...) {
+                    pattern_matched_address = 0xDEAD;
+                }
+
+                if (pattern_matched_address == 0xDEAD || pattern_matched_address == 0) {
                     try {
-                        spdlog::debug("Address search fallback to file search");
+                        spdlog::warn("Address search fall back to file search");
                         pattern_matched_address = address.pattern_lookup(game_file);
                     } catch (...) {
+                        spdlog::error("Failed to find address in file");
                         pattern_matched_address = 0xDEAD;
                     }
                 }
