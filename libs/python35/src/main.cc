@@ -92,6 +92,7 @@ static std::string GetLatestVersion()
     return data;
 }
 
+static std::once_flag hooking_once_flag;
 static bool   checked_hooking = false;
 HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                      LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
@@ -99,8 +100,8 @@ HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMod
 {
     if (!checked_hooking && std::wstring(lpFileName).find(L"maindata/file.db") != std::string::npos) {
         checked_hooking = true;
-        static std::once_flag flag1;
-        std::call_once(flag1, []() { events.DoHooking(); });
+
+        std::call_once(hooking_once_flag, []() { events.DoHooking(); });
     }
     return CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
@@ -126,7 +127,7 @@ FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
     // those would have usually been in the import table.
     // This means we are ready to do some hooking
     // But only do hooking once.
- 
+    std::call_once(hooking_once_flag, []() { events.DoHooking(); });
 
     if ((uintptr_t)lpProcName > 0x1000) {
         if (lpProcName == std::string("CreateFileW")) {
@@ -247,6 +248,43 @@ HANDLE GetParentProcess()
     return OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, ProcessEntry.th32ParentProcessID);
 }
 
+static void CheckVersion()
+{
+    // Version Check
+    try {
+        auto        body        = GetLatestVersion();
+        const auto& data        = nlohmann::json::parse(body);
+        const auto& version_str = data["version"].get<std::string>();
+
+        static int32_t current_version[3] = {VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION};
+
+        int32_t latest_version[3] = {0};
+        std::sscanf(version_str.c_str(), "%d.%d.%d", &latest_version[0], &latest_version[1],
+                    &latest_version[2]);
+
+        if (std::lexicographical_compare(current_version, current_version + 3, latest_version,
+                                         latest_version + 3)) {
+            std::string msg = "Verion " + version_str + " of " + VER_FILE_DESCRIPTION_STR
+                              + " is available for download.\n\n";
+            msg.append("Do you want to go to the release page on GitHub?\n(THIS IS "
+                       "HIGHLY RECOMMENDED!!!)");
+
+            if (MessageBoxA(NULL, msg.c_str(), VER_FILE_DESCRIPTION_STR,
+                            MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)
+                == IDYES) {
+                auto result =
+                    ShellExecuteA(nullptr, "open",
+                                  "https://github.com/xforce/anno1800-mod-loader/releases/latest",
+                                  nullptr, nullptr, SW_SHOWNORMAL);
+                result = result;
+                TerminateProcess(GetCurrentProcess(), 0);
+            }
+        }
+    } catch (...) {
+        // TODO(alexander): Logging
+    }
+}
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call) {
@@ -302,8 +340,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                 }
             }
 
-            // Version Check
             events.DoHooking.connect([]() {
+                CheckVersion();
+
                 // Let's start loading the list of files we want to have
                 HMODULE module;
                 if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
@@ -343,40 +382,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                     return;
                 }
 
-                try {
-                    auto        body        = GetLatestVersion();
-                    const auto& data        = nlohmann::json::parse(body);
-                    const auto& version_str = data["version"].get<std::string>();
 
-                    static int32_t current_version[3] = {VERSION_MAJOR, VERSION_MINOR,
-                                                         VERSION_REVISION};
-
-                    int32_t latest_version[3] = {0};
-                    std::sscanf(version_str.c_str(), "%d.%d.%d", &latest_version[0],
-                                &latest_version[1], &latest_version[2]);
-
-                    if (std::lexicographical_compare(current_version, current_version + 3,
-                                                     latest_version, latest_version + 3)) {
-                        std::string msg = "Verion " + version_str + " of "
-                                          + VER_FILE_DESCRIPTION_STR
-                                          + " is available for download.\n\n";
-                        msg.append("Do you want to go to the release page on GitHub?\n(THIS IS "
-                                   "HIGHLY RECOMMENDED!!!)");
-
-                        if (MessageBoxA(NULL, msg.c_str(), VER_FILE_DESCRIPTION_STR,
-                                        MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)
-                            == IDYES) {
-                            auto result = ShellExecuteA(
-                                nullptr, "open",
-                                "https://github.com/xforce/anno1800-mod-loader/releases/latest",
-                                nullptr, nullptr, SW_SHOWNORMAL);
-                            result = result;
-                            TerminateProcess(GetCurrentProcess(), 0);
-                        }
-                    }
-                } catch (...) {
-                    // TODO(alexander): Logging
-                }
             });
 
             EnableExtenalFileLoading(events);

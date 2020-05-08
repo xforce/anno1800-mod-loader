@@ -81,17 +81,63 @@ bool FindAddresses()
         initialized = true;
 
         ADDRESSES[GET_CONTAINER_BLOCK_INFO] = {[](std::optional<std::string_view> game_file) {
-            auto match = meow_hook::pattern(
-                             "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 83 79 78 00 44 89 C6",
-                             game_file)
-                             .count(1)
-                             .get(0)
-                             .as<uintptr_t>();
+            try {
+                auto match =
+                    meow_hook::pattern(
+                        "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 83 79 78 00 44 89 C6",
+                        game_file)
+                        .count(1)
+                        .get(0)
+                        .as<uintptr_t>();
+                if (game_file) {
+                    return RebaseFileOffsetToMemoryAddess(
+                        match - reinterpret_cast<intptr_t>(game_file->data()));
+                }
+                return match;
+            } catch (...) {
+            }
+
+            // Game Update 7.3
+            try {
+                auto match = meow_hook::pattern("E8 ? ? ? ? 84 C0 75 7C", game_file)
+                                 .count(1)
+                                 .get(0);
+                if (game_file) {
+                    match = match.adjust(
+                        RebaseFileOffsetToMemoryAddess(
+                            match.as<uintptr_t>() - reinterpret_cast<intptr_t>(game_file->data()))
+                        - match.as<uintptr_t>());
+                }
+                return match.extract_call();
+            } catch (...) { }
+
+             try {
+                auto match =
+                    meow_hook::pattern("E8 ? ? ? ? 84 C0 0F 84 ? ? ? ? F7 85 ? ? ? ? ? ? ? ?", game_file).count(1).get(0);
+                if (game_file) {
+                    match = match.adjust(
+                        RebaseFileOffsetToMemoryAddess(
+                            match.as<uintptr_t>() - reinterpret_cast<intptr_t>(game_file->data()))
+                        - match.as<uintptr_t>());
+                }
+                return match.extract_call();
+            } catch (...) {
+            }
+
+            // If this fails, we dead
+            auto match =
+                meow_hook::pattern(
+                    "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 48 83 79 78 00",
+                    game_file)
+                    .count(1)
+                    .get(0)
+                    .as<uintptr_t>();
             if (game_file) {
                 return RebaseFileOffsetToMemoryAddess(
                     match - reinterpret_cast<intptr_t>(game_file->data()));
             }
             return match;
+
         }}; //
 
         ADDRESSES[READ_FILE_FROM_CONTAINER] = {[](std::optional<std::string_view> game_file) {
