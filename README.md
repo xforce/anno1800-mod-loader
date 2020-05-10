@@ -39,7 +39,7 @@ This Anno 1800 Mod loader supports a few simple 'commands' to easily patch the X
 
 Step 1) Set up a Directory for your Mod inside Anno 1800/mods. In the following steps, it is assumed that you have titled your Directory "myMod"
 
-Step 2) inside of myMod, you recreate the exact File Structure that the base game uses. A patched assets.xml File would have to be under the following path: myMod/data/config/export/main/asset/assets.xml
+Step 2) inside of myMod, you recreate the exact File Structure that the base game uses. A patched assets.xml File would have to be under the following path: `Anno 1800/mods/myMod/data/config/export/main/asset/assets.xml`
 
 Step 3) Your XML Document is expected to have the following structure: 
 ```xml
