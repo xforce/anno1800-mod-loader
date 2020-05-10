@@ -4,7 +4,7 @@ The one and only mod loader for Anno 1800, supports loading of unpacked RDA file
 
 No file size limit. No more repacking. Less likely to break after updates (in general a mod should continue to work after every update, YMMV). 
 
-Change the Games Files using XPath, this makes it easy and possible to only have the changes in a mod that you absolutely need instead of handling megabytes of XML files.
+This Changes the Games XML Files using XPath, this makes it easy and possible to only have the changes in a mod that you absolutely need instead of handling megabytes of XML files.
 
 # Installation
 
