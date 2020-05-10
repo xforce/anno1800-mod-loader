@@ -79,8 +79,7 @@ Currently supported Types:
 ```
 > This was just a quick initial implementation (~3h), very open for discussions on how to make that better or do something entirely different
 
-Step 3) Add the xml Code that you want to be added, merged or as Replacement inside the ModOp. An Example is given below. 
-
+Step 3) Add the xml Code that you want to have added, merged or as replacement inside the ModOp. F
 Example: 
 ```xml
     <ModOp Type = "replace" GUID = '1337' Path = "/Values/Standard/Name">
@@ -88,6 +87,8 @@ Example:
     </ModOp>
 ```
 > This ModOp will replace the Node under /Values/Standard/Name of the Asset with GUID 1337 with "```<Name>ThisIsATestNameForGUID1337</Name>```"
+
+or a more practical example look up the tutorial for an additional zoom level below. 
 
 # Debugging
 
