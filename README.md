@@ -56,7 +56,7 @@ Step 3) Your XML Document is expected to have the following structure:
 Step 1) Look up and Select the XML node you want to edit with XPath using the Path Argument. 
 
 Example: 
-<ModOp Path = "/Templates/Group[Name = 'Objects']/Template[Name = 'Residence7']/Properties">
+```xml <ModOp Path = "/Templates/Group[Name = 'Objects']/Template[Name = 'Residence7']/Properties"> ```
 
 For the assets File, you can also use the GUID Argument. This selects all the Child Nodes of the Asset with the given GUID as new Roots for your xPath for Cleaner Code and is also much faster, performance-wise. 
 
