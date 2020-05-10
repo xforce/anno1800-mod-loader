@@ -87,7 +87,7 @@ Example:
         <Name>ThisIsATestNameForGUID1337</Name>
     </ModOp>
 ```
-> This ModOp will replace the Node under /Values/Standard/Name of the Asset with GUID 1337 with "<Name>ThisIsATestNameForGUID1337</Name>"
+> This ModOp will replace the Node under /Values/Standard/Name of the Asset with GUID 1337 with "```<Name>ThisIsATestNameForGUID1337</Name>```"
 
 # Debugging
 
