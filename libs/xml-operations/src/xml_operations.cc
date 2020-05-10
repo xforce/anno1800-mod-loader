@@ -5,8 +5,45 @@
 
 #include <cstdio>
 
+using offset_data_t = std::vector<ptrdiff_t>;
+
+namespace {
+static bool build_offset_data(offset_data_t &result, const char *file)
+{
+    FILE *f = fopen(file, "rb");
+    if (!f)
+        return false;
+
+    ptrdiff_t offset = 0;
+
+    char   buffer[1024];
+    size_t size;
+
+    while ((size = fread(buffer, 1, sizeof(buffer), f)) > 0) {
+        for (size_t i = 0; i < size; ++i)
+            if (buffer[i] == '\n')
+                result.push_back(offset + i);
+
+        offset += size;
+    }
+
+    fclose(f);
+
+    return true;
+}
+
+static std::pair<size_t, size_t> get_location(const offset_data_t &data, ptrdiff_t offset)
+{
+    offset_data_t::const_iterator it    = std::lower_bound(data.begin(), data.end(), offset);
+    size_t                        index = it - data.begin();
+
+    return std::make_pair(1 + index, index == 0 ? offset + 1 : offset - data[index - 1]);
+}
+}
+
 XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node)
 {
+    node_ = node;
     doc_ = doc;
     ReadType(node);
     ReadPath(node);
@@ -18,6 +55,7 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
 XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                            std::string guid)
 {
+    node_ = node;
     doc_  = doc;
     guid_ = guid;
     ReadPath(node, guid);
@@ -33,9 +71,23 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     if (prop_path.empty()) {
         prop_path = "/";
     }
-    if (!guid.empty()) {
-        path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
+    
+    if (guid.empty()) {
+        // //Assets[Asset/Values/Standard/GUID='102119']
+        int g;
+        if (sscanf(prop_path.c_str(), "//Assets[Asset/Values/Standard/GUID='%d']", &g) > 0) {
+            if (std::string("//Assets[Asset/Values/Standard/GUID='") + std::to_string(g) + "']"
+                == prop_path) {
+                guid                   = std::to_string(g);
+                guid_                  = std::to_string(g);
+                speculative_path_type_ = SpeculativePathType::ASSET_CONTAINER;
+            }
+        }
+    } else {
+        speculative_path_type_ = SpeculativePathType::SINGLE_ASSET;
+        path_                  = "//Asset[Values/Standard/GUID='" + guid + "']";
     }
+
     if (prop_path.find("/") != 0) {
         path_ += "/";
     }
@@ -50,50 +102,81 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     }
 
     if (!guid.empty()) {
-        speculative_path_ += prop_path;
+        if (speculative_path_type_ == SpeculativePathType::ASSET_CONTAINER) {
+            speculative_path_ = "/";
+        } else {
+            speculative_path_ += prop_path;
+        }
         if (speculative_path_ == "/") {
-            speculative_path_ = "self";
+            speculative_path_ = "self::node()";
         }
         if (speculative_path_.length() > 0) {
-            if (speculative_path_[path_.length() - 1] == '/') {
+            if (speculative_path_[speculative_path_.length() - 1] == '/') {
                 speculative_path_ = speculative_path_.substr(0, speculative_path_.length() - 1);
             }
         }
         if (speculative_path_.find("/") == 0) {
             speculative_path_ = speculative_path_.substr(1);
         }
+    } else {
+     
     }
 }
 
 void XmlOperation::ReadType(pugi::xml_node node)
 {
     auto type = GetXmlPropString(node, "Type");
-    if (type == "add") {
+    if (stricmp(type.c_str(), "add") == 0) {
         type_ = Type::Add;
-    } else if (type == "addNextSibling") {
+    } else if (stricmp(type.c_str(), "addNextSibling") == 0) {
         type_ = Type::AddNextSibling;
-    } else if (type == "addPrevSibling") {
+    } else if (stricmp(type.c_str(), "addPrevSibling") == 0) {
         type_ = Type::AddPrevSibling;
-    } else if (type == "add") {
+    } else if (stricmp(type.c_str(), "add") == 0) {
         type_ = Type::Add;
-    } else if (type == "remove") {
+    } else if (stricmp(type.c_str(),  "remove") == 0) {
         type_ = Type::Remove;
-    } else if (type == "replace") {
+    } else if (stricmp(type.c_str(), "replace") == 0) {
         type_ = Type::Replace;
-    } else if (type == "merge") {
+    } else if (stricmp(type.c_str(), "merge") == 0) {
         type_ = Type::Merge;
     }
 }
 
-std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node)
+std::optional<pugi::xml_node> XmlOperation::FindAsset(std::string guid, pugi::xml_node node)
 {
     //
-    if (node.name() == std::string("Asset")) {
-        pugi::xml_node g = node.first_element_by_path("Values/Standard/GUID");
-        if (g.text().get() == guid) {
+    if (stricmp(node.name(), "Asset") == 0) {
+        auto values = node.child("Values");
+        if (!values) {
+            return {};
+        }
+
+        auto standard = values.child("Standard");
+        if (!standard) {
+            return {};
+        }
+
+        auto GUID = standard.child("GUID");
+        if (!GUID) {
+            return {};
+        }
+
+        if (GUID.text().get() != guid) {
+            return {};
+        }
+        if (speculative_path_type_ == SpeculativePathType::ASSET_CONTAINER) {
+            auto parent = node.parent();
+            while (parent && stricmp(parent.name(), "Assets") != 0) {
+                parent = parent.parent();
+            }
+            if (stricmp(parent.name(), "Assets") == 0) {
+                return parent;
+            }
+            return {};
+        } else {
             return node;
         }
-        return {};
     }
 
     for (pugi::xml_node n : node.children()) {
@@ -105,12 +188,13 @@ std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node)
     return {};
 }
 
-std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc, std::string guid)
+std::optional<pugi::xml_node> XmlOperation::FindAsset(std::shared_ptr<pugi::xml_document> doc,
+                                                    std::string                         guid)
 {
     return FindAsset(guid, doc->root());
 }
 
-void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_path)
+void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mod_name, fs::path game_path, fs::path mod_path)
 {
     try {
         spdlog::debug("Looking up {}", path_);
@@ -122,9 +206,12 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
                     if (speculative_path_ != "*") {
                         results = node->select_nodes(speculative_path_.c_str());
                     }
+                } else {
+                  spdlog::debug("Speculative path failed to find node {}", GetPath());
                 }
                 if (results.empty()) {
-                    spdlog::debug("Speculative path failed to find node {}", GetPath());
+                    spdlog::debug("Speculative path failed to find node with path {} {}", GetPath(),
+                                  speculative_path_);
                 }
             } catch (const pugi::xpath_exception &e) {
                 spdlog::warn("Speculative path lookup failed {} (GUID={}) in {}: {}. Please create "
@@ -132,15 +219,20 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, fs::path mod_p
                              "'slow' lookup.",
                              speculative_path_, guid_, mod_path.string(), e.what());
             }
+        } else {
+            spdlog::debug("Not doing speculative path lookup :(");
         }
         if (results.empty()) {
             results = doc->select_nodes(GetPath().c_str());
         }
         if (results.empty()) {
-            spdlog::warn("No matching node for Path {}", GetPath());
+            offset_data_t offset_data;
+            build_offset_data(offset_data, mod_path.string().c_str());
+            auto [line, column]= get_location(offset_data, node_.offset_debug());
+            spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name, game_path.string(), line);
             return;
         }
-        spdlog::debug("Looking finished {}", path_);
+        spdlog::debug("Lookup finished {}", path_);
         for (pugi::xpath_node xnode : results) {
             pugi::xml_node game_node = xnode.node();
             if (GetType() == XmlOperation::Type::Merge) {
@@ -186,10 +278,10 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
         return {};
     }
     std::vector<XmlOperation> mod_operations;
-    if (root.first_child().name() == std::string("ModOps")) {
+    if (stricmp(root.first_child().name(), "ModOps") == 0) {
         for (pugi::xml_node node : root.first_child().children()) {
             if (node.type() == pugi::xml_node_type::node_element) {
-                if (node.name() == std::string("ModOp")) {
+                if (stricmp(node.name(), "ModOp") == 0) {
                     const auto guid = GetXmlPropString(node, "GUID");
                     if (!guid.empty()) {
                         std::vector<std::string> guids = absl::StrSplit(guid, ',');
@@ -204,39 +296,6 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
         }
     }
     return mod_operations;
-}
-
-using offset_data_t = std::vector<ptrdiff_t>;
-static bool build_offset_data(offset_data_t &result, const char *file)
-{
-    FILE *f = fopen(file, "rb");
-    if (!f)
-        return false;
-
-    ptrdiff_t offset = 0;
-
-    char   buffer[1024];
-    size_t size;
-
-    while ((size = fread(buffer, 1, sizeof(buffer), f)) > 0) {
-        for (size_t i = 0; i < size; ++i)
-            if (buffer[i] == '\n')
-                result.push_back(offset + i);
-
-        offset += size;
-    }
-
-    fclose(f);
-
-    return true;
-}
-
-static std::pair<size_t, size_t> get_location(const offset_data_t &data, ptrdiff_t offset)
-{
-    offset_data_t::const_iterator it    = std::lower_bound(data.begin(), data.end(), offset);
-    size_t                        index = it - data.begin();
-
-    return std::make_pair(1 + index, index == 0 ? offset + 1 : offset - data[index - 1]);
 }
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path path)

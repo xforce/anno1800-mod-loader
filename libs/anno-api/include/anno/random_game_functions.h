@@ -19,11 +19,14 @@ enum Address {
     FILE_GET_FILE_SIZE,
 
     READ_GAME_FILE,
-    FILE_READ_ALLOCATE_BUFFER,
+    // NOTE(alexander): This function is now fully inlined starting with Game Update 7
+    // So we can't use it anymore :(
+    // FILE_READ_ALLOCATE_BUFFER,
     SOME_GLOBAL_STRUCT_TOOL_ONE_HELPER_MAYBE,
     SIZE
 };
 
+bool      FindAddresses();
 uintptr_t GetAddress(Address address);
 void      SetAddress(Address address, uint64_t add);
 

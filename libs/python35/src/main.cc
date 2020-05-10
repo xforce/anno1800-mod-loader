@@ -15,6 +15,7 @@
 
 #include <WinInet.h>
 #include <Windows.h>
+#include <tlhelp32.h>
 
 #pragma comment(lib, "Wininet.lib")
 
@@ -91,15 +92,32 @@ static std::string GetLatestVersion()
     return data;
 }
 
+static std::once_flag hooking_once_flag;
+static bool   checked_hooking = false;
 HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                      LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
                      DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
-    if (std::wstring(lpFileName).find(L"assets.xml") != std::wstring::npos) {
-        __debugbreak();
+    if (!checked_hooking && std::wstring(lpFileName).find(L"maindata/file.db") != std::string::npos) {
+        checked_hooking = true;
+
+        std::call_once(hooking_once_flag, []() { events.DoHooking(); });
     }
     return CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+}
+
+HWND WINAPI CreateWindowExW_S(_In_ DWORD dwExStyle, _In_opt_ LPCWSTR lpClassName,
+                            _In_opt_ LPCWSTR lpWindowName, _In_ DWORD dwStyle, _In_ int X,
+                            _In_ int Y, _In_ int nWidth, _In_ int nHeight, _In_opt_ HWND hWndParent,
+                            _In_opt_ HMENU hMenu, _In_opt_ HINSTANCE hInstance, _In_opt_ LPVOID lpParam)
+{
+    spdlog::debug("Create Window");
+    auto r = CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight,
+                          hWndParent, hMenu, hInstance, lpParam);
+
+   
+     return r;
 }
 
 FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
@@ -109,14 +127,17 @@ FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
     // those would have usually been in the import table.
     // This means we are ready to do some hooking
     // But only do hooking once.
-    static std::once_flag flag1;
-    std::call_once(flag1, []() { events.DoHooking(); });
-
-    /*  if ((int)lpProcName > 0x1000 && lpProcName == std::string("CreateFileW")) {
-          return (FARPROC)CreateFileW_S;
-      }*/
+    std::call_once(hooking_once_flag, []() { events.DoHooking(); });
 
     if ((uintptr_t)lpProcName > 0x1000) {
+        if (lpProcName == std::string("CreateFileW")) {
+            return (FARPROC)CreateFileW_S;
+        }
+        if (lpProcName == std::string("CreateWindowExW")) {
+            // 
+            return (FARPROC)CreateWindowExW_S;
+        }
+        spdlog::debug("GetProcAddress {}", lpProcName);
         auto procs = events.GetProcAddress(lpProcName);
         for (auto& proc : procs) {
             if (proc > 0) {
@@ -206,11 +227,92 @@ bool set_import(const std::string& name, uintptr_t func)
     return result;
 }
 
+HANDLE GetParentProcess()
+{
+    HANDLE Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+    PROCESSENTRY32 ProcessEntry = {};
+    ProcessEntry.dwSize         = sizeof(PROCESSENTRY32);
+
+    if (Process32First(Snapshot, &ProcessEntry)) {
+        DWORD CurrentProcessId = GetCurrentProcessId();
+
+        do {
+            if (ProcessEntry.th32ProcessID == CurrentProcessId)
+                break;
+        } while (Process32Next(Snapshot, &ProcessEntry));
+    }
+
+    CloseHandle(Snapshot);
+
+    return OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, ProcessEntry.th32ParentProcessID);
+}
+
+static void CheckVersion()
+{
+    // Version Check
+    try {
+        auto        body        = GetLatestVersion();
+        const auto& data        = nlohmann::json::parse(body);
+        const auto& version_str = data["version"].get<std::string>();
+
+        static int32_t current_version[3] = {VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION};
+
+        int32_t latest_version[3] = {0};
+        std::sscanf(version_str.c_str(), "%d.%d.%d", &latest_version[0], &latest_version[1],
+                    &latest_version[2]);
+
+        if (std::lexicographical_compare(current_version, current_version + 3, latest_version,
+                                         latest_version + 3)) {
+            std::string msg = "Verion " + version_str + " of " + VER_FILE_DESCRIPTION_STR
+                              + " is available for download.\n\n";
+            msg.append("Do you want to go to the release page on GitHub?\n(THIS IS "
+                       "HIGHLY RECOMMENDED!!!)");
+
+            if (MessageBoxA(NULL, msg.c_str(), VER_FILE_DESCRIPTION_STR,
+                            MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)
+                == IDYES) {
+                auto result =
+                    ShellExecuteA(nullptr, "open",
+                                  "https://github.com/xforce/anno1800-mod-loader/releases/latest",
+                                  nullptr, nullptr, SW_SHOWNORMAL);
+                result = result;
+                TerminateProcess(GetCurrentProcess(), 0);
+            }
+        }
+    } catch (...) {
+        // TODO(alexander): Logging
+    }
+}
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call) {
         case DLL_PROCESS_ATTACH: {
             DisableThreadLibraryCalls(hModule);
+
+            {
+                auto    parent_handle      = GetParentProcess();
+                wchar_t process_name[1024] = {0};
+                DWORD   process_name_size  = 1024;
+                QueryFullProcessImageNameW(parent_handle, 0, process_name, &process_name_size);
+                std::filesystem::path process_file_path(process_name);
+
+                if (_wcsicmp(process_file_path.filename().wstring().c_str(),
+                             L"UbisoftGameLauncher.exe")
+                        != 0
+                    && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                                L"UbisoftGameLauncher64.exe")
+                           != 0
+                    && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                                L"Anno1800_plus.exe")
+                           != 0
+                    && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                                L"Anno1800.exe")
+                           != 0) {
+                    return TRUE;
+                }
+            }
 
 #if defined(INTERNAL_ENABLED)
             EnableDebugging(events);
@@ -222,8 +324,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                 return TRUE;
             }
 
-            // Version Check
+            {
+                wchar_t process_name[1024] = {0};
+                DWORD   process_name_size  = 1024;
+                QueryFullProcessImageNameW(GetCurrentProcess(), 0, process_name, &process_name_size);
+                std::filesystem::path process_file_path(process_name);
+
+                if (_wcsicmp(process_file_path.filename().wstring().c_str(),
+                             L"Anno1800_plus.exe")
+                        != 0
+                    && _wcsicmp(process_file_path.filename().wstring().c_str(),
+                                L"Anno1800.exe")
+                           != 0) {
+                    return TRUE;
+                }
+            }
+
             events.DoHooking.connect([]() {
+                CheckVersion();
+
                 // Let's start loading the list of files we want to have
                 HMODULE module;
                 if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
@@ -246,7 +365,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                         file_logger->sinks().push_back(
                             std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
 
-                        spdlog::flush_on(spdlog::level::info);
+                        #if defined(INTERNAL_ENABLED)
+                            spdlog::set_level(spdlog::level::debug);
+                            spdlog::flush_on(spdlog::level::debug);
+                        #else
+                            spdlog::set_level(spdlog::level::info);
+                            spdlog::flush_on(spdlog::level::info);
+                        #endif
                         spdlog::set_pattern("[%Y-%m-%d %T.%e] [%^%l%$] %v");
                     } catch (const fs::filesystem_error& e) {
                         // TODO(alexander): Logs
@@ -257,40 +382,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                     return;
                 }
 
-                try {
-                    auto        body        = GetLatestVersion();
-                    const auto& data        = nlohmann::json::parse(body);
-                    const auto& version_str = data["version"].get<std::string>();
 
-                    static int32_t current_version[3] = {VERSION_MAJOR, VERSION_MINOR,
-                                                         VERSION_REVISION};
-
-                    int32_t latest_version[3] = {0};
-                    std::sscanf(version_str.c_str(), "%d.%d.%d", &latest_version[0],
-                                &latest_version[1], &latest_version[2]);
-
-                    if (std::lexicographical_compare(current_version, current_version + 3,
-                                                     latest_version, latest_version + 3)) {
-                        std::string msg = "Verion " + version_str + " of "
-                                          + VER_FILE_DESCRIPTION_STR
-                                          + " is available for download.\n\n";
-                        msg.append("Do you want to go to the release page on GitHub?\n(THIS IS "
-                                   "HIGHLY RECOMMENDED!!!)");
-
-                        if (MessageBoxA(NULL, msg.c_str(), VER_FILE_DESCRIPTION_STR,
-                                        MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)
-                            == IDYES) {
-                            auto result = ShellExecuteA(
-                                nullptr, "open",
-                                "https://github.com/xforce/anno1800-mod-loader/releases/latest",
-                                nullptr, nullptr, SW_SHOWNORMAL);
-                            result = result;
-                            TerminateProcess(GetCurrentProcess(), 0);
-                        }
-                    }
-                } catch (...) {
-                    // TODO(alexander): Logging
-                }
             });
 
             EnableExtenalFileLoading(events);

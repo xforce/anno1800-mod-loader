@@ -20,11 +20,13 @@ template <> struct hash<fs::path> {
 class Mod
 {
   public:
+    Mod() = default;
     explicit Mod(const fs::path &root);
 
     std::string Name() const;
     bool        HasFile(const fs::path &file) const;
     void        ForEachFile(std::function<void(const fs::path &, const fs::path &)>) const;
+    fs::path    Path() const;
 
   private:
     fs::path                               root_path;

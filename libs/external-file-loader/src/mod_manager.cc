@@ -25,7 +25,7 @@
 #include <optional>
 #include <sstream>
 
-constexpr static auto PATCH_OP_VERSION = "1.5";
+constexpr static auto PATCH_OP_VERSION = "1.17";
 
 Mod& ModManager::Create(const fs::path& root)
 {
@@ -209,6 +209,18 @@ void ModManager::WaitModsReady() const
     this->mods_ready_cv_.wait(lk, [this] { return this->mods_ready_.load(); });
 }
 
+Mod& ModManager::GetModContainingFile(const fs::path& file)
+{
+    for (auto& mod : mods_) {
+        if (file.lexically_normal().generic_string().find(mod.Path().lexically_normal().generic_string()) == 0) {
+            return mod;
+        }
+    }
+    static Mod null_mod;
+    assert(false);
+    return null_mod;
+}
+
 void ModManager::ReadCache()
 {
     const auto cache_directory = ModManager::GetCacheDirectory();
@@ -224,11 +236,16 @@ void ModManager::ReadCache()
                 std::vector<std::string> layer_order      = data["layers"]["order"];
                 std::string              patch_op_version = data.at("version").get<std::string>();
                 if (PATCH_OP_VERSION == patch_op_version) {
+                    spdlog::debug("Loading from cache {} vs {}",
+                                  patch_op_version, PATCH_OP_VERSION);
                     std::vector<CacheLayer> cache_layers;
                     for (auto&& layer : layer_order) {
                         cache_layers.emplace_back(data["layers"].at(layer).get<CacheLayer>());
                     }
                     modded_file_cache_info_[game_path] = std::move(cache_layers);
+                } else {
+                    spdlog::debug("Skipping cache because Patch Op Version mismatch {} vs {}",
+                                  patch_op_version, PATCH_OP_VERSION);
                 }
             } catch (const nlohmann::json::exception&) {
             }
@@ -315,6 +332,8 @@ std::string ModManager::PushCacheLayer(const fs::path&    game_path,
                                        const std::string& patch_file_hash, const std::string& buf,
                                        const std::string& mod_name)
 {
+    spdlog::debug("PushCacheLayer {} {} {} {}", game_path.string(), last_valid_cache, patch_file_hash,
+                  mod_name);
     CacheLayer layer;
     layer.input_hash  = last_valid_cache;
     layer.output_hash = GetDataHash(buf);
@@ -421,7 +440,8 @@ void ModManager::GameFilesReady()
                     // Cache miss
                     auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
                     for (auto&& operation : operations) {
-                        operation.Apply(game_xml, on_disk_file);
+                        auto &mod = GetModContainingFile(on_disk_file);
+                        operation.Apply(game_xml, mod.Name(), game_path, on_disk_file);
                     }
 
                     struct xml_string_writer : pugi::xml_writer {
@@ -562,7 +582,7 @@ bool ModManager::IsPatchableFile(const fs::path& file) const
     // We can only patch xml files at the moment
     // Other files have to be replaced entirely
     const auto extension = file.extension();
-    return extension == ".xml" || extension == ".cfg" || extension == ".ifo";
+    return extension == ".xml";
 }
 
 std::string ModManager::GetFileHash(const fs::path& path) const
