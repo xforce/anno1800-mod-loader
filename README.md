@@ -37,11 +37,11 @@ This Anno 1800 Mod loader supports a few simple 'commands' to easily patch the X
 
 ## How to Create a Patch for any XML File from the Game: 
 
-Step 1) Set up a Directory for your Mod inside Anno 1800/mods. In the following steps, it is assumed that you have titled your Directory "myMod"
+**Step 1)** Set up a Directory for your Mod inside Anno 1800/mods. In the following steps, it is assumed that you have titled your Directory "myMod"
 
-Step 2) inside of myMod, you recreate the exact File Structure that the base game uses. A patched assets.xml File would have to be under the following path: `Anno 1800/mods/myMod/data/config/export/main/asset/assets.xml`
+**Step 2)** inside of myMod, you recreate the exact File Structure that the base game uses. A patched assets.xml File would have to be under the following path: `Anno 1800/mods/myMod/data/config/export/main/asset/assets.xml`
 
-Step 3) Your XML Document is expected to have the following structure: 
+**Step 3)** Your XML Document is expected to have the following structure: 
 ```xml
 <ModOps>
     <ModOp>
@@ -53,7 +53,7 @@ Step 3) Your XML Document is expected to have the following structure:
 
 ## How to Write a ModOp
     
-Step 1) Look up and Select the XML node you want to edit with XPath using the Path Argument. 
+**Step 1)** Look up and Select the XML node you want to edit with XPath using the Path Argument. 
 
 Example: 
 ```xml <ModOp Path = "/Templates/Group[Name = 'Objects']/Template[Name = 'Residence7']/Properties"> ```
@@ -66,7 +66,7 @@ Example:
     
     Better, with GUID Arg:      <ModOp GUID = '1337' Path = "/Values/Standard/Name"> 
 ```
-Step 2) Give a Type for a ModOp, to change the selected Node. 
+**Step 2)** Give a Type for a ModOp, to change the selected Node. 
 
 Currently supported Types: 
 ```
@@ -79,7 +79,7 @@ Currently supported Types:
 ```
 > This was just a quick initial implementation (~3h), very open for discussions on how to make that better or do something entirely different
 
-Step 3) Add the xml Code that you want to have added, merged or as replacement inside the ModOp. F
+**Step 3)** Add the xml Code that you want to have added, merged or as replacement inside the ModOp. F
 Example: 
 ```xml
     <ModOp Type = "replace" GUID = '1337' Path = "/Values/Standard/Name">
