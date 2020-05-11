@@ -49,7 +49,7 @@ This Anno 1800 mod loader supports a few simple 'commands' to easily patch the X
     </ModOp>
 </ModOps>
 ```
-> You can give as many ```<ModOp>``` as you'd like to and have multiple patch files for different original ones in a single Mod. 
+> You can give as many ```<ModOp>``` as you'd like to and have multiple patch files for different original ones in a single mod. 
 
 ## How to Write a ModOp
     
