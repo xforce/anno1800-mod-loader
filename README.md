@@ -70,7 +70,7 @@ Example:
 
 Currently supported types: 
 ```
-- Merge                 Replaces all given child nodes
+- Merge                 Replaces all given child nodes or Arguments
 - Remove                Removes the selected Node
 - Add                   Adds inside the selected Node
 - Replace               Replaces the selected Node
