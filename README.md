@@ -111,7 +111,7 @@ You can find more examples in the `examples` directory.
 
 Debugging will not be possible, the game is using Denuvo and VMProtect, I have my own tools that allow me to debug it, but I will not be sharing those publicly. 
 
-> You can read a printf aka debug-log about any errors caused by missing Nodes, wrong paths or unrecognized node tests in ```Anno 1800/logs/mod-loader.log``` 
+> You can read a printf aka debug-log about any errors caused by missing nodes, wrong paths or unrecognized node tests in ```Anno 1800/logs/mod-loader.log``` 
 
 To test what a 'patch' you write does to the original game file, you can also use `xml-test`, which will simulate what the game will load.
 
