@@ -63,9 +63,17 @@ bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& f
 
 bool GetContainerBlockInfo(anno::rdsdk::CFile* file, const std::wstring& file_path, int a3)
 {
+#if defined(ADVANCED_HOOK_LOGS)
+    if (!file_path.empty()) {
+        spdlog::debug(L"GetContainerBlockInfo {} Size {}", file_path, file->size);
+    }
+#endif
+
     if (file_path.find(L"checksum.db") != std::wstring::npos) {
         ModManager::instance().GameFilesReady();
     }
+
+
     if (!fs::exists(ModManager::GetModsDirectory() / "dummy")) {
         std::fstream fs;
         fs.open(ModManager::GetModsDirectory() / "dummy", std::ios::out);
@@ -137,9 +145,15 @@ inline bool FileGetSize(uintptr_t a1, std::wstring &file_path, size_t* output_si
 #if defined(ADVANCED_HOOK_LOGS)
     spdlog::debug(L"FileGetSize {}", file_path);
 #endif
+    if (file_path == L"maindata/checksum.db") {
+        ModManager::instance().GameFilesReady();
+    }
     auto mapped_path = ModManager::MapAliasedPath(file_path);
     if (ModManager::instance().IsFileModded(mapped_path)) {
         const auto& info = ModManager::instance().GetModdedFileInfo(mapped_path);
+#if defined(ADVANCED_HOOK_LOGS)
+        spdlog::debug(L"rdsdk::CFile::GetFileSize Patched({})", info.is_patched);
+#endif
         if (info.is_patched) {
             *output_size = info.data.size();
         } else {
