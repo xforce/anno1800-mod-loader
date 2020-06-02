@@ -61,56 +61,6 @@ bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& f
     return result;
 }
 
-bool GetContainerBlockInfo(anno::rdsdk::CFile* file, const std::wstring& file_path, int a3)
-{
-#if defined(ADVANCED_HOOK_LOGS)
-    if (!file_path.empty()) {
-        spdlog::debug(L"GetContainerBlockInfo {} Size {}", file_path, file->size);
-    }
-#endif
-
-    if (file_path.find(L"checksum.db") != std::wstring::npos) {
-        ModManager::instance().GameFilesReady();
-    }
-
-
-    if (!fs::exists(ModManager::GetModsDirectory() / "dummy")) {
-        std::fstream fs;
-        fs.open(ModManager::GetModsDirectory() / "dummy", std::ios::out);
-        fs.close();
-    }
-    auto       m         = file_path;
-    if (ModManager::instance().IsFileModded(file_path)) {
-#if defined(ADVANCED_HOOK_LOGS)
-        if (!file_path.empty()) {
-            spdlog::debug(L"GetContainerBlockInfo Modded {} Size {} Handle {} Flags {}", file_path,
-                          file->size, (uintptr_t)file->file_handle, a3);
-        }
-#endif
-        a3 = 1;
-    }
-    auto result = anno::GetContainerBlockInfo((uintptr_t*)file, m, a3);
-    if (m == L"mods/dummy") {
-        file->file_path = file_path;
-    }
-    if (ModManager::instance().IsFileModded(file_path)) {
-        auto info  = ModManager::instance().GetModdedFileInfo(file_path);
-#if defined(ADVANCED_HOOK_LOGS)
-        if (!file_path.empty()) {
-            spdlog::debug(L"GetContainerBlockInfo Modded {} Size {} Info Size {} Handle {}", file_path, file->size,
-                            info.size, (uintptr_t)file->file_handle);
-        }
-#endif
-        file->size = info.size;
-    } else {
-        m = ModManager::MapAliasedPath(file_path);
-        if (file->size == 0) {
-            file->size = anno::rdsdk::CFile::GetFileSize(m);
-        }
-    }
-
-    return result;
-}
 inline size_t GetFileSize(fs::path m)
 {
 #if defined(ADVANCED_HOOK_LOGS)
@@ -138,6 +88,9 @@ inline size_t GetFileSize(fs::path m)
     } else {
         size = anno::rdsdk::CFile::GetFileSize(m);
     }
+#if defined(ADVANCED_HOOK_LOGS)
+    spdlog::debug("Custom GetFileSize Result {}", size);
+#endif
     return size;
 }
 
@@ -151,9 +104,6 @@ inline bool FileGetSize(uintptr_t a1, std::wstring &file_path, size_t* output_si
     auto mapped_path = ModManager::MapAliasedPath(file_path);
     if (ModManager::instance().IsFileModded(mapped_path)) {
         const auto& info = ModManager::instance().GetModdedFileInfo(mapped_path);
-#if defined(ADVANCED_HOOK_LOGS)
-        spdlog::debug(L"rdsdk::CFile::GetFileSize Patched({})", info.is_patched);
-#endif
         if (info.is_patched) {
             *output_size = info.data.size();
         } else {
@@ -171,6 +121,10 @@ inline bool FileGetSize(uintptr_t a1, std::wstring &file_path, size_t* output_si
 
             *output_size = lFileSize.QuadPart;
         }
+#if defined(ADVANCED_HOOK_LOGS)
+        spdlog::debug(L"rdsdk::CFile::GetFileSize Patched({}) Size({})", info.is_patched,
+                      *output_size);
+#endif
     } else {
         auto r = anno::rdsdk::CFile::GetFileSize(a1, mapped_path.wstring(), output_size);
 #if defined(ADVANCED_HOOK_LOGS)
@@ -202,8 +156,8 @@ HANDLE FindFirstFileW_S(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
         ULARGE_INTEGER nsize;
         nsize.QuadPart = size;
 
-        auto p = ModManager::GetModsDirectory();
-        n      = FindFirstFileW((p / L"dummy").wstring().c_str(), lpFindFileData);
+        const auto dummy_path = ModManager::GetDummyPath();
+        n                     = FindFirstFileW(dummy_path.wstring().c_str(), lpFindFileData);
         lpFindFileData->nFileSizeHigh = nsize.HighPart;
         lpFindFileData->nFileSizeLow  = nsize.LowPart;
         SYSTEMTIME st;
@@ -399,13 +353,6 @@ void EnableExtenalFileLoading(Events& events)
             SetAddress(anno::READ_FILE_FROM_CONTAINER,
                        uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::READ_FILE_FROM_CONTAINER),
                                                   ReadFileFromContainer)));
-        }
-
-        spdlog::debug("Patching GetContainerBlockInfo");
-        {
-            SetAddress(anno::GET_CONTAINER_BLOCK_INFO,
-                       uintptr_t(MH_STATIC_DETOUR(GetAddress(anno::GET_CONTAINER_BLOCK_INFO),
-                                                  GetContainerBlockInfo)));
         }
 
         spdlog::debug("Patching ReadGameFile");
