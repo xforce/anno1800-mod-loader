@@ -58,7 +58,7 @@ This Anno 1800 mod loader supports a few simple 'commands' to easily patch the X
 Example: 
 ```xml 
 <ModOp Path = "/Templates/Group[Name = 'Objects']/Template[Name = 'Residence7']/Properties"> 
-    ```
+```
 
 For the assets file, you can also use the GUID argument. This selects all the child nodes of the asset with the given GUID as new roots for your xPath for cleaner code and is also much faster, performance-wise. 
 
