@@ -12,10 +12,9 @@ namespace fs = std::filesystem;
 class XmlOperation
 {
   public:
-    enum Type { Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
+    enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
 
     XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node, std::string guid = "");
-    void                                            ReadPath();
     pugi::xml_object_range<pugi::xml_node_iterator> GetContentNode()
     {
         return *nodes_;

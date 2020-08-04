@@ -47,8 +47,11 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
     guid_ = guid;
     node_ = node;
     doc_  = doc;
-    ReadType(node);
+    // TODO(alexander): This is kind of shit
+    // ReadType may need the Path in case of error to print something useful
+    // Actually maybe we can print the correct line number instead...
     ReadPath(node, guid);
+    ReadType(node);
     if (type_ != Type::Remove) {
         nodes_ = node.children();
     }
@@ -131,6 +134,9 @@ void XmlOperation::ReadType(pugi::xml_node node)
         type_ = Type::Replace;
     } else if (stricmp(type.c_str(), "merge") == 0) {
         type_ = Type::Merge;
+    } else {
+        type_ = Type::None;
+        spdlog::error("Unknown ModOp Type, ignoring {}", GetPath());
     }
 }
 
@@ -187,7 +193,7 @@ std::optional<pugi::xml_node> XmlOperation::FindAsset(std::shared_ptr<pugi::xml_
 
 void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mod_name, fs::path game_path, fs::path mod_path)
 {
-    if (skip_) {
+    if (skip_ || GetType() == XmlOperation::Type::None) {
         return;
     }
     try {
