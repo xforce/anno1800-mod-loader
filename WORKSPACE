@@ -13,8 +13,9 @@ http_archive(
 # abseil-cpp
 http_archive(
     name = "com_google_absl",
-    strip_prefix = "abseil-cpp-2f76a9bf50046e396138cc8eeb3cdc17b7a5ac24",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/2f76a9bf50046e396138cc8eeb3cdc17b7a5ac24.zip"],  # 2019-03-14
+    strip_prefix = "abseil-cpp-c51510d1d87ebce8615ae1752fd5aca912f6cf4c",
+    sha256 = "ad9676d940ca79ab9552ac9457d534d0e957082ac87701ca8aac24d7f838289b",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/c51510d1d87ebce8615ae1752fd5aca912f6cf4c.zip"],  # Abseil LTS branch, Feb 2020, Patch 2
 )
 
 http_archive(
