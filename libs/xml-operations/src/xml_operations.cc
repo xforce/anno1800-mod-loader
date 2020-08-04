@@ -41,28 +41,19 @@ static std::pair<size_t, size_t> get_location(const offset_data_t &data, ptrdiff
 }
 }
 
-XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node)
-{
-    node_ = node;
-    doc_ = doc;
-    ReadType(node);
-    ReadPath(node);
-    if (type_ != Type::Remove) {
-        nodes_ = node.children();
-    }
-}
-
 XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                            std::string guid)
 {
+    guid_ = guid;
     node_ = node;
     doc_  = doc;
-    guid_ = guid;
-    ReadPath(node, guid);
     ReadType(node);
+    ReadPath(node, guid);
     if (type_ != Type::Remove) {
         nodes_ = node.children();
     }
+
+    skip_ = node.attribute("Skip");
 }
 
 void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
@@ -196,6 +187,9 @@ std::optional<pugi::xml_node> XmlOperation::FindAsset(std::shared_ptr<pugi::xml_
 
 void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mod_name, fs::path game_path, fs::path mod_path)
 {
+    if (skip_) {
+        return;
+    }
     try {
         spdlog::debug("Looking up {}", path_);
         pugi::xpath_node_set results;

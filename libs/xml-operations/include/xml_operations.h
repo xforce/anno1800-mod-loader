@@ -14,8 +14,7 @@ class XmlOperation
   public:
     enum Type { Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
 
-    XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node);
-    XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node, std::string guid);
+    XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node, std::string guid = "");
     void                                            ReadPath();
     pugi::xml_object_range<pugi::xml_node_iterator> GetContentNode()
     {
@@ -44,6 +43,7 @@ class XmlOperation
     std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes_;
     std::shared_ptr<pugi::xml_document>                            doc_;
     pugi::xml_node                                                 node_;
+    bool                                                           skip_ = false;
 
     enum SpeculativePathType {
         NONE,
