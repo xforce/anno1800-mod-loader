@@ -80,6 +80,7 @@ bool FindAddresses()
         }
         initialized = true;
 
+        // Do a combined pre-search
         ADDRESSES[READ_FILE_FROM_CONTAINER] = {[](std::optional<std::string_view> game_file) {
             // Game Update 8
             try {
@@ -347,17 +348,17 @@ bool FindAddresses()
                 uintptr_t pattern_matched_address = 0;
                 //
                 try {
-                    pattern_matched_address = address.pattern_lookup({});
+                    pattern_matched_address = address.pattern_lookup(game_file);
                 } catch (...) {
                     pattern_matched_address = 0xDEAD;
                 }
 
                 if (pattern_matched_address == 0xDEAD || pattern_matched_address == 0) {
                     try {
-                        spdlog::warn("Address search fall back to file search");
-                        pattern_matched_address = address.pattern_lookup(game_file);
+                        spdlog::warn("Address search fall back to memory search");
+                        pattern_matched_address = address.pattern_lookup({});
                     } catch (...) {
-                        spdlog::error("Failed to find address in file");
+                        spdlog::error("Failed to find address in memory");
                         pattern_matched_address = 0xDEAD;
                     }
                 }

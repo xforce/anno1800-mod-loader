@@ -329,25 +329,30 @@ void EnableExtenalFileLoading(Events& events)
     });
     set_import("FindFirstFileW", (uintptr_t)FindFirstFileW_S);
 
-    events.DoHooking.connect([]() {
-        if (!anno::FindAddresses()) {
-#define VER_FILE_DESCRIPTION_STR "Anno 1800 Mod Loader"
-            std::string msg = "This version is not compatible with your current Game Version.\n\n";
-            msg.append("Do you want to go to the GitHub to report an issue or check for a newer version?\n");
+    printf("Find addresses\n");
 
-            if (MessageBoxA(NULL, msg.c_str(), VER_FILE_DESCRIPTION_STR,
-                            MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)
-                == IDYES) {
-                auto result =
-                    ShellExecuteA(nullptr, "open",
-                                  "https://github.com/xforce/anno1800-mod-loader",
-                                  nullptr, nullptr, SW_SHOWNORMAL);
-                result = result;
-                TerminateProcess(GetCurrentProcess(), 0);
-            }
-            spdlog::error("Failed to find addresses, aborting mod loader, please create an issue on GitHub");
-            return;
+    if (!anno::FindAddresses()) {
+        printf("Find addresses...failed\n");
+#define VER_FILE_DESCRIPTION_STR "Anno 1800 Mod Loader"
+        std::string msg = "This version is not compatible with your current Game Version.\n\n";
+        msg.append("Do you want to go to the GitHub to report an issue or check for a newer "
+                   "version?\n");
+
+        if (MessageBoxA(NULL, msg.c_str(), VER_FILE_DESCRIPTION_STR,
+                        MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)
+            == IDYES) {
+            auto result =
+                ShellExecuteA(nullptr, "open", "https://github.com/xforce/anno1800-mod-loader",
+                              nullptr, nullptr, SW_SHOWNORMAL);
+            result = result;
+            TerminateProcess(GetCurrentProcess(), 0);
         }
+        spdlog::error(
+            "Failed to find addresses, aborting mod loader, please create an issue on GitHub");
+        return;
+    }
+
+    events.DoHooking.connect([]() {
         spdlog::debug("Patching ReadFileFromContainer");
         {
             SetAddress(anno::READ_FILE_FROM_CONTAINER,
