@@ -373,11 +373,25 @@ std::string ModManager::PushCacheLayer(const fs::path&    game_path,
     return layer.output_hash;
 }
 
+void ModManager::EnsureDummy()
+{
+    static auto dummy_path = ModManager::GetDummyPath();
+    if (!fs::exists(dummy_path)) {
+        fs::create_directories(ModManager::GetCacheDirectory());
+        std::fstream fs;
+        fs.open(dummy_path, std::ios::out);
+        fs.open(dummy_path, std::ios::out);
+        fs.close();
+    }
+}
+
 void ModManager::GameFilesReady()
 {
     sort(begin(mods_), end(mods_), [](const auto& l, const auto& r) {
         return stricmp(l.Name().c_str(), r.Name().c_str()) < 0;
     });
+
+    ModManager::EnsureDummy();
 
     patching_file_thread_ = std::thread([this]() {
         spdlog::info("Start applying xml operations");
@@ -572,6 +586,12 @@ fs::path ModManager::GetCacheDirectory()
 {
     return ModManager::GetModsDirectory() / ".cache";
 }
+
+fs::path ModManager::GetDummyPath()
+{
+    return ModManager::GetCacheDirectory() / ".dummy";
+}
+
 bool ModManager::IsPythonStartScript(const fs::path& file) const
 {
     const auto filename = file.filename();

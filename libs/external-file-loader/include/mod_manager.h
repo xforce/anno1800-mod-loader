@@ -38,6 +38,8 @@ class ModManager
 
     static fs::path GetModsDirectory();
     static fs::path GetCacheDirectory();
+    static fs::path GetDummyPath();
+    static void     EnsureDummy();
 
     bool                            IsFileModded(const fs::path& path) const;
     const File&                     GetModdedFileInfo(const fs::path& path) const;
