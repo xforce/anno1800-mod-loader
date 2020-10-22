@@ -3,6 +3,14 @@ config_setting(
     values = {"define": "internal=1"},
 )
 
+load("@//tools/res:win_res.bzl", "windows_resources")
+
+windows_resources(
+    name = "python_res",
+    rc_files = ["src/python.rc"],
+    resources = ["src/version.h"],
+)
+
 cc_binary(
     name = "python35.dll",
     srcs = glob(["src/**/*.cc"]) + glob(["src/**/*.h"]) + glob(["include/**/*.h"]),
@@ -19,6 +27,7 @@ cc_binary(
     linkshared = 1,
     win_def_file = "src/python_forward.def",
     deps = [
+        ":python_res",
         ":loader_interface",
         "//third_party:json",
         "//libs/external-file-loader:external-file-loader",

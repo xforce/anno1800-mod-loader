@@ -219,6 +219,21 @@ bool FindAddresses()
                 }
             }};
         ADDRESSES[FILE_GET_FILE_SIZE] = {[](std::optional<std::string_view> game_file) {
+            // Same as Game Update 8 but has better compatibility
+            try {
+                auto match =
+                    meow_hook::pattern("E8 ? ? ? ? 0F B6 D8 48 8D 4D A0", game_file)
+                        .count(1)
+                        .get(0);
+                if (game_file) {
+                    match = match.adjust(
+                        RebaseFileOffsetToMemoryAddess(
+                            match.as<uintptr_t>() - reinterpret_cast<intptr_t>(game_file->data()))
+                        - match.as<uintptr_t>());
+                }
+                return match.extract_call();
+            } catch (...) {
+            }
             try {
                 auto match =
                     meow_hook::pattern("E8 ? ? ? ? 84 C0 74 1F 48 89 9E ? ? ? ?", game_file)
@@ -282,6 +297,21 @@ bool FindAddresses()
         }};
         ADDRESSES[SOME_GLOBAL_STRUCT_TOOL_ONE_HELPER_MAYBE] = {[](std::optional<std::string_view>
                                                                       game_file) {
+            // Game Update 8 better compatibility
+            try {
+                auto match =
+                    meow_hook::pattern("C7 45 ? ? ? ? ? 48 8B 35 ? ? ? ? 41 BC ? ? ? ?", game_file)
+                                 .count(1)
+                                 .get(0);
+                if (game_file) {
+                    match = match.adjust(
+                        RebaseFileOffsetToMemoryAddess(
+                            match.as<uintptr_t>() - reinterpret_cast<intptr_t>(game_file->data()))
+                        - match.as<uintptr_t>());
+                }
+                return match.adjust(7 + 3).add_disp().adjust(4).as<uintptr_t>();
+            } catch (...) {
+            }
             // Game Update 8
             try {
                 auto match =

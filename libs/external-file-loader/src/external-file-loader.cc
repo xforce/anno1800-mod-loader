@@ -203,8 +203,9 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             // NOTE(alexander): This is not how the game actually handles this
             // but because we are using a 'fake' 0 byte file in this case, we tell the game what
             // size it actually is, so we are guaranteed to have a buffer large enough to hold the
-            // file but sometiems the games tries to query the size of that file using the fake file
+            // file but sometimes the games tries to query the size of that file using the 'fake' file
             // handle which because it's 0 bytes we sometimes get 0 bytes to read here
+            // TODO(alexander): Hmm, the comment above doesn't really make sense here...
             if (nNumberOfBytesToRead > 0
                 && nNumberOfBytesToRead < bytes_left_in_buffer_read_count) {
                 bytes_left_in_buffer_read_count = nNumberOfBytesToRead;

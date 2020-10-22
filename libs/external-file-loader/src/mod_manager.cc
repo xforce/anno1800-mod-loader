@@ -189,7 +189,7 @@ void ModManager::StartWatchingFiles()
                         auto magic_wait_time = *(uint64_t*)(tool_one_helper + 0x160);
                         magic_wait_time      = magic_wait_time;
                         *(uint64_t*)(tool_one_helper + 0x160) -=
-                            5000; // Remove stupid 5 second wait for reload
+                            3000; // Remove stupid 5 second wait for reload
                         // magic_wait_time
                         this->reload_mods_thread_.detach();
                         this->reload_mods_thread_ = {};
@@ -452,9 +452,10 @@ void ModManager::GameFilesReady()
                     }
 
                     // Cache miss
-                    auto operations = XmlOperation::GetXmlOperationsFromFile(on_disk_file);
+                    auto &mod = GetModContainingFile(on_disk_file);
+                    auto operations = XmlOperation::GetXmlOperationsFromFile(
+                        on_disk_file, mod.Name(), game_path, on_disk_file);
                     for (auto&& operation : operations) {
-                        auto &mod = GetModContainingFile(on_disk_file);
                         operation.Apply(game_xml, mod.Name(), game_path, on_disk_file);
                     }
 

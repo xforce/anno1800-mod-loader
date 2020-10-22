@@ -1,7 +1,14 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 # bazel-skylb 0.8.0 released 2019.03.20 (https://github.com/bazelbuild/bazel-skylib/releases/tag/0.8.0)
 skylib_version = "0.8.0"
+
+git_repository(
+    name = "io_bazel",
+    tag = "3.7.0",
+    remote = "https://github.com/bazelbuild/bazel.git",
+)
 
 http_archive(
     name = "bazel_skylib",
@@ -46,3 +53,13 @@ local_repository(
     name = "meow_hook",
     path = "third_party/meow-hook",
 )
+
+load("@//tools/res:winsdk_configure.bzl", "winsdk_configure")
+
+winsdk_configure(name = "local_config_winsdk")
+
+load("@local_config_winsdk//:toolchains.bzl", "register_local_rc_exe_toolchains")
+
+register_local_rc_exe_toolchains()
+
+register_toolchains("@//tools/res:empty_rc_toolchain")

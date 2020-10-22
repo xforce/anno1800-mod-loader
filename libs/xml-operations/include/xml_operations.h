@@ -14,7 +14,9 @@ class XmlOperation
   public:
     enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
 
-    XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node, std::string guid = "");
+    XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
+                 std::string guid = "", std::string mod_name = "", fs::path game_path = {},
+                 fs::path mod_path = {});
     pugi::xml_object_range<pugi::xml_node_iterator> GetContentNode()
     {
         return *nodes_;
@@ -31,8 +33,14 @@ class XmlOperation
     }
     void Apply(std::shared_ptr<pugi::xml_document> doc, std::string mod_name = "",
                fs::path game_path = {}, fs::path mod_path = {});
-    static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<pugi::xml_document> doc);
-    static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path path);
+    static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<pugi::xml_document> doc,
+                                                      std::string mod_name  = "",
+                                                      fs::path    game_path = {},
+                                                      fs::path    mod_path  = {});
+    static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path    path,
+                                                              std::string mod_name  = "",
+                                                              fs::path    game_path = {},
+                                                              fs::path    mod_path  = {});
 
   private:
     Type                                                           type_;
@@ -59,7 +67,7 @@ class XmlOperation
     void RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node game_node,
                         pugi::xml_node patching_node);
     void ReadPath(pugi::xml_node node, std::string guid = "");
-    void ReadType(pugi::xml_node node);
+    void ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path, fs::path mod_path);
     std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node);
     std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc,
                                             std::string                         guid);
