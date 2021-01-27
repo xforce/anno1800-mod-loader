@@ -6,7 +6,7 @@ skylib_version = "0.8.0"
 
 git_repository(
     name = "io_bazel",
-    tag = "3.7.0",
+    tag = "4.0.0",
     remote = "https://github.com/bazelbuild/bazel.git",
 )
 
