@@ -4,6 +4,7 @@
 #include "spdlog/spdlog.h"
 
 #include <cstdio>
+#include <cstring>
 
 using offset_data_t = std::vector<ptrdiff_t>;
 
@@ -121,6 +122,11 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
 void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path,
                             fs::path mod_path)
 {
+#ifndef _WIN32
+auto stricmp = [](auto a, auto b) {
+    return strcasecmp(a, b);
+};
+#endif
     auto type = GetXmlPropString(node, "Type");
     if (stricmp(type.c_str(), "add") == 0) {
         type_ = Type::Add;
@@ -149,6 +155,11 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
 
 std::optional<pugi::xml_node> XmlOperation::FindAsset(std::string guid, pugi::xml_node node)
 {
+#ifndef _WIN32
+auto stricmp = [](auto a, auto b) {
+    return strcasecmp(a, b);
+};
+#endif
     //
     if (stricmp(node.name(), "Asset") == 0) {
         auto values = node.child("Values");
@@ -283,6 +294,11 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                                                          std::string mod_name, fs::path game_path,
                                                          fs::path mod_path)
 {
+#ifndef _WIN32
+auto stricmp = [](auto a, auto b) {
+    return strcasecmp(a, b);
+};
+#endif
     pugi::xml_node root = doc->root();
     if (!root) {
         spdlog::error("Failed to get root element");

@@ -55,10 +55,10 @@ cc_library(
 
 cc_library(
     name = "spdlog",
-    defines = [
-        "SPDLOG_WCHAR_FILENAMES",
-        "SPDLOG_WCHAR_TO_UTF8_SUPPORT",
-    ],
+    defines = ["SPDLOG_WCHAR_FILENAMES"] + select({
+        "@bazel_tools//src/conditions:windows": ["SPDLOG_WCHAR_TO_UTF8_SUPPORT"],
+        "//conditions:default": [],
+    }),
     hdrs = glob(["spdlog/include/**/*.h"]),
     includes = [
         "spdlog/include",
