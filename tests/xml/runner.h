@@ -9,10 +9,6 @@
 #include <cstring>
 #include <sstream>
 #include <memory>
-#include <unistd.h>
-#include <limits.h>
-#include <stdio.h>
-#include <string.h>
 
 class TestRunner
 {
