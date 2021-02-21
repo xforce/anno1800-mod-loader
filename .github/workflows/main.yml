@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+    tags-ignore:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-win:
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+
+      - name: Setup Bazelisk
+        uses: doppelganger113/bazelisk-setup-action@v1.0.5
+        with:
+          version: "latest"
+
+      - name: Build
+        run: |
+          bazel build //... -c opt
+
+      - name: Test
+        run: .\bazel-bin\tests\xml\xml-tests
+
+      - name: Package
+        run: |
+          tar -c -a -f xmltest.zip -C  bazel-bin/cmd/xmltest/ *.exe
+          tar -c -a -f loader.zip -C  bazel-bin/libs/python35/ *.dll
+          tar -c -a -f --append loader.zip -C  bazel-bin/libs/python35/ *.dll
+          tar -c -a -f loader-dbg.zip -C  bazel-bin/libs/python35/ *.pdb
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: package
+          path: |
+            xmltest.zip
+            loader.zip
+            loader-dbg.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+
+      - name: Setup Bazelisk
+        uses: doppelganger113/bazelisk-setup-action@v1.0.5
+        with:
+          version: "latest"
+
+      - name: Build
+        run: |
+          bazel --noworkspace_rc --bazelrc=.linux.bazelrc build //cmd/... //tests/... -c opt
+
+      - name: Test
+        run: ./bazel-bin/tests/xml/xml-tests

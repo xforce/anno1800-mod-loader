@@ -23,6 +23,7 @@ run_binary(
         ],
     ) + [
         "gen_tests.py",
+        "runner.h",
     ],
     outs = [
         "tests.cc",
@@ -38,6 +39,7 @@ cc_test(
     name = "xml-tests",
     srcs = [
         "main.cc",
+        "runner.h",
         ":gen_tests",
     ],
     data = glob([

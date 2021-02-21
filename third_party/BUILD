@@ -36,7 +36,7 @@ cc_library(
 
 cc_library(
     name = "Catch2",
-    hdrs = glob(["Catch2/single_include/**/*.h"]),
+    hdrs = glob(["Catch2/single_include/**/*.hpp"]),
     includes = [
         "Catch2/single_include",
     ],
