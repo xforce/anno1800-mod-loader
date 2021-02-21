@@ -70,8 +70,9 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
     }
 
     if (guid.empty()) {
-        // //Assets[Asset/Values/Standard/GUID='102119']
+        // Rewrite path to use faster GUID lookup
         int g;
+        // Matches stuff like this and extracts GUID //Assets[Asset/Values/Standard/GUID='102119']
         if (sscanf(prop_path.c_str(), "//Assets[Asset/Values/Standard/GUID='%d']", &g) > 0) {
             if (std::string("//Assets[Asset/Values/Standard/GUID='") + std::to_string(g) + "']"
                 == prop_path) {
@@ -319,9 +320,15 @@ auto stricmp = [](auto a, auto b) {
                     } else {
                         mod_operations.emplace_back(doc, node, "", mod_name, game_path, mod_path);
                     }
+                } else if (stricmp(node.name(), "Include") == 0) {
+                    const auto file = GetXmlPropString(node, "File");
+                    auto include_ops = GetXmlOperationsFromFile(mod_path / file, mod_name, game_path, mod_path);
+                    mod_operations.insert(std::end(mod_operations), std::begin(include_ops), std::end(include_ops));
                 }
             }
         }
+    } else {
+        spdlog::warn("[{}] Mod doesn't contain ModOps root node", mod_name);
     }
     return mod_operations;
 }
@@ -337,8 +344,9 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    pat
         offset_data_t offset_data;
         build_offset_data(offset_data, path.string().c_str());
         auto location = get_location(offset_data, parse_result.offset);
-        spdlog::error("Failed to parse {}({}, {}): {}", path.string(), location.first,
+        spdlog::error("[{}] Failed to parse {}({}, {}): {}", mod_name, path.string(), location.first,
                       location.second, parse_result.description());
+        return {};
     }
     return GetXmlOperations(doc, mod_name, game_path, mod_path);
 }

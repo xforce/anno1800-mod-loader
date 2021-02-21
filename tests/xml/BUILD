@@ -35,6 +35,14 @@ run_binary(
     tool = ":meow",
 )
 
+filegroup(
+    name = "test-files",
+    srcs = glob([
+        "**/*.xml",
+        "**/*.json",
+    ]),
+)
+
 cc_test(
     name = "xml-tests",
     srcs = [
@@ -42,10 +50,9 @@ cc_test(
         "runner.h",
         ":gen_tests",
     ],
-    data = glob([
-        "**/*.xml",
-        "**/*.json",
-    ]),
+    data = [
+        ":test-files"
+    ],
     includes = ["."],
     linkopts = select({
         "@bazel_tools//src/conditions:windows": [],

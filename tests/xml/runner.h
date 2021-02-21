@@ -9,19 +9,21 @@
 #include <cstring>
 #include <sstream>
 #include <memory>
+#include <unistd.h>
+#include <limits.h>
+#include <stdio.h>
+#include <string.h>
 
 class TestRunner
 {
 public:
-    TestRunner(std::string_view input, std::string_view patch) {
+    TestRunner(std::string_view mod_path, std::string_view input, std::string_view patch) {
         {
-            patch_doc_ = std::make_shared<pugi::xml_document>();
-            patch_doc_->load_buffer(patch.data(), patch.size());
-            xml_operations_ = XmlOperation::GetXmlOperations(patch_doc_);
+            xml_operations_ = XmlOperation::GetXmlOperationsFromFile(patch, "", input, mod_path);
         }
         {
             input_doc_ = std::make_shared<pugi::xml_document>();
-            input_doc_->load_buffer(input.data(), input.size());
+            input_doc_->load_file(input.data());
         }
     }
 
@@ -47,7 +49,7 @@ public:
 
     std::string DumpXml() {
         std::stringstream ss;
-        input_doc_->print(ss);
+        input_doc_->print(ss, "   ");
         std::string buf = ss.str();
         return buf;
     }
@@ -55,6 +57,5 @@ public:
     ~TestRunner() = default;
 private:
     std::vector<XmlOperation> xml_operations_;
-    std::shared_ptr<pugi::xml_document> patch_doc_ = nullptr;
     std::shared_ptr<pugi::xml_document> input_doc_ = nullptr;
 };

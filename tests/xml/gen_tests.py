@@ -19,26 +19,10 @@ def main():
                     f.write("TEST_CASE(\"" + data['name'] + "\") {\n")
                     base_name = os.path.splitext(os.path.basename(file))[0]
                     base_name_input = os.path.join(
-                        test_type_dir, base_name + "_input.xml")
-                    base_name_patch = os.path.join(
-                        test_type_dir, base_name + "_patch.xml")
-                    with open(base_name_input, "r") as in_file:
-                        f.write("char input[] = {\n")
-                        content = in_file.read()
-                        for c in content:
-                            if c != '':
-                                f.write("0x%02X," % ord(c))
-                        f.write("0x%02X," % ord('\0'))
-                        f.write("};\n")
-                    with open(base_name_patch, "r") as in_file:
-                        f.write("char patch[] = {\n")
-                        content = in_file.read()
-                        for c in content:
-                            if c != '':
-                                f.write("0x%02X," % ord(c))
-                        f.write("0x%02X," % ord('\0'))
-                        f.write("};\n")
-                    f.write("TestRunner runner(input, patch);\n")
+                        test_type, base_name + "_input.xml")
+                    base_name_input = os.path.join("tests", "xml", test_type, base_name + "_input.xml")
+                    base_name_patch = os.path.join("tests", "xml", test_type, base_name + "_patch.xml")
+                    f.write("TestRunner runner(\"%s\", \"%s\", \"%s\");\n" % (os.path.join("tests", "xml", test_type), base_name_input, base_name_patch))
                     f.write("runner.ApplyPatches();\n")
                     f.write("INFO(runner.DumpXml());")
                     expected_paths = data['expected']

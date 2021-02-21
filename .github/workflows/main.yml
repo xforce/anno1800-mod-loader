@@ -27,7 +27,7 @@ jobs:
           bazel build //... -c opt
 
       - name: Test
-        run: .\bazel-bin\tests\xml\xml-tests
+        run: bazel test //tests/xml:xml-tests -c opt
 
       - name: Package
         run: |
@@ -61,4 +61,4 @@ jobs:
           bazel --noworkspace_rc --bazelrc=.linux.bazelrc build //cmd/... //tests/... -c opt
 
       - name: Test
-        run: ./bazel-bin/tests/xml/xml-tests
+        run: bazel --noworkspace_rc --bazelrc=.linux.bazelrc test //tests/xml:xml-tests -c opt

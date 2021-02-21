@@ -1,0 +1,8 @@
+{
+    "name": "Include Add Multiple Nodes",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[Cat='10']",
+        "/Test/Node[Cat2='10']"
+    ]
+}
