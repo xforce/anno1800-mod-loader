@@ -44,6 +44,7 @@ new_local_repository(
 http_archive(
     name = "boringssl",
     strip_prefix = "boringssl-863837047be74b20f59369b5256c39ad00f015b3",
+    sha256 = "55c19c2db2e8b23fc3d19ad707209f992da5b3b6cfbe3812e6aadcee1786669c",
     urls = [
         "https://github.com/google/boringssl/archive/863837047be74b20f59369b5256c39ad00f015b3.zip",
     ],

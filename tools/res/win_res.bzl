@@ -16,8 +16,6 @@
 
 load(":winsdk_toolchain.bzl", "WINDOWS_RESOURCE_COMPILER_TOOLCHAIN_TYPE")
 
-print(WINDOWS_RESOURCE_COMPILER_TOOLCHAIN_TYPE)
-
 def _replace_ext(n, e):
     i = n.rfind(".")
     if i > 0:
