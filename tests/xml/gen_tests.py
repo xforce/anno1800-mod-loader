@@ -2,7 +2,6 @@ import glob
 import os
 import sys
 import json
-from functools import partial
 
 
 def main():
@@ -18,21 +17,26 @@ def main():
                         data = json.load(json_file)
                     f.write("TEST_CASE(\"" + data['name'] + "\") {\n")
                     base_name = os.path.splitext(os.path.basename(file))[0]
-                    base_name_input = os.path.join(
-                        test_type, base_name + "_input.xml")
-                    base_name_input = os.path.join("tests", "xml", test_type, base_name + "_input.xml")
-                    base_name_patch = os.path.join("tests", "xml", test_type, base_name + "_patch.xml")
-                    f.write("TestRunner runner(\"%s\", \"%s\", \"%s\");\n" % (os.path.join("tests", "xml", test_type), base_name_input, base_name_patch))
+                    base_name_input = os.path.join(test_type,
+                                                   base_name + "_input.xml")
+                    base_name_input = os.path.join("tests", "xml", test_type,
+                                                   base_name + "_input.xml")
+                    base_name_patch = os.path.join("tests", "xml", test_type,
+                                                   base_name + "_patch.xml")
+                    f.write("TestRunner runner(\"%s\", \"%s\", \"%s\");\n" %
+                            (os.path.join("tests", "xml", test_type).replace(
+                                "\\", "/"), base_name_input.replace("\\", "/"),
+                             base_name_patch.replace("\\", "/")))
                     f.write("runner.ApplyPatches();\n")
                     f.write("INFO(runner.DumpXml());")
                     expected_paths = data['expected']
                     for expected_path in expected_paths:
                         if expected_path.startswith('!'):
-                            f.write(
-                                "CHECK_FALSE(runner.PathExists(\"" + expected_path[1:] + "\"));")
+                            f.write("CHECK_FALSE(runner.PathExists(\"" +
+                                    expected_path[1:] + "\"));")
                         else:
-                            f.write(
-                                "CHECK(runner.PathExists(\"" + expected_path + "\"));")
+                            f.write("CHECK(runner.PathExists(\"" +
+                                    expected_path + "\"));")
                     f.write("}\n\n")
 
 
