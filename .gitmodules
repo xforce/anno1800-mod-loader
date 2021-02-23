@@ -25,3 +25,6 @@
 [submodule "third_party/meow-hook"]
 	path = third_party/meow-hook
 	url = https://github.com/xforce/meow-hook.git
+[submodule "tools/bazel-compdb"]
+	path = tools/bazel-compdb
+	url = https://github.com/grailbio/bazel-compilation-database

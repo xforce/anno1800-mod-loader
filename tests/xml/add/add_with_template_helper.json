@@ -1,0 +1,12 @@
+{
+    "name": "Add With Template Helper",
+    "expected": [
+        "/Templates",
+        "/Templates/Group",
+        "/Templates/Group/Template",
+        "/Templates/Group/Template/Properties",
+        "/Templates/Group/Template/Properties/Trigger",
+        "/Templates/Group/Template/Properties/Trigger/TriggerCondition",
+        "/Templates/Group/Template/Properties/Trigger/TriggerCondition/Item[Vehicle='Meow']"
+    ]
+}

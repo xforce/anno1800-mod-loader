@@ -1,0 +1,5 @@
+<ModOps>
+    <ModOp Type="add" Template="AutoCreateTrigger" Path="/Properties/Trigger/TriggerCondition">
+        <Item><Vehicle>Meow</Vehicle></Item>
+    </ModOp>
+</ModOps>

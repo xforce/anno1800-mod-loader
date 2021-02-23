@@ -456,7 +456,7 @@ void ModManager::GameFilesReady()
                     auto operations = XmlOperation::GetXmlOperationsFromFile(
                         on_disk_file, mod.Name(), game_path, on_disk_file);
                     for (auto&& operation : operations) {
-                        operation.Apply(game_xml, mod.Name(), game_path, on_disk_file);
+                        operation.Apply(game_xml);
                     }
 
                     struct xml_string_writer : pugi::xml_writer {

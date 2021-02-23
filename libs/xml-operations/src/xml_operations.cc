@@ -44,16 +44,19 @@ static std::pair<size_t, size_t> get_location(const offset_data_t &data, ptrdiff
 } // namespace
 
 XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
-                           std::string guid, std::string mod_name, fs::path game_path,
-                           fs::path mod_path)
+                           std::string guid, std::string temp, std::string mod_name,
+                           fs::path game_path, fs::path mod_path)
 {
-    guid_ = guid;
-    node_ = node;
-    doc_  = doc;
-    // TODO(alexander): This is kind of shit
-    // ReadType may need the Path in case of error to print something useful
-    // Actually maybe we can print the correct line number instead...
-    ReadPath(node, guid);
+    guid_     = guid;
+    template_ = temp;
+    node_     = node;
+    doc_      = doc;
+
+    mod_name_  = mod_name;
+    game_path_ = game_path;
+    mod_path_  = mod_path;
+
+    ReadPath(node, guid, temp);
     ReadType(node, mod_name, game_path, mod_path);
     if (type_ != Type::Remove) {
         nodes_ = node.children();
@@ -62,7 +65,7 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
     skip_ = node.attribute("Skip");
 }
 
-void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
+void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string temp)
 {
     auto prop_path = GetXmlPropString(node, "Path");
     if (prop_path.empty()) {
@@ -86,6 +89,20 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
         path_                  = "//Asset[Values/Standard/GUID='" + guid + "']";
     }
 
+    if (temp.empty()) {
+        char g[256];
+        if (sscanf(prop_path.c_str(), "//Template[Name='%s']", g) > 0) {
+            if (std::string("//Template[Name='" + std::string(g) + "']") == prop_path) {
+                temp                   = g;
+                template_              = g;
+                speculative_path_type_ = SpeculativePathType::TEMPLATE_CONTAINER;
+            }
+        }
+    } else {
+        speculative_path_type_ = SpeculativePathType::SINGLE_TEMPLATE;
+        path_                  = "//Template[Name='" + temp + "']";
+    }
+
     if (prop_path.find("/") != 0) {
         path_ += "/";
     }
@@ -99,24 +116,27 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid)
         }
     }
 
-    if (!guid.empty()) {
-        if (speculative_path_type_ == SpeculativePathType::ASSET_CONTAINER) {
+    if (!guid.empty() || !temp.empty()) {
+        if (speculative_path_type_ == SpeculativePathType::ASSET_CONTAINER
+            || speculative_path_type_ == SpeculativePathType::TEMPLATE_CONTAINER) {
             speculative_path_ = "/";
         } else {
             speculative_path_ += prop_path;
         }
+
         if (speculative_path_ == "/") {
             speculative_path_ = "self::node()";
         }
+
         if (speculative_path_.length() > 0) {
             if (speculative_path_[speculative_path_.length() - 1] == '/') {
                 speculative_path_ = speculative_path_.substr(0, speculative_path_.length() - 1);
             }
         }
+
         if (speculative_path_.find("/") == 0) {
             speculative_path_ = speculative_path_.substr(1);
         }
-    } else {
     }
 }
 
@@ -124,9 +144,7 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
                             fs::path mod_path)
 {
 #ifndef _WIN32
-auto stricmp = [](auto a, auto b) {
-    return strcasecmp(a, b);
-};
+    auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
     auto type = GetXmlPropString(node, "Type");
     if (stricmp(type.c_str(), "add") == 0) {
@@ -157,9 +175,7 @@ auto stricmp = [](auto a, auto b) {
 std::optional<pugi::xml_node> XmlOperation::FindAsset(std::string guid, pugi::xml_node node)
 {
 #ifndef _WIN32
-auto stricmp = [](auto a, auto b) {
-    return strcasecmp(a, b);
-};
+    auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
     //
     if (stricmp(node.name(), "Asset") == 0) {
@@ -210,49 +226,134 @@ std::optional<pugi::xml_node> XmlOperation::FindAsset(std::shared_ptr<pugi::xml_
     return FindAsset(guid, doc->root());
 }
 
-void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mod_name,
-                         fs::path game_path, fs::path mod_path)
+std::optional<pugi::xml_node> XmlOperation::FindTemplate(std::string temp, pugi::xml_node node)
+{
+#ifndef _WIN32
+    auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
+#endif
+    //
+    if (stricmp(node.name(), "Template") == 0) {
+        auto template_name = node.child("Name");
+        if (!template_name) {
+            return {};
+        }
+
+        if (template_name.text().get() != temp) {
+            return {};
+        }
+
+        if (speculative_path_type_ == SpeculativePathType::TEMPLATE_CONTAINER) {
+            auto parent = node.parent();
+            while (parent && stricmp(parent.name(), "Templates") != 0) {
+                parent = parent.parent();
+            }
+            if (stricmp(parent.name(), "Templates") == 0) {
+                return parent;
+            }
+            return {};
+        } else {
+            return node;
+        }
+    }
+
+    for (pugi::xml_node n : node.children()) {
+        if (auto found = FindTemplate(temp, n); found) {
+            return found;
+        }
+    }
+
+    return {};
+}
+
+std::optional<pugi::xml_node> XmlOperation::FindTemplate(std::shared_ptr<pugi::xml_document> doc,
+                                                         std::string                         temp)
+{
+    return FindTemplate(temp, doc->root());
+}
+
+pugi::xpath_node_set XmlOperation::ReadGuidNodes(std::shared_ptr<pugi::xml_document> doc)
+{
+    pugi::xpath_node_set results;
+    if (!guid_.empty()) {
+        try {
+            auto node = FindAsset(doc, guid_);
+            if (node) {
+                if (speculative_path_ != "*") {
+                    results = node->select_nodes(speculative_path_.c_str());
+                }
+            } else {
+                spdlog::debug("Speculative path failed to find node {}", GetPath());
+            }
+            if (results.empty()) {
+                spdlog::debug("Speculative path failed to find node with path {} {}", GetPath(),
+                              speculative_path_);
+            }
+        } catch (const pugi::xpath_exception &e) {
+            spdlog::warn("Speculative path lookup failed {} (GUID={}) in {}: {}. Please create "
+                         "an issue with the mod op that caused this! Falling back to regular "
+                         "'slow' lookup.",
+                         speculative_path_, guid_, mod_path_.string(), e.what());
+        }
+    } else {
+        spdlog::debug("Not doing speculative path lookup :(");
+    }
+    return results;
+}
+
+pugi::xpath_node_set XmlOperation::ReadTemplateNodes(std::shared_ptr<pugi::xml_document> doc)
+{
+    pugi::xpath_node_set results;
+    if (!template_.empty()) {
+        try {
+            auto node = FindTemplate(doc, template_);
+            if (node) {
+                if (speculative_path_ != "*") {
+                    results = node->select_nodes(speculative_path_.c_str());
+                }
+            } else {
+                spdlog::debug("Speculative path failed to find node {}", GetPath());
+            }
+            if (results.empty()) {
+                spdlog::debug("Speculative path failed to find node with path {} {}", GetPath(),
+                              speculative_path_);
+            }
+        } catch (const pugi::xpath_exception &e) {
+            spdlog::warn("Speculative path lookup failed {} (Template={}) in {}: {}. Please create "
+                         "an issue with the mod op that caused this! Falling back to regular "
+                         "'slow' lookup.",
+                         speculative_path_, template_, mod_path_.string(), e.what());
+        }
+    } else {
+        spdlog::debug("Not doing speculative path lookup :(");
+    }
+    return results;
+}
+
+void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 {
     if (skip_ || GetType() == XmlOperation::Type::None) {
         return;
     }
     try {
         spdlog::debug("Looking up {}", path_);
-        pugi::xpath_node_set results;
-        if (!guid_.empty()) {
-            try {
-                auto node = FindAsset(doc, guid_);
-                if (node) {
-                    if (speculative_path_ != "*") {
-                        results = node->select_nodes(speculative_path_.c_str());
-                    }
-                } else {
-                    spdlog::debug("Speculative path failed to find node {}", GetPath());
-                }
-                if (results.empty()) {
-                    spdlog::debug("Speculative path failed to find node with path {} {}", GetPath(),
-                                  speculative_path_);
-                }
-            } catch (const pugi::xpath_exception &e) {
-                spdlog::warn("Speculative path lookup failed {} (GUID={}) in {}: {}. Please create "
-                             "an issue with the mod op that caused this! Falling back to regular "
-                             "'slow' lookup.",
-                             speculative_path_, guid_, mod_path.string(), e.what());
-            }
-        } else {
-            spdlog::debug("Not doing speculative path lookup :(");
+        pugi::xpath_node_set results = ReadGuidNodes(doc);
+
+        if (results.empty()) {
+            results = ReadTemplateNodes(doc);
         }
+
         if (results.empty()) {
             results = doc->select_nodes(GetPath().c_str());
         }
         if (results.empty()) {
             offset_data_t offset_data;
-            build_offset_data(offset_data, mod_path.string().c_str());
+            build_offset_data(offset_data, mod_path_.string().c_str());
             auto [line, column] = get_location(offset_data, node_.offset_debug());
-            spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name,
-                         game_path.string(), line);
+            spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name_,
+                         game_path_.string(), line);
             return;
         }
+
         spdlog::debug("Lookup finished {}", path_);
         for (pugi::xpath_node xnode : results) {
             pugi::xml_node game_node = xnode.node();
@@ -284,10 +385,9 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc, std::string mo
                 }
                 game_node.parent().remove_child(game_node);
             }
-            //
         }
     } catch (const pugi::xpath_exception &e) {
-        spdlog::error("Failed to parse path {} in {}: {}", GetPath(), mod_path.string(), e.what());
+        spdlog::error("Failed to parse path {} in {}: {}", GetPath(), mod_path_.string(), e.what());
     }
 }
 
@@ -296,9 +396,7 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                                                          fs::path mod_path)
 {
 #ifndef _WIN32
-auto stricmp = [](auto a, auto b) {
-    return strcasecmp(a, b);
-};
+    auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
     pugi::xml_node root = doc->root();
     if (!root) {
@@ -311,19 +409,27 @@ auto stricmp = [](auto a, auto b) {
             if (node.type() == pugi::xml_node_type::node_element) {
                 if (stricmp(node.name(), "ModOp") == 0) {
                     const auto guid = GetXmlPropString(node, "GUID");
+                    const auto temp = GetXmlPropString(node, "Template");
+                    std::vector<std::string> guids;
+                    if (!temp.empty() && !guid.empty()) {
+                        spdlog::error("Cannot supply both `Template` and `GUID`");
+                    }
                     if (!guid.empty()) {
                         std::vector<std::string> guids = absl::StrSplit(guid, ',');
                         for (auto g : guids) {
-                            mod_operations.emplace_back(doc, node, g.data(), mod_name, game_path,
-                                                        mod_path);
-                        }
+                            mod_operations.emplace_back(doc, node, g.data(), mod_name, game_path, mod_path);
+                        }   
+                    } else if (!temp.empty()) {
+                        mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_path);
                     } else {
-                        mod_operations.emplace_back(doc, node, "", mod_name, game_path, mod_path);
+                        mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_path);
                     }
                 } else if (stricmp(node.name(), "Include") == 0) {
                     const auto file = GetXmlPropString(node, "File");
-                    auto include_ops = GetXmlOperationsFromFile(mod_path / file, mod_name, game_path, mod_path);
-                    mod_operations.insert(std::end(mod_operations), std::begin(include_ops), std::end(include_ops));
+                    auto       include_ops =
+                        GetXmlOperationsFromFile(mod_path / file, mod_name, game_path, mod_path);
+                    mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
+                                          std::end(include_ops));
                 }
             }
         }
@@ -344,8 +450,8 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    pat
         offset_data_t offset_data;
         build_offset_data(offset_data, path.string().c_str());
         auto location = get_location(offset_data, parse_result.offset);
-        spdlog::error("[{}] Failed to parse {}({}, {}): {}", mod_name, path.string(), location.first,
-                      location.second, parse_result.description());
+        spdlog::error("[{}] Failed to parse {}({}, {}): {}", mod_name, path.string(),
+                      location.first, location.second, parse_result.description());
         return {};
     }
     return GetXmlOperations(doc, mod_name, game_path, mod_path);
@@ -440,4 +546,19 @@ void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node 
             }
         }
     }
+}
+
+std::string XmlOperation::GetPath()
+{
+    return path_;
+}
+
+pugi::xml_object_range<pugi::xml_node_iterator> XmlOperation::GetContentNode()
+{
+    return *nodes_;
+}
+
+XmlOperation::Type XmlOperation::GetType() const
+{
+    return type_;
 }
