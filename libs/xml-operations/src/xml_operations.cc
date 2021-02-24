@@ -417,7 +417,7 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                     if (!guid.empty()) {
                         std::vector<std::string> guids = absl::StrSplit(guid, ',');
                         for (auto g : guids) {
-                            mod_operations.emplace_back(doc, node, g.data(), mod_name, game_path, mod_path);
+                            mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path, mod_path);
                         }   
                     } else if (!temp.empty()) {
                         mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_path);
