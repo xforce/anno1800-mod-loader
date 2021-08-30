@@ -100,7 +100,7 @@ inline bool FileGetSize(uintptr_t a1, std::wstring& file_path, size_t* output_si
 #if defined(ADVANCED_HOOK_LOGS)
     spdlog::debug(L"FileGetSize {}", file_path);
 #endif
-    if (file_path == L"maindata/checksum.db") {
+    if (file_path == L"maindata/checksum.db" || file_path == L"data/config/export/main/asset/properties.xml") {
         ModManager::instance().GameFilesReady();
     }
     auto mapped_path = ModManager::MapAliasedPath(file_path);
