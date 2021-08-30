@@ -22,7 +22,7 @@ class Mod;
 
 std::vector<Mod> mods;
 
-// #define ADVANCED_HOOK_LOGS 1
+#define ADVANCED_HOOK_LOGS 0
 
 uintptr_t* ReadFileFromContainerOIP = nullptr;
 bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& file_path,
@@ -34,7 +34,8 @@ bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& f
     auto mapped_path = ModManager::MapAliasedPath(file_path);
     if (ModManager::instance().IsFileModded(mapped_path)) {
 #if defined(ADVANCED_HOOK_LOGS)
-        spdlog::debug(L"Read Modded File From Container {} {}", mapped_path.wstring(), *output_data_size);
+        spdlog::debug(L"Read Modded File From Container {} {}", mapped_path.wstring(),
+                      *output_data_size);
 #endif
         auto info = ModManager::instance().GetModdedFileInfo(mapped_path);
         if (info.is_patched) {
@@ -94,7 +95,8 @@ inline size_t GetFileSize(fs::path m)
     return size;
 }
 
-inline bool FileGetSize(uintptr_t a1, std::wstring &file_path, size_t* output_size) {
+inline bool FileGetSize(uintptr_t a1, std::wstring& file_path, size_t* output_size)
+{
 #if defined(ADVANCED_HOOK_LOGS)
     spdlog::debug(L"FileGetSize {}", file_path);
 #endif
@@ -139,7 +141,7 @@ HANDLE FindFirstFileW_S(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 {
     auto n = FindFirstFileW(lpFileName, lpFindFileData);
     //
-    auto w_str    = std::wstring(lpFileName);
+    auto w_str = std::wstring(lpFileName);
     if (!w_str.empty()) {
 #if defined(ADVANCED_HOOK_LOGS)
         spdlog::debug(L"FindFirstFileW_S {}", w_str);
@@ -179,7 +181,7 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
 #endif
     }
     auto mapped_path = ModManager::MapAliasedPath(file->file_path);
-    auto file_path = file->file_path;
+    auto file_path   = file->file_path;
     if (ModManager::instance().IsFileModded(mapped_path)) {
         const auto& info = ModManager::instance().GetModdedFileInfo(mapped_path);
         if (info.is_patched) {
@@ -203,8 +205,8 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             // NOTE(alexander): This is not how the game actually handles this
             // but because we are using a 'fake' 0 byte file in this case, we tell the game what
             // size it actually is, so we are guaranteed to have a buffer large enough to hold the
-            // file but sometimes the games tries to query the size of that file using the 'fake' file
-            // handle which because it's 0 bytes we sometimes get 0 bytes to read here
+            // file but sometimes the games tries to query the size of that file using the 'fake'
+            // file handle which because it's 0 bytes we sometimes get 0 bytes to read here
             // TODO(alexander): Hmm, the comment above doesn't really make sense here...
             if (nNumberOfBytesToRead > 0
                 && nNumberOfBytesToRead < bytes_left_in_buffer_read_count) {

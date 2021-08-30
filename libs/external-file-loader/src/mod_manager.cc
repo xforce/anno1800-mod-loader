@@ -498,6 +498,7 @@ void ModManager::GameFilesReady()
             mods_ready_.store(true);
         }
         spdlog::info("Finished applying xml operations");
+
         mods_ready_cv_.notify_all();
 
         patching_file_thread_.detach();
