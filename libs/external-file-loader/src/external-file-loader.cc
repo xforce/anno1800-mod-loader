@@ -22,7 +22,7 @@ class Mod;
 
 std::vector<Mod> mods;
 
-// #define ADVANCED_HOOK_LOGS 0
+// #define ADVANCED_HOOK_LOGS 1
 
 uintptr_t* ReadFileFromContainerOIP = nullptr;
 bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& file_path,
@@ -100,7 +100,14 @@ inline bool FileGetSize(uintptr_t a1, std::wstring& file_path, size_t* output_si
 #if defined(ADVANCED_HOOK_LOGS)
     spdlog::debug(L"FileGetSize {}", file_path);
 #endif
-    if (file_path == L"maindata/checksum.db" || file_path == L"data/config/export/main/asset/properties.xml") {
+    // This is one of the first files that get loaded
+    // We absuse this to detect the best place to start out patching process
+    // Doing it this way makes sure that all .rda files are loaded so that we can request any file
+    // that is used later on in-game
+    if (file_path == L"maindata/checksum.db"
+        || file_path == L"data/config/export/main/asset/properties.xml"
+        || file_path == L"data/graphics/ui/appicons/anno7.png"
+        || file_path == L"data/config/engine/enginesettings/default.xml") {
         ModManager::instance().GameFilesReady();
     }
     auto mapped_path = ModManager::MapAliasedPath(file_path);

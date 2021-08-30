@@ -380,13 +380,17 @@ void ModManager::EnsureDummy()
         fs::create_directories(ModManager::GetCacheDirectory());
         std::fstream fs;
         fs.open(dummy_path, std::ios::out);
-        fs.open(dummy_path, std::ios::out);
         fs.close();
     }
 }
 
 void ModManager::GameFilesReady()
 {
+    if (this->mods_ready_.load() || patching_file_thread_.joinable()) {
+        spdlog::debug("Skip patching, we are either doing it already or are done");
+        return;
+    }
+
     sort(begin(mods_), end(mods_), [](const auto& l, const auto& r) {
         return stricmp(l.Name().c_str(), r.Name().c_str()) < 0;
     });
