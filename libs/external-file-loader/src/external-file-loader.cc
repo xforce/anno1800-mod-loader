@@ -22,7 +22,7 @@ class Mod;
 
 std::vector<Mod> mods;
 
-#define ADVANCED_HOOK_LOGS 0
+// #define ADVANCED_HOOK_LOGS 0
 
 uintptr_t* ReadFileFromContainerOIP = nullptr;
 bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& file_path,
