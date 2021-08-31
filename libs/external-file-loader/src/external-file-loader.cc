@@ -56,10 +56,8 @@ bool       ReadFileFromContainer(__int64 archive_file_map, const std::wstring& f
         }
         return true;
     }
-    auto result = anno::ReadFileFromContainer(archive_file_map, mapped_path, output_data_pointer,
+    return anno::ReadFileFromContainer(archive_file_map, mapped_path, output_data_pointer,
                                               output_data_size);
-    result      = result;
-    return result;
 }
 
 inline size_t GetFileSize(fs::path m)
@@ -68,8 +66,9 @@ inline size_t GetFileSize(fs::path m)
     spdlog::debug("Custom GetFileSize {}", m.string());
 #endif
     size_t size = 0;
-    if (ModManager::instance().IsFileModded(m)) {
-        const auto& info = ModManager::instance().GetModdedFileInfo(m);
+    auto mapped_path = ModManager::MapAliasedPath(m);
+    if (ModManager::instance().IsFileModded(mapped_path)) {
+        const auto& info = ModManager::instance().GetModdedFileInfo(mapped_path);
         if (info.is_patched) {
             size = info.data.size();
         } else {
@@ -87,7 +86,7 @@ inline size_t GetFileSize(fs::path m)
             size = lFileSize.QuadPart;
         }
     } else {
-        size = anno::rdsdk::CFile::GetFileSize(m);
+        size = anno::rdsdk::CFile::GetFileSize(mapped_path);
     }
 #if defined(ADVANCED_HOOK_LOGS)
     spdlog::debug("Custom GetFileSize Result {}", size);
@@ -182,18 +181,49 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
 decltype(ReadGameFile)* ReadGameFile_QIP = nullptr;
 uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOfBytesToRead)
 {
-    if (!file->file_path.empty()) {
-#if defined(ADVANCED_HOOK_LOGS)
-        spdlog::debug(L"ReadGameFile {} {}", file->file_path, nNumberOfBytesToRead);
-#endif
+    auto& file_path = file->file_path;
+    if (file_path._Starts_with(L"data/config/gui/credits_")) {
+        return 0;
+        static auto credits_file = anno::rdsdk::CFile::ReadFile(file_path);
+        if (credits_file.size() <= file->offset) {
+            return 0;
+        }
+        memcpy(lpBuffer, credits_file.data() + file->offset, nNumberOfBytesToRead);
+        file->offset += nNumberOfBytesToRead;
+        return nNumberOfBytesToRead;
     }
+
+#if defined(ADVANCED_HOOK_LOGS)
+    if (!file_path.empty()) {
+        spdlog::debug(L"ReadGameFile {} {}", file->file_path, nNumberOfBytesToRead);
+    }
+#endif
+
     auto mapped_path = ModManager::MapAliasedPath(file->file_path);
-    auto file_path   = file->file_path;
     if (ModManager::instance().IsFileModded(mapped_path)) {
         const auto& info = ModManager::instance().GetModdedFileInfo(mapped_path);
         if (info.is_patched) {
-            memcpy(lpBuffer, info.data.data(), info.data.size());
-            return info.data.size();
+            auto    current_offset = file->offset;
+            int64_t bytes_left_in_buffer_read_count = 0;
+
+            if (file->size != current_offset) {
+                bytes_left_in_buffer_read_count = file->size - current_offset;
+            }
+            if (nNumberOfBytesToRead > 0
+                && nNumberOfBytesToRead < bytes_left_in_buffer_read_count) {
+                bytes_left_in_buffer_read_count = nNumberOfBytesToRead;
+            }
+            if (file->offset > file->size) {
+                return 0;
+            }
+            if (bytes_left_in_buffer_read_count) {
+                if (info.data.size() - file->offset < bytes_left_in_buffer_read_count) {
+                    bytes_left_in_buffer_read_count = info.data.size() - file->offset;
+                }
+                memcpy(lpBuffer, info.data.data() + file->offset, bytes_left_in_buffer_read_count);
+                file->offset += bytes_left_in_buffer_read_count;
+            }
+            return bytes_left_in_buffer_read_count;
         } else {
             // This is not a file that we can patch
             // Just load it from disk
@@ -222,8 +252,6 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             if (bytes_left_in_buffer_read_count) {
                 SetFilePointer(hFile, current_offset, NULL, FILE_BEGIN);
                 DWORD         read = 0;
-                LARGE_INTEGER lFileSize;
-                GetFileSizeEx(hFile, &lFileSize);
                 ReadFile(hFile, lpBuffer, bytes_left_in_buffer_read_count, &read, NULL);
                 CloseHandle(hFile);
                 file->offset += read;
@@ -233,15 +261,31 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             return bytes_left_in_buffer_read_count;
         }
     } else {
-        auto size = anno::rdsdk::CFile::GetFileSize(mapped_path);
-        if (size > 0 && file->file_handle) {
-            size_t output_data_size = 0;
-            anno::ReadFileFromContainer(
-                *(uintptr_t*)GetAddress(anno::SOME_GLOBAL_STRUCTURE_ARCHIVE), mapped_path.wstring(),
-                (char**)&lpBuffer, &output_data_size);
-            return output_data_size;
+        if (file_path != L"data/config/gui/credits_eu.html") {
+           auto size = anno::rdsdk::CFile::GetFileSize(mapped_path);
+           if (size > 0 && file->file_handle) {
+               size_t output_data_size = 0;
+               anno::ReadFileFromContainer(
+                   *(uintptr_t*)GetAddress(anno::SOME_GLOBAL_STRUCTURE_ARCHIVE), mapped_path.wstring(),
+                   (char**)&lpBuffer, &output_data_size);
+               return output_data_size;
+           }
         }
         return ReadGameFile_QIP(file, lpBuffer, nNumberOfBytesToRead);
+    }
+}
+
+bool ReadInt64FromXMLNode(void* obj, const char* name, int64_t* out);
+decltype(ReadInt64FromXMLNode)* ReadInt64FromXMLNode_QIP = nullptr;
+bool ReadInt64FromXMLNode(void* obj, const char *name, int64_t *out)
+{
+    if (strcmp(name, "MinEpilepsyWarningTime") == 0) {
+        ReadInt64FromXMLNode_QIP(obj, name, out);
+        *out = 1;
+        return true;
+    }
+    else {
+        return ReadInt64FromXMLNode_QIP(obj, name, out);
     }
 }
 
@@ -339,8 +383,6 @@ void EnableExtenalFileLoading(Events& events)
     });
     set_import("FindFirstFileW", (uintptr_t)FindFirstFileW_S);
 
-    printf("Find addresses\n");
-
     if (!anno::FindAddresses()) {
         printf("Find addresses...failed\n");
 #define VER_FILE_DESCRIPTION_STR "Anno 1800 Mod Loader"
@@ -372,6 +414,9 @@ void EnableExtenalFileLoading(Events& events)
 
         spdlog::debug("Patching ReadGameFile");
         ReadGameFile_QIP = MH_STATIC_DETOUR(GetAddress(anno::READ_GAME_FILE), ReadGameFile);
+
+        spdlog::debug("Patching ReadInt64FromXMLNode");
+        ReadInt64FromXMLNode_QIP = MH_STATIC_DETOUR(GetAddress(anno::READ_INT64_FROM_XML_NODE), ReadInt64FromXMLNode);
 
         {
 

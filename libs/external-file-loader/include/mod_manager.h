@@ -62,6 +62,11 @@ class ModManager
 
     // Cache system stuff
     // This should be moved into it's own class
+    struct LayerId {
+        std::string output;
+        std::string patch;
+    };
+
     std::string                GetFileHash(const fs::path& file) const;
     std::string                GetDataHash(const std::string& data) const;
     void                       ReadCache();
@@ -69,7 +74,7 @@ class ModManager
                                                const std::string& input_hash,
                                                const std::string& patch_hash);
     std::string ReadCacheLayer(const fs::path& game_path, const std::string& input_hash);
-    std::string PushCacheLayer(const fs::path& game_path, const std::string& last_valid_cache,
+    LayerId PushCacheLayer(const fs::path& game_path, const LayerId& last_valid_cache,
                                const std::string& patch_file_hash, const std::string& buf,
                                const std::string& mod_name = "");
     void        WriteCacheInfo(const fs::path& game_path);

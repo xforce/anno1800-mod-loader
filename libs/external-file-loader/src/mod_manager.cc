@@ -56,6 +56,9 @@ void ModManager::LoadMods()
     std::vector<fs::path> mod_roots;
     for (auto&& root : fs::directory_iterator(mods_directory)) {
         if (root.is_directory()) {
+            if ( root.path().stem().wstring() == L".cache") {
+                continue;
+            }
             if (IsModEnabled(root.path())) {
                 this->Create(root.path());
             } else {
@@ -236,7 +239,7 @@ void ModManager::ReadCache()
                 std::vector<std::string> layer_order      = data["layers"]["order"];
                 std::string              patch_op_version = data.at("version").get<std::string>();
                 if (PATCH_OP_VERSION == patch_op_version) {
-                    spdlog::debug("Loading from cache {} vs {}",
+                    spdlog::debug("Loading from cache ({}) {} vs {}", game_path.string(),
                                   patch_op_version, PATCH_OP_VERSION);
                     std::vector<CacheLayer> cache_layers;
                     for (auto&& layer : layer_order) {
@@ -263,12 +266,13 @@ void ModManager::WriteCacheInfo(const fs::path& game_path)
     nlohmann::json           j;
     std::vector<std::string> order;
     for (auto& layer : modded_file_cache_info_[game_path]) {
-        order.push_back(layer.output_hash);
-        j["layers"][layer.output_hash] = layer;
+        auto layer_id = layer.input_hash + "." + layer.patch_hash;
+        order.push_back(layer_id);
+        j["layers"][layer_id] = layer;
     }
     j["layers"]["order"] = order;
     j["version"]         = PATCH_OP_VERSION;
-    ofs << j;
+    ofs << j.dump(4);
     ofs.close();
 
     // Let's clean up old cache files
@@ -291,6 +295,8 @@ std::optional<std::string> ModManager::CheckCacheLayer(const fs::path&    game_p
     if (input_hash.empty()) {
         return {};
     }
+
+    spdlog::debug("Check cache {} {} {}", game_path.string(), input_hash, patch_hash);
 
     for (auto&& cache : modded_file_cache_info_[game_path]) {
         if (cache.input_hash == input_hash && cache.patch_hash == patch_hash) {
@@ -327,24 +333,29 @@ std::string ModManager::ReadCacheLayer(const fs::path& game_path, const std::str
     return "";
 }
 
-std::string ModManager::PushCacheLayer(const fs::path&    game_path,
-                                       const std::string& last_valid_cache,
+ModManager::LayerId ModManager::PushCacheLayer(const fs::path&    game_path,
+                                       const LayerId& last_valid_cache,
                                        const std::string& patch_file_hash, const std::string& buf,
                                        const std::string& mod_name)
 {
-    spdlog::debug("PushCacheLayer {} {} {} {}", game_path.string(), last_valid_cache, patch_file_hash,
-                  mod_name);
     CacheLayer layer;
-    layer.input_hash  = last_valid_cache;
+    layer.input_hash  = last_valid_cache.output;
     layer.output_hash = GetDataHash(buf);
     layer.patch_hash  = patch_file_hash;
     layer.layer_file  = layer.output_hash;
     layer.mod_name    = mod_name;
 
+    spdlog::debug("PushCacheLayer {} {} {} {} {}", game_path.string(), last_valid_cache.output, patch_file_hash, layer.output_hash,
+        mod_name);
+
     auto& cache = modded_file_cache_info_[game_path];
 
+    for (const auto& layer : cache) {
+        spdlog::debug("  Layers {} {} {} {}", game_path.string(), layer.input_hash, layer.patch_hash, layer.output_hash);
+    }
+
     auto it = find_if(begin(cache), end(cache), [&last_valid_cache](const auto& x) {
-        return x.output_hash == last_valid_cache;
+        return x.output_hash == last_valid_cache.output && x.patch_hash == last_valid_cache.patch;
     });
     if (it == end(cache)) {
         cache.clear();
@@ -370,7 +381,11 @@ std::string ModManager::PushCacheLayer(const fs::path&    game_path,
 
     cache.push_back(layer);
 
-    return layer.output_hash;
+    for (const auto& layer : cache) {
+        spdlog::debug("  New Layers {} {} {} {}", game_path.string(), layer.input_hash, layer.patch_hash, layer.output_hash);
+    }
+
+    return { layer.output_hash, patch_file_hash};
 }
 
 void ModManager::EnsureDummy()
@@ -387,7 +402,8 @@ void ModManager::EnsureDummy()
 void ModManager::GameFilesReady()
 {
     if (this->mods_ready_.load() || patching_file_thread_.joinable()) {
-        spdlog::debug("Skip patching, we are either doing it already or are done");
+        // This gets very noisy
+        // spdlog::debug("Skip patching, we are either doing it already or are done");
         return;
     }
 
@@ -422,7 +438,7 @@ void ModManager::GameFilesReady()
             }
             std::shared_ptr<pugi::xml_document> game_xml         = nullptr;
             auto                                game_file_hash   = GetDataHash(game_file);
-            std::string                         last_valid_cache = "";
+            LayerId                             last_valid_cache = { "", "" };
             std::string                         next_input_hash  = game_file_hash;
 
             for (auto&& on_disk_file : on_disk_files) {
@@ -434,17 +450,18 @@ void ModManager::GameFilesReady()
                     CheckCacheLayer(game_path, next_input_hash, patch_file_hash);
                 if (output_hash) {
                     // Cache hit
-                    last_valid_cache = *output_hash;
+                    last_valid_cache.output = *output_hash;
+                    last_valid_cache.patch = patch_file_hash;
                     next_input_hash  = *output_hash;
                 } else {
                     next_input_hash = "";
 
                     if (!game_xml) {
                         std::string cache_data = "";
-                        if (last_valid_cache.empty()) {
+                        if (last_valid_cache.output.empty()) {
                             cache_data = game_file;
                         } else {
-                            cache_data = ReadCacheLayer(game_path, last_valid_cache);
+                            cache_data = ReadCacheLayer(game_path, last_valid_cache.output);
                         }
                         game_xml = std::make_shared<pugi::xml_document>();
                         auto parse_result =
@@ -454,6 +471,8 @@ void ModManager::GameFilesReady()
                                           parse_result.description());
                         }
                     }
+
+                    spdlog::debug("Cache miss {} {}", next_input_hash, patch_file_hash);
 
                     // Cache miss
                     auto &mod = GetModContainingFile(on_disk_file);
@@ -477,8 +496,9 @@ void ModManager::GameFilesReady()
                     game_xml->print(writer);
                     std::string& buf = writer.result;
 
-                    if (last_valid_cache.empty()) {
-                        last_valid_cache = game_file_hash;
+                    if (last_valid_cache.output.empty()) {
+                        last_valid_cache.output = game_file_hash;
+                        last_valid_cache.patch = "";
                     }
                     last_valid_cache = PushCacheLayer(game_path, last_valid_cache, patch_file_hash,
                                                       buf, on_disk_file.string());
@@ -486,7 +506,7 @@ void ModManager::GameFilesReady()
                 }
             }
             if (!game_xml) {
-                auto cache_data        = ReadCacheLayer(game_path, last_valid_cache);
+                auto cache_data        = ReadCacheLayer(game_path, last_valid_cache.output);
                 file_cache_[game_path] = {cache_data.size(), true, cache_data};
             }
 
@@ -512,8 +532,9 @@ void ModManager::GameFilesReady()
 
 bool ModManager::IsFileModded(const fs::path& path) const
 {
+    auto normalized_path = path.lexically_normal();
     for (const auto& mod : mods_) {
-        if (mod.HasFile(path.lexically_normal())) {
+        if (mod.HasFile(normalized_path)) {
             return true;
         }
     }
@@ -522,6 +543,9 @@ bool ModManager::IsFileModded(const fs::path& path) const
 
 const ModManager::File& ModManager::GetModdedFileInfo(const fs::path& path) const
 {
+    // This _should_ be fine, I think
+    ModManager::instance().GameFilesReady();
+
     // If we are currently patching files
     // wait for it to finish
     WaitModsReady();

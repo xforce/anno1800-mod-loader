@@ -381,8 +381,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                     spdlog::error("Failed to get current module directory {}", GetLastError());
                     return;
                 }
-
-
             });
 
             EnableExtenalFileLoading(events);

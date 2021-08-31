@@ -22,6 +22,7 @@ enum Address {
     // So we can't use it anymore :(
     // FILE_READ_ALLOCATE_BUFFER,
     SOME_GLOBAL_STRUCT_TOOL_ONE_HELPER_MAYBE,
+    READ_INT64_FROM_XML_NODE,
     SIZE
 };
 
