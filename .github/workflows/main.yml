@@ -32,8 +32,7 @@ jobs:
       - name: Package
         run: |
           tar -c -a -f xmltest.zip -C  bazel-bin/cmd/xmltest/ *.exe
-          tar -c -a -f loader.zip -C  bazel-bin/libs/python35/ *.dll
-          tar -c -a -f --append loader.zip -C  third_party/Python35/bin/python35_ubi.dll
+          tar -c -a -f loader.zip -C third_party/Python35/bin/ python35_ubi.dll -C ../../../bazel-bin/libs/python35/ *.dll
           tar -c -a -f loader-dbg.zip -C  bazel-bin/libs/python35/ *.pdb
 
       - uses: actions/upload-artifact@v2
