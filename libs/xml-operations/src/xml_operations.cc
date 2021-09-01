@@ -75,6 +75,7 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string t
     if (guid.empty()) {
         // Rewrite path to use faster GUID lookup
         int g;
+        char s[256];
         // Matches stuff like this and extracts GUID //Assets[Asset/Values/Standard/GUID='102119']
         if (sscanf(prop_path.c_str(), "//Assets[Asset/Values/Standard/GUID='%d']", &g) > 0) {
             if (std::string("//Assets[Asset/Values/Standard/GUID='") + std::to_string(g) + "']"
@@ -84,6 +85,19 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string t
                 speculative_path_type_ = SpeculativePathType::ASSET_CONTAINER;
             }
         }
+        //else if (sscanf(prop_path.c_str(), "//Asset[Values/Standard/GUID='%d']%s", &g, s) > 0) {
+        //    if (std::string("//Asset[Values/Standard/GUID='") + std::to_string(g) + "']" + s
+        //        == prop_path) {
+        //        guid = std::to_string(g);
+        //        guid_ = std::to_string(g);
+        //        speculative_path_type_ = SpeculativePathType::SINGLE_ASSET;
+        //        prop_path = s;
+        //        path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
+        //    }
+        //    else {
+        //        spdlog::warn("Failed to construct speculative path lookup");
+        //    }
+        //}
     } else {
         speculative_path_type_ = SpeculativePathType::SINGLE_ASSET;
         path_                  = "//Asset[Values/Standard/GUID='" + guid + "']";
@@ -294,8 +308,6 @@ pugi::xpath_node_set XmlOperation::ReadGuidNodes(std::shared_ptr<pugi::xml_docum
                          "'slow' lookup.",
                          speculative_path_, guid_, mod_path_.string(), e.what());
         }
-    } else {
-        spdlog::debug("Not doing speculative path lookup :(");
     }
     return results;
 }
@@ -323,8 +335,6 @@ pugi::xpath_node_set XmlOperation::ReadTemplateNodes(std::shared_ptr<pugi::xml_d
                          "'slow' lookup.",
                          speculative_path_, template_, mod_path_.string(), e.what());
         }
-    } else {
-        spdlog::debug("Not doing speculative path lookup :(");
     }
     return results;
 }

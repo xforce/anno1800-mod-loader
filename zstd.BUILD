@@ -49,12 +49,24 @@ cc_library(
 
 cc_library(
     name = "errors",
+    deps = [
+        ":errors_public",
+    ],
     hdrs = [
         "lib/common/error_private.h",
-        "lib/common/zstd_errors.h",
+        "lib/common/zstd_deps.h"
     ],
-    srcs = ["lib/common/error_private.c",  "lib/common/error_private.h", "lib/common/zstd_errors.h"],
+    srcs = ["lib/common/error_private.c",  "lib/common/error_private.h"],
     strip_include_prefix = "lib/common",
+)
+
+cc_library(
+    name = "errors_public",
+    hdrs = [
+        "lib/zstd_errors.h",
+    ],
+    srcs = ["lib/zstd_errors.h"],
+    strip_include_prefix = "lib",
 )
 
 cc_library(
@@ -98,16 +110,24 @@ cc_library(
 cc_library(
     name = "compress",
     hdrs = [
+        "lib/compress/zstd_compress_literals.h",
         "lib/compress/zstd_compress_internal.h",
+        "lib/compress/zstd_compress_sequences.h",
+        "lib/compress/zstd_compress_superblock.h",
+        "lib/compress/zstd_cwksp.h",
         "lib/compress/zstd_double_fast.h",
         "lib/compress/zstd_fast.h",
         "lib/compress/zstd_lazy.h",
         "lib/compress/zstd_ldm.h",
+        "lib/compress/zstd_ldm_geartab.h",
         "lib/compress/zstdmt_compress.h",
         "lib/compress/zstd_opt.h",
     ],
     srcs = [
         "lib/compress/zstd_compress.c",
+        "lib/compress/zstd_compress_literals.c",
+        "lib/compress/zstd_compress_sequences.c",
+        "lib/compress/zstd_compress_superblock.c",
         "lib/compress/zstd_double_fast.c",
         "lib/compress/zstd_fast.c",
         "lib/compress/zstd_lazy.c",
@@ -127,6 +147,9 @@ cc_library(
 
 cc_library(
     name = "threading",
+    deps = [
+        ":debug"
+    ],
     hdrs = ["lib/common/threading.h"],
     srcs = ["lib/common/threading.c"],
     linkopts = ["-pthread"],
@@ -148,6 +171,12 @@ cc_library(
     name = "xxhash",
     hdrs = [
         "lib/common/xxhash.h",
+        "lib/common/zstd_deps.h",
+    ],
+    deps = [
+        ":debug",
+        ":compiler",
+        ":mem"
     ],
     srcs = ["lib/common/xxhash.c"],
     copts = [
@@ -157,7 +186,7 @@ cc_library(
 
 cc_library(
     name = "zstd_header",
-    hdrs = ["lib/zstd.h"],
+    hdrs = ["lib/zstd.h", "lib/zstd_errors.h"],
     strip_include_prefix = "lib",
 )
 

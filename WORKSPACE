@@ -28,10 +28,9 @@ http_archive(
 http_archive(
     name = "com_github_facebook_zstd",
     build_file = "@//:zstd.BUILD",
-    sha256 = "1333b186377b6e86607160b4f5659c86c266b6fb9e7e8b52c7947c3611fc8b5b",
-    strip_prefix = "zstd-83b51e9f886be7c2a4d477b6e7bc6db831791d8d",
+    strip_prefix = "zstd-a488ba114ec17ea1054b9057c26a046fc122b3b6",
     urls = [
-        "https://github.com/facebook/zstd/archive/83b51e9f886be7c2a4d477b6e7bc6db831791d8d.tar.gz",
+        "https://github.com/facebook/zstd/archive/a488ba114ec17ea1054b9057c26a046fc122b3b6.tar.gz",
     ],
 )
 

@@ -11,7 +11,7 @@
 #define ZSTD_STATIC_LINKING_ONLY /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "fse.h"
 #include "zstd.h"
-#include "zstd_errors.h" /* ZSTD_getErrorCode */
+// #include "zstd_errors.h" /* ZSTD_getErrorCode */
 
 // Prevent preprocess errors with boringssl
 #undef X509_NAME
@@ -370,7 +370,7 @@ ModManager::LayerId ModManager::PushCacheLayer(const fs::path&    game_path,
     std::ofstream ofs((cache_directory / game_path / layer.layer_file), std::ofstream::binary);
 
     size_t const cBuffSize = ZSTD_compressBound(buf.size());
-    std::string  CompressedBuffer;
+    static thread_local std::string  CompressedBuffer;
     CompressedBuffer.resize(cBuffSize);
     size_t const cSize =
         ZSTD_compress(CompressedBuffer.data(), CompressedBuffer.size(), buf.data(), buf.size(), 1);
@@ -491,10 +491,12 @@ void ModManager::GameFilesReady()
                         }
                     };
 
+                    spdlog::debug("Write XML output");
                     xml_string_writer writer;
                     writer.result.reserve(100 * 1024 * 1024);
-                    game_xml->print(writer);
+                    game_xml->print(writer, "", pugi::format_raw);
                     std::string& buf = writer.result;
+                    spdlog::debug("Write XML output...Finished");
 
                     if (last_valid_cache.output.empty()) {
                         last_valid_cache.output = game_file_hash;
