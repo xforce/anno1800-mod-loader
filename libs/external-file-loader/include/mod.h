@@ -4,6 +4,7 @@
 #include <functional>
 #include <unordered_map>
 #include <vector>
+#include <cstring>
 
 namespace fs = std::filesystem;
 
@@ -14,22 +15,22 @@ namespace std
 template <> struct hash<fs::path> {
     size_t operator()(const fs::path &x) const
     {
-        auto c = x.lexically_normal().u8string();
-        utf8upr(c.data());
+        auto c = x.lexically_normal().wstring();
+        auto s = _wcsupr(c.data());
 
-        return fs::hash_value(c);
+        return fs::hash_value(s);
     }
 };
 
 template <> struct equal_to<fs::path> {
    bool operator()(const fs::path &l, const fs::path &r) const {
-        auto left = l.lexically_normal().u8string();
-        utf8upr(left.data());
+        auto left = l.lexically_normal().wstring();
+        auto ls = _wcsupr(left.data());
 
-        auto right = r.lexically_normal().u8string();
-        utf8upr(right.data());
+        auto right = r.lexically_normal().wstring();
+        auto rs =_wcsupr(right.data());
 
-        return left == right;
+        return wcscmp(ls, rs) == 0;
     }
 };
 
