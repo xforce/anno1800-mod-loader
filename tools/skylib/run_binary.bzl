@@ -14,33 +14,34 @@
 
 """
 run_binary() build rule implementation.
+
 Runs a binary as a build action. This rule does not require Bash (unlike native.genrule()).
 """
 
 load(":dicts.bzl", "dicts")
 
-def _make_args(ctx):
-    targets = [ctx.attr.tool]  #+ ctx.attr.srcs
-    resolved = [
-        ctx.expand_location(a, targets) if "$(location" in a else a
+def _impl(ctx):
+    tool_as_list = [ctx.attr.tool]
+    tool_inputs, tool_input_mfs = ctx.resolve_tools(tools = tool_as_list)
+    args = [
+        # Expand $(location) / $(locations) in args.
+        #
+        # To keep the rule simple, do not expand Make Variables (like *_binary.args usually would).
+        # (We can add this feature later if users ask for it.)
+        #
+        # Also for simple implementation and usage, do not Bash-tokenize the arguments. Without
+        # tokenization the user can write args=["a b"] to pass (a b) as one argument, but with
+        # tokenization they would have to write args=["'a b'"] or args=["a\\ b"]. There's no
+        # documented tokenization function anyway (as of 2019-05-21 ctx.tokenize exists but is
+        # undocumented, see https://github.com/bazelbuild/bazel/issues/8389).
+        ctx.expand_location(a, tool_as_list) if "$(location" in a else a
         for a in ctx.attr.args
     ]
-    result = []
-    for v in resolved:
-        result += ctx.tokenize(v)
-    return result
-
-def _make_envs(ctx):
-    targets = [ctx.attr.tool]  #+ ctx.attr.srcs
-    return {
-        k: ctx.expand_location(v, targets) if "$(location" in v else v
+    envs = {
+        # Expand $(location) / $(locations) in the values.
+        k: ctx.expand_location(v, tool_as_list) if "$(location" in v else v
         for k, v in ctx.attr.env.items()
     }
-
-def _impl(ctx):
-    tool_inputs, tool_input_mfs = ctx.resolve_tools(tools = [ctx.attr.tool])
-    args = _make_args(ctx)
-    envs = _make_envs(ctx)
     ctx.actions.run(
         outputs = ctx.outputs.outs,
         inputs = ctx.files.srcs,
@@ -48,13 +49,12 @@ def _impl(ctx):
         executable = ctx.executable.tool,
         arguments = args,
         mnemonic = "RunBinary",
-        progress_message = "Running tool",
         use_default_shell_env = False,
         env = dicts.add(ctx.configuration.default_shell_env, envs),
         input_manifests = tool_input_mfs,
     )
     return DefaultInfo(
-        files = depset(items = ctx.outputs.outs),
+        files = depset(ctx.outputs.outs),
         runfiles = ctx.runfiles(files = ctx.outputs.outs),
     )
 
@@ -75,16 +75,12 @@ run_binary = rule(
             cfg = "host",
         ),
         "env": attr.string_dict(
-            allow_empty = True,
-            mandatory = False,
             doc = "Environment variables of the action.<br/><br/>Subject to " +
-                  " <code><a href=\"https://docs.bazel.build/versions/master/be/make-variables.html#location\">$(location)</a></code>" +
+                  " <code><a href=\"https://docs.bazel.build/versions/main/be/make-variables.html#location\">$(location)</a></code>" +
                   " expansion.",
         ),
         "srcs": attr.label_list(
-            allow_empty = True,
             allow_files = True,
-            mandatory = False,
             doc = "Additional inputs of the action.<br/><br/>These labels are available for" +
                   " <code>$(location)</code> expansion in <code>args</code> and <code>env</code>.",
         ),
@@ -94,12 +90,9 @@ run_binary = rule(
                   " <code>$(location)</code> expansion in <code>args</code> and <code>env</code>.",
         ),
         "args": attr.string_list(
-            allow_empty = True,
-            mandatory = False,
             doc = "Command line arguments of the binary.<br/><br/>Subject to" +
-                  "<code><a href=\"https://docs.bazel.build/versions/master/be/make-variables.html#location\">$(location)</a></code>" +
-                  " expansion and" +
-                  " <a href=\"https://docs.bazel.build/versions/master/be/common-definitions.html#sh-tokenization\">Bourne shell tokenization</a>.",
+                  "<code><a href=\"https://docs.bazel.build/versions/main/be/make-variables.html#location\">$(location)</a></code>" +
+                  " expansion.",
         ),
     },
 )
