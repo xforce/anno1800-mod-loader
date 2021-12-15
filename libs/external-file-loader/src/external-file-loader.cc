@@ -7,6 +7,7 @@
 #include "anno/rdsdk/file.h"
 
 #include "meow_hook/detour.h"
+// #include "meow_hook/memory.h"
 #include "spdlog/spdlog.h"
 
 #include <Windows.h>
@@ -216,6 +217,13 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             if (file->offset > file->size) {
                 return 0;
             }
+
+#if defined(ADVANCED_HOOK_LOGS)
+    if (!file_path.empty()) {
+        spdlog::debug(L"ReadGameFile [f:{}|o:{}|s:{}|bl:{}]", file->file_path, file->offset, file->size, bytes_left_in_buffer_read_count);
+    }
+#endif
+
             if (bytes_left_in_buffer_read_count) {
                 if (info.data.size() - file->offset < bytes_left_in_buffer_read_count) {
                     bytes_left_in_buffer_read_count = info.data.size() - file->offset;
@@ -223,6 +231,13 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
                 memcpy(lpBuffer, info.data.data() + file->offset, bytes_left_in_buffer_read_count);
                 file->offset += bytes_left_in_buffer_read_count;
             }
+
+#if defined(ADVANCED_HOOK_LOGS)
+    if (!file_path.empty()) {
+        spdlog::debug(L"ReadGameFile [f:{}|bl:{}]", file->file_path, bytes_left_in_buffer_read_count);
+    }
+#endif
+
             return bytes_left_in_buffer_read_count;
         } else {
             // This is not a file that we can patch
@@ -261,16 +276,37 @@ uint64_t ReadGameFile(anno::rdsdk::CFile* file, LPVOID lpBuffer, DWORD nNumberOf
             return bytes_left_in_buffer_read_count;
         }
     } else {
+#if defined(ADVANCED_HOOK_LOGS)
+    if (!file_path.empty()) {
+        spdlog::debug(L"ReadGameFile NOT MODDED {} {}", file->file_path, nNumberOfBytesToRead);
+    }
+#endif
+
         if (file_path != L"data/config/gui/credits_eu.html") {
+#if defined(ADVANCED_HOOK_LOGS)
+    if (!file_path.empty()) {
+        spdlog::debug(L"ReadGameFile GetFileSize");
+    }
+#endif
            auto size = anno::rdsdk::CFile::GetFileSize(mapped_path);
            if (size > 0 && file->file_handle) {
                size_t output_data_size = 0;
+#if defined(ADVANCED_HOOK_LOGS)
+    if (!file_path.empty()) {
+        spdlog::debug(L"ReadGameFile ReadFileFromContainer {} {}", file->file_path, nNumberOfBytesToRead);
+    }
+#endif
                anno::ReadFileFromContainer(
                    *(uintptr_t*)GetAddress(anno::SOME_GLOBAL_STRUCTURE_ARCHIVE), mapped_path.wstring(),
                    (char**)&lpBuffer, &output_data_size);
                return output_data_size;
            }
         }
+#if defined(ADVANCED_HOOK_LOGS)
+    if (!file_path.empty()) {
+        spdlog::debug(L"ReadGameFileQIP {} {}", file->file_path, nNumberOfBytesToRead);
+    }
+#endif
         return ReadGameFile_QIP(file, lpBuffer, nNumberOfBytesToRead);
     }
 }

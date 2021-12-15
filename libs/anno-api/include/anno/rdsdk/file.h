@@ -32,19 +32,20 @@ namespace rdsdk
         virtual bool Close()                    = 0;
 
         std::wstring file_path;    // 0x8
-        char         pad[0x40];    //
-        uint32_t     flags;        // 0x68
-        uint32_t     field_6C;     //
-        char         pad2[0x8];   
-        HANDLE*      file_handle;  // 0x78
-        char         no_idea[0x8]; // 0x80
-        size_t       size;         // 0x88
-        size_t       offset;       // 0x90
-        char         pad3[0x8];    // 0x98
+        char         pad[0x20];     //
+        uint32_t     flags;        // 0x48
+        uint32_t     field_6C;     // 0x4C
+        char         pad_50[0x8];  // 0x50
+        HANDLE*      file_handle;  // 0x58
+        char         pad_60[0x8];  // 0x60
+        size_t       size;         // 0x68
+        size_t       offset;       // 0x70
+        char         pad2[0x8];  
         struct {
             char*  data;
             size_t size;
-        } buffer; // 0xA0
+        } buffer; // 0x80 
+
 
         static std::string ReadFile(fs::path path)
         {
@@ -101,9 +102,11 @@ namespace rdsdk
         static void SIZE_CHECK()
         {
             static_assert(offsetof(CFile, file_path) == 0x8);
-            static_assert(offsetof(CFile, flags) == 0x68);
-            static_assert(offsetof(CFile, file_handle) == 0x78);
-            static_assert(offsetof(CFile, buffer) == 0xA0);
+            static_assert(offsetof(CFile, flags) == 0x48);
+            static_assert(offsetof(CFile, file_handle) == 0x58);
+            static_assert(offsetof(CFile, size) == 0x68);
+            static_assert(offsetof(CFile, offset) == 0x70);
+            static_assert(offsetof(CFile, buffer) == 0x80);
         }
     };
 
