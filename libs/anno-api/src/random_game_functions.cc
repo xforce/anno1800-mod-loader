@@ -133,9 +133,6 @@ bool FindAddresses()
         }};
 
         ADDRESSES[SOME_GLOBAL_STRUCTURE_ARCHIVE] = {[](std::optional<std::string_view> game_file) {
-            // return (uintptr_t)0x144C34D08;
-            return (uintptr_t)0x145148278;
-
             // Game Update 13
             try {
                 auto match =
