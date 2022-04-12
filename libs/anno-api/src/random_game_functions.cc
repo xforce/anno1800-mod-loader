@@ -298,7 +298,22 @@ bool FindAddresses()
 
         ADDRESSES[READ_INT64_FROM_XML_NODE] = {
             [](std::optional<std::string_view> game_file) {
-                // Game Upate 13.2+
+				// Game Update 14
+				try {
+				   auto match =
+					   meow_hook::pattern("E8 ? ? ? ? 66 41 83 FC ? 77 0A", game_file).count(1).get(0);
+				   if (game_file) {
+					   match = match.adjust(RebaseFileOffsetToMemoryAddess(
+												match.as<uintptr_t>()
+												- reinterpret_cast<intptr_t>(game_file->data()))
+											- match.as<uintptr_t>());
+				   }
+				   return match.extract_call();
+				}
+				catch (...) {
+				}
+
+                // Game Update 13.2+
                 try {
                    auto match =
                        meow_hook::pattern("E8 ? ? ? ? 4C 8D 76 40", game_file).count(1).get(0);

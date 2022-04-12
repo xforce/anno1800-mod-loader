@@ -3,7 +3,7 @@
 // clang-format off
 #define VERSION_MAJOR               0
 #define VERSION_MINOR               8
-#define VERSION_REVISION            5
+#define VERSION_REVISION            6
 
 #define STRINGIFY_(s)               #s
 #define STRINGIFY(s)                STRINGIFY_(s)
