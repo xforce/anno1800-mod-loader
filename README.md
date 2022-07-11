@@ -16,7 +16,7 @@ Short shitty video to show how easy it is to install the loader.
 Head over to the releases page and download the loader.zip from the latest release.  
 Unzip the contents to the location where Anno1800.exe is
 
-> Uplay default path is `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\Bin\Win64`)
+> Uplay default path is `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\Bin\Win64`
 
 You will be asked to overwrite python35.dll, just accept that.
 
