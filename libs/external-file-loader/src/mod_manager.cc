@@ -25,6 +25,9 @@
 #include <optional>
 #include <sstream>
 
+#include <shlobj.h>
+#pragma comment(lib, "shell32.lib")
+
 constexpr static auto PATCH_OP_VERSION = "1.17";
 
 Mod& ModManager::Create(const fs::path& root)
@@ -597,18 +600,30 @@ fs::path ModManager::GetModsDirectory()
         GetModuleFileNameW(module, path, sizeof(path));
         fs::path dll_file(path);
         try {
+
+
+            // first check for the existance of the mods folder in Documents/Anno 1800
+            CHAR my_docs[MAX_PATH];
+            HRESULT grab_my_docs = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, my_docs);
+            if (SUCCEEDED(grab_my_docs)) {
+                fs::path my_docs_path(my_docs);
+                if (fs::exists(my_docs_path / "Anno 1800" / "mods")) {
+                    return fs::canonical(my_docs_path / "Anno 1800" / "mods"); // early bail 
+                }
+            }
+            
             auto mods_parent = fs::canonical(dll_file.parent_path() / ".." / "..");
             mods_directory   = mods_parent / "mods";
             if (!fs::exists(mods_directory)) {
                 fs::create_directories(mods_directory);
             }
-            mods_directory = fs::canonical(dll_file.parent_path() / ".." / ".." / "mods");
+            mods_directory = fs::canonical(mods_parent / "mods");
         } catch (const fs::filesystem_error& e) {
             spdlog::error("Failed to get current module directory {}", e.what());
             return {};
         }
     } else {
-        spdlog::error("Failed to get current module directory {}", GetLastError());
+        spdlog::error("Failed to get current module directory handler {}", GetLastError());
         return {};
     }
     return mods_directory;
