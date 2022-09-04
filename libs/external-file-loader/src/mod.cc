@@ -1,8 +1,17 @@
 #include "mod.h"
 
+
+#include <fstream>
+#include <sstream>
+
+
 Mod::Mod(const fs::path& root)
     : root_path(root)
 {
+    modID = "";
+    modVer = "";
+    modGUID = "";
+
     // We have a mods directory
     std::vector<fs::path> mod_roots;
     for (const auto& file : fs::recursive_directory_iterator(root_path)) {
@@ -15,11 +24,49 @@ Mod::Mod(const fs::path& root)
             }
         }
     }
+
+    //file_mappings is case sensitive - fs::exists will be windows style case insesnitive
+    auto modInfo = root_path / "modinfo.json";
+    if(fs::exists(modInfo)){
+        ParseInfoJSON(modInfo);
+    }
+}
+
+
+std::string Mod::ID() const
+{
+    return modID;
+}
+
+std::string Mod::GUID() const
+{
+    return modGUID;
 }
 
 std::string Mod::Name() const
 {
     return root_path.stem().string();
+}
+
+std::string Mod::Version() const
+{
+    return modVer;
+}
+
+std::string Mod::Info() const
+{
+    return InfoJSON().dump();
+}
+
+nlohmann::json Mod::InfoJSON() const
+{
+    nlohmann::json info = {
+        {"ID", this->ID()},
+        {"GUID", this->GUID()},
+        {"Version", this->Version()},
+        {"Name", this->Name()}
+    };
+    return info;
 }
 
 bool Mod::HasFile(const fs::path& file) const
@@ -38,4 +85,24 @@ void Mod::ForEachFile(std::function<void(const fs::path&, const fs::path&)> fn) 
 fs::path Mod::Path() const
 {
     return root_path;
+}
+
+void Mod::ParseInfoJSON(const fs::path& json_path)
+{
+     if (fs::exists(json_path)) {
+        std::ifstream ifs(json_path);
+        try {
+            const auto&  data = nlohmann::json::parse(ifs);
+            if(data.find("ModID") != data.end()){
+                modID = data.at("ModID").get<std::string>();
+            }
+            if(data.find("GUID") != data.end()){
+                modGUID = data.at("GUID").get<std::string>();
+            }
+            if(data.find("Version") != data.end()){
+                modVer = data.at("Version").get<std::string>();
+            }
+        } catch (const nlohmann::json::exception&) {
+        }
+    }
 }

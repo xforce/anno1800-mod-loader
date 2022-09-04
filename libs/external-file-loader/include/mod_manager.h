@@ -38,9 +38,12 @@ class ModManager
 
     static fs::path GetModsDirectory();
     static fs::path GetCacheDirectory();
+    static fs::path GetMetaDirectory();
     static fs::path GetDummyPath();
     static void     EnsureDummy();
-
+    static void     EnsureMeta();
+    
+    void                            DocumentMods();
     bool                            IsFileModded(const fs::path& path) const;
     const File&                     GetModdedFileInfo(const fs::path& path) const;
     void                            GameFilesReady();

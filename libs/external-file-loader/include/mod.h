@@ -6,6 +6,9 @@
 #include <vector>
 #include <cstring>
 
+
+#include "nlohmann/json.hpp"
+
 namespace fs = std::filesystem;
 
 #include "utf8.h"
@@ -42,12 +45,21 @@ class Mod
     Mod() = default;
     explicit Mod(const fs::path &root);
 
-    std::string Name() const;
-    bool        HasFile(const fs::path &file) const;
-    void        ForEachFile(std::function<void(const fs::path &, const fs::path &)>) const;
-    fs::path    Path() const;
+    std::string    ID() const;
+    std::string    GUID() const;
+    std::string    Name() const;
+    std::string    Version() const;
+    std::string    Info() const;
+    nlohmann::json InfoJSON() const;
+    bool           HasFile(const fs::path &file) const;
+    void           ForEachFile(std::function<void(const fs::path &, const fs::path &)>) const;
+    fs::path       Path() const;
+    void           ParseInfoJSON(const fs::path& file);
 
   private:
     fs::path                               root_path;
     std::unordered_map<fs::path, fs::path> file_mappings;
+    std::string                            modID;
+    std::string                            modGUID;
+    std::string                            modVer;
 };
