@@ -83,6 +83,21 @@
         "valarray": "cpp",
         "variant": "cpp",
         "queue": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "bit": "cpp",
+        "charconv": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "format": "cpp",
+        "optional": "cpp",
+        "stop_token": "cpp",
+        "coroutine": "cpp",
+        "scoped_allocator": "cpp",
+        "*.inc": "cpp",
+        "*.def": "cpp",
+        "*.rh": "cpp",
+        "any": "cpp",
+        "cfenv": "cpp",
+        "cinttypes": "cpp"
     }
 }

@@ -25,6 +25,9 @@
 #include <optional>
 #include <sstream>
 
+#include <shlobj.h>
+#pragma comment(lib, "shell32.lib")
+
 constexpr static auto PATCH_OP_VERSION = "1.17";
 
 Mod& ModManager::Create(const fs::path& root)
@@ -57,6 +60,9 @@ void ModManager::LoadMods()
     for (auto&& root : fs::directory_iterator(mods_directory)) {
         if (root.is_directory()) {
             if ( root.path().stem().wstring() == L".cache") {
+                continue;
+            }
+            if ( root.path().stem().wstring() == L".meta") {
                 continue;
             }
             if (IsModEnabled(root.path())) {
@@ -399,6 +405,32 @@ void ModManager::EnsureDummy()
     }
 }
 
+
+void ModManager::EnsureMeta()
+{
+    static auto doc_path = ModManager::GetMetaDirectory();
+    if (!fs::exists(doc_path) || !fs::is_directory(doc_path)) {
+        fs::create_directories(doc_path);
+    }
+}
+
+void ModManager::DocumentMods()
+{
+    ModManager::EnsureMeta();
+    std::fstream history;
+
+
+    history.open(ModManager::GetMetaDirectory() / "history.log", std::ios::app);
+    auto now = std::chrono::system_clock::now();
+    
+    history<<now<<":"<<std::endl;
+    for (const auto& mod : mods_) {
+        history<<"\t"<<mod.Info()<<std::endl;
+    }
+    history.close();
+}
+
+
 void ModManager::GameFilesReady()
 {
     if (this->mods_ready_.load() || patching_file_thread_.joinable()) {
@@ -412,6 +444,7 @@ void ModManager::GameFilesReady()
     });
 
     ModManager::EnsureDummy();
+    DocumentMods();
 
     patching_file_thread_ = std::thread([this]() {
         spdlog::info("Start applying xml operations");
@@ -597,12 +630,22 @@ fs::path ModManager::GetModsDirectory()
         GetModuleFileNameW(module, path, sizeof(path));
         fs::path dll_file(path);
         try {
+            // first check for the existence of the mods folder in Documents/Anno 1800
+            CHAR my_docs[MAX_PATH];
+            HRESULT grab_my_docs = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, my_docs);
+            if (SUCCEEDED(grab_my_docs)) {
+                fs::path my_docs_path(my_docs);
+                if (fs::exists(my_docs_path / "Anno 1800" / "mods")) {
+                    return fs::canonical(my_docs_path / "Anno 1800" / "mods"); // early bail
+                }
+            }
+
             auto mods_parent = fs::canonical(dll_file.parent_path() / ".." / "..");
             mods_directory   = mods_parent / "mods";
             if (!fs::exists(mods_directory)) {
                 fs::create_directories(mods_directory);
             }
-            mods_directory = fs::canonical(dll_file.parent_path() / ".." / ".." / "mods");
+            mods_directory = fs::canonical(mods_parent / "mods");
         } catch (const fs::filesystem_error& e) {
             spdlog::error("Failed to get current module directory {}", e.what());
             return {};
@@ -619,10 +662,17 @@ fs::path ModManager::GetCacheDirectory()
     return ModManager::GetModsDirectory() / ".cache";
 }
 
+fs::path ModManager::GetMetaDirectory()
+{
+    return ModManager::GetModsDirectory() / ".meta";
+}
+
 fs::path ModManager::GetDummyPath()
 {
     return ModManager::GetCacheDirectory() / ".dummy";
 }
+
+
 
 bool ModManager::IsPythonStartScript(const fs::path& file) const
 {

@@ -47,3 +47,13 @@
 /.ccls-cache/
 /.cache/
 compile_commands.json
+
+# CMake
+CMakeLists.txt
+cmake-build-debug/
+cmake-build-debug-visual-studio/
+
+# IDE
+.idea/
+.vs/
+.clwb/
