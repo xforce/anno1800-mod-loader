@@ -464,7 +464,8 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    pat
                       location.first, location.second, parse_result.description());
         return {};
     }
-    return GetXmlOperations(doc, mod_name, game_path, mod_path, path.parent_path());
+    const auto doc_path = path.lexically_normal().parent_path();
+    return GetXmlOperations(doc, mod_name, game_path, mod_path, doc_path);
 }
 
 void MergeProperties(pugi::xml_node game_node, pugi::xml_node patching_node)
