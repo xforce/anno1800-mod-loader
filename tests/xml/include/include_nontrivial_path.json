@@ -1,0 +1,9 @@
+{
+    "name": "Include from non-trivial path",
+    "folder": "config/export",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[Cat='10']",
+        "/Test/Node[Cat2='10']"
+    ]
+}

@@ -15,13 +15,15 @@ def main():
                 for file in glob.glob(os.path.join(test_type_dir, "*.json")):
                     with open(file, "r") as json_file:
                         data = json.load(json_file)
+                    test_path = os.path.join("tests", "xml", test_type)
+                    folder = data.get('folder')
+                    if folder is not None:
+                        test_path = os.path.join(test_path, folder)
                     f.write("TEST_CASE(\"" + data['name'] + "\") {\n")
                     base_name = os.path.splitext(os.path.basename(file))[0]
-                    base_name_input = os.path.join(test_type,
+                    base_name_input = os.path.join(test_path,
                                                    base_name + "_input.xml")
-                    base_name_input = os.path.join("tests", "xml", test_type,
-                                                   base_name + "_input.xml")
-                    base_name_patch = os.path.join("tests", "xml", test_type,
+                    base_name_patch = os.path.join(test_path,
                                                    base_name + "_patch.xml")
                     f.write("TestRunner runner(\"%s\", \"%s\", \"%s\");\n" %
                             (os.path.join("tests", "xml", test_type).replace(
