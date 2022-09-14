@@ -430,9 +430,16 @@ void ModManager::GameFilesReady()
 
             auto game_file = ReadGameFile(game_path);
             if (game_file.empty()) {
-                for (auto& on_disk_file : on_disk_files) {
-                    spdlog::error("Failed to get original game file {} {}", game_path.string(),
-                                  on_disk_file.string());
+                if (!IsIncludeFile(game_path))
+                {
+                    for (auto& on_disk_file : on_disk_files) {
+                        spdlog::error("Failed to get original game file {} {}", game_path.string(),
+                                    on_disk_file.string());
+                    }    
+                }
+                else {
+                    // include files are not expected to have original counterparts,
+                    // but should follow normal patching procedure if they do
                 }
                 continue;
             }
@@ -635,6 +642,15 @@ bool ModManager::IsPatchableFile(const fs::path& file) const
     // Other files have to be replaced entirely
     const auto extension = file.extension();
     return extension == ".xml";
+}
+
+bool ModManager::IsIncludeFile(const fs::path& file) const
+{
+    if (!IsPatchableFile(file)) {
+        return false;
+    }
+    const auto secondaryExtension = file.stem().extension();
+    return secondaryExtension == ".include";
 }
 
 std::string ModManager::GetFileHash(const fs::path& path) const
