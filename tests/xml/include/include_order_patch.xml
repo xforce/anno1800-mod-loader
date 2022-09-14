@@ -1,0 +1,9 @@
+<ModOps>
+    <ModOp Type="add" Path="/Test/Node">
+        <Cat>1</Cat>
+    </ModOp>
+    <Include File="include_input_order.xml" />
+    <ModOp Type="replace" Path="/Test/Node/Cat['2']">
+        <Cat>3</Cat>
+    </ModOp>
+</ModOps>
