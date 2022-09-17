@@ -403,7 +403,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::xml_document> doc,
                                                          std::string mod_name, fs::path game_path,
-                                                         fs::path mod_path)
+                                                         fs::path mod_path, fs::path doc_path)
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
@@ -437,7 +437,7 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                 } else if (stricmp(node.name(), "Include") == 0) {
                     const auto file = GetXmlPropString(node, "File");
                     auto       include_ops =
-                        GetXmlOperationsFromFile(mod_path / file, mod_name, game_path, mod_path);
+                        GetXmlOperationsFromFile(doc_path / file, mod_name, game_path, mod_path);
                     mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
                                           std::end(include_ops));
                 }
@@ -464,7 +464,8 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    pat
                       location.first, location.second, parse_result.description());
         return {};
     }
-    return GetXmlOperations(doc, mod_name, game_path, mod_path);
+    const auto doc_path = path.lexically_normal().parent_path();
+    return GetXmlOperations(doc, mod_name, game_path, mod_path, doc_path);
 }
 
 void MergeProperties(pugi::xml_node game_node, pugi::xml_node patching_node)

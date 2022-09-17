@@ -54,6 +54,7 @@ class ModManager
 
   private:
     bool IsPatchableFile(const fs::path& file) const;
+    bool IsIncludeFile(const fs::path& file) const;
     bool IsPythonStartScript(const fs::path& file) const;
     void CollectPatchableFiles();
     void StartWatchingFiles();

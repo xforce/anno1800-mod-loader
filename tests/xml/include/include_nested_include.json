@@ -1,0 +1,9 @@
+{
+    "name": "Include nested within included file",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[Cat3='5']",
+        "/Test/Node[Cat='10']",
+        "/Test/Node[Cat2='5']"
+    ]
+}

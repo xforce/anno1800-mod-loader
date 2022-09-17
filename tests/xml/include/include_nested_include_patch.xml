@@ -1,0 +1,3 @@
+<ModOps>
+    <Include File="include_nested_input.xml" />
+</ModOps>

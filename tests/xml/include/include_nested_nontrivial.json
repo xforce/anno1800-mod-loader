@@ -1,0 +1,10 @@
+{
+    "name": "Include nested with nontrivial path within included file",
+    "folder": "config/export",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[Cat3='5']",
+        "/Test/Node[Cat='10']",
+        "/Test/Node[Cat2='5']"
+    ]
+}

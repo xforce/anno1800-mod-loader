@@ -1,0 +1,7 @@
+<ModOps>
+    <ModOp Type="replace" Path="/Test/Node[Cat='1']">
+        <Node>
+            <Cat>2</Cat>
+        </Node>
+    </ModOp>
+</ModOps>
