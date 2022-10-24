@@ -1,1 +1,1 @@
-build --cpu=x64_windows --host_cpu=x64_windows --shell_executable="cmd" --copt="/D_ITERATOR_DEBUG_LEVEL=0" --linkopt="/DEBUG:FULL" --cxxopt="-std:c++latest" --cxxopt=-permissive- --enable_runfiles
+build --cpu=x64_windows --host_cpu=x64_windows --shell_executable="cmd" --copt="/D_ITERATOR_DEBUG_LEVEL=0" --linkopt="/DEBUG:FULL" --cxxopt="-std:c++17" --cxxopt=-permissive- --enable_runfiles

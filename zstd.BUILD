@@ -56,7 +56,13 @@ cc_library(
         "lib/common/error_private.h",
         "lib/common/zstd_deps.h"
     ],
-    srcs = ["lib/common/error_private.c",  "lib/common/error_private.h"],
+    srcs = [
+        "lib/common/error_private.c", 
+        "lib/common/error_private.h",
+        "lib/common/compiler.h",
+        "lib/common/portability_macros.h",
+        "lib/common/debug.h"
+    ],
     strip_include_prefix = "lib/common",
 )
 
@@ -110,6 +116,7 @@ cc_library(
 cc_library(
     name = "compress",
     hdrs = [
+        "lib/compress/clevels.h",
         "lib/compress/zstd_compress_literals.h",
         "lib/compress/zstd_compress_internal.h",
         "lib/compress/zstd_compress_sequences.h",
@@ -214,6 +221,7 @@ cc_library(
         "lib/compress/hist.h",
     ],
     srcs = [
+        "lib/zstd.h",
         "lib/compress/hist.h",
         "lib/common/entropy_common.c",
         "lib/common/fse_decompress.c",

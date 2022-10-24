@@ -12,16 +12,6 @@ namespace fs = std::filesystem;
 
 namespace std
 {
-template <> struct hash<fs::path> {
-    size_t operator()(const fs::path &x) const
-    {
-        auto c = x.lexically_normal().wstring();
-        auto s = _wcsupr(c.data());
-
-        return fs::hash_value(s);
-    }
-};
-
 template <> struct equal_to<fs::path> {
    bool operator()(const fs::path &l, const fs::path &r) const {
         auto left = l.lexically_normal().wstring();
