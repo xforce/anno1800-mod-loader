@@ -63,7 +63,7 @@ cc_test(
     }),
     deps = [
         "//libs/xml-operations",
-        "//third_party:Catch2",
+        "@catch2//:catch2",
         "//third_party:json",
     ],
 )

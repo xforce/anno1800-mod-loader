@@ -12,6 +12,12 @@ git_repository(
 )
 
 http_archive(
+    name = "catch2",
+    strip_prefix = "Catch2-2.13.10",
+    url = "https://github.com/catchorg/Catch2/archive/v2.13.10.tar.gz",
+)
+
+http_archive(
     name = "bazel_skylib",
     type = "tar.gz",
     url = "https://github.com/bazelbuild/bazel-skylib/releases/download/{}/bazel-skylib-{}.tar.gz".format(skylib_version, skylib_version),
