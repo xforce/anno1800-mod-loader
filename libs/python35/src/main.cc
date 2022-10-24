@@ -92,6 +92,57 @@ static std::string GetLatestVersion()
     return data;
 }
 
+
+void ForEachThread(std::function<void(DWORD threadId, DWORD processId, HANDLE)> func)
+{
+    HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (h != INVALID_HANDLE_VALUE)
+    {
+        THREADENTRY32 te;
+        te.dwSize = sizeof(te);
+        if (Thread32First(h, &te))
+        {
+            do
+            {
+                if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID))
+                {
+                    HANDLE thread = ::OpenThread(THREAD_ALL_ACCESS, FALSE, te.th32ThreadID);
+                    if (thread != NULL)
+                    {
+                        func(te.th32ThreadID, te.th32OwnerProcessID, thread);
+                        CloseHandle(thread);
+                    }
+                }
+                te.dwSize = sizeof(te);
+            } while (Thread32Next(h, &te));
+        }
+        CloseHandle(h);
+    }
+}
+
+// Pass 0 as the targetProcessId to suspend threads in the current process
+void DoSuspendThread(DWORD targetProcessId, DWORD targetThreadId)
+{
+    ForEachThread([targetProcessId, targetThreadId](auto th32ThreadID, auto th32OwnerProcessID, auto hThread) {
+        if (hThread != NULL && th32ThreadID != targetThreadId && th32OwnerProcessID == targetProcessId)
+        {
+            spdlog::debug("Suspend thread");
+            SuspendThread(hThread);
+        }
+        });
+}
+
+void DoResumeThreads(DWORD targetProcessId)
+{
+    ForEachThread([targetProcessId](auto th32ThreadID, auto th32OwnerProcessID, auto hThread) {
+        if (hThread != NULL && th32OwnerProcessID == targetProcessId)
+        {
+            spdlog::debug("Resume thread");
+            ResumeThread(hThread);
+        }
+        });
+}
+
 static std::once_flag hooking_once_flag;
 static bool   checked_hooking = false;
 HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
@@ -101,7 +152,11 @@ HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMod
     if (!checked_hooking && std::wstring(lpFileName).find(L"maindata/file.db") != std::string::npos) {
         checked_hooking = true;
 
-        std::call_once(hooking_once_flag, []() { events.DoHooking(); });
+        std::call_once(hooking_once_flag, []() {
+            DoSuspendThread(GetCurrentProcessId(), GetCurrentThreadId());
+            events.DoHooking();
+            DoResumeThreads(GetCurrentProcessId());
+        });
     }
     return CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
@@ -127,7 +182,11 @@ FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
     // those would have usually been in the import table.
     // This means we are ready to do some hooking
     // But only do hooking once.
-    std::call_once(hooking_once_flag, []() { events.DoHooking(); });
+    std::call_once(hooking_once_flag, []() {
+        DoSuspendThread(GetCurrentProcessId(), GetCurrentThreadId());
+        events.DoHooking();
+        DoResumeThreads(GetCurrentProcessId());
+    });
 
     if ((uintptr_t)lpProcName > 0x1000) {
         if (lpProcName == std::string("CreateFileW")) {
