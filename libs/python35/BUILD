@@ -3,7 +3,7 @@ config_setting(
     values = {"define": "internal=1"},
 )
 
-load("@//tools/res:win_res.bzl", "windows_resources")
+load("@io_bazel//src/main/res:win_res.bzl", "windows_resources")
 
 windows_resources(
     name = "python_res",

@@ -56,12 +56,8 @@ local_repository(
     path = "third_party/meow-hook",
 )
 
-load("@//tools/res:winsdk_configure.bzl", "winsdk_configure")
-
+load("@io_bazel//src/main/res:winsdk_configure.bzl", "winsdk_configure")
 winsdk_configure(name = "local_config_winsdk")
-
 load("@local_config_winsdk//:toolchains.bzl", "register_local_rc_exe_toolchains")
-
 register_local_rc_exe_toolchains()
-
-register_toolchains("@//tools/res:empty_rc_toolchain")
+register_toolchains("@io_bazel//src/main/res:empty_rc_toolchain")
