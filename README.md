@@ -27,6 +27,10 @@ And that's basically it.
 Mods will be loaded alphabetically from `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\mods` assuming default Uplay path.
 A short tutorial for mod creation with the mod loader is given below. For an example zoom extend mod see the `examples` directory. 
 
+Alternativly mods can be located in your documents folder, since windows and some sync apps move the path the easiest way to open this is to use
+<kbd>Win</kbd> + <kbd>R</kbd> and enter ```shell:Personal\Anno 1800``` this will open your personal Anno 1800 directory. This is the same location where Anno saves your savegames to. Here you kann add the ```mods``` folder and it the same way you would have used `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\mods` but your mods would be system user based and so, in the case you use a cloud sync like OneDrive, snyced. 
+
+For more experianced users symlinks made with ```mklink``` will be followd (resulting in an easier way to manage different reposetories of mods).
 
 # Asset modding
 
