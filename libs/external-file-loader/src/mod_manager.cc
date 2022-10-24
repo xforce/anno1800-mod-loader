@@ -26,7 +26,7 @@
 #include <sstream>
 
 #include <shlobj.h>
-#pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "Ole32.lib")
 
 constexpr static auto PATCH_OP_VERSION = "1.17";
 
@@ -600,6 +600,21 @@ void ModManager::Shutdown()
 
 fs::path ModManager::GetModsDirectory()
 {
+    // first check for the existence of the mods folder in Documents/Anno 1800
+    PWSTR    documents_folder = nullptr;
+    HRESULT  grab_my_docs = SHGetKnownFolderPath(FOLDERID_Documents, 0, NULL, &documents_folder);
+    fs::path documents_path;
+    if (SUCCEEDED(grab_my_docs)) {
+        documents_path = documents_folder;
+    }
+    CoTaskMemFree(documents_folder);
+    if (SUCCEEDED(grab_my_docs)) {
+        if (fs::exists(documents_path / "Anno 1800" / "mods")) {
+            return fs::canonical(documents_path / "Anno 1800"
+                / "mods"); // early bail on "my documents/Anno 1800/mods"
+        }
+    }
+
     fs::path mods_directory;
     HMODULE  module;
     if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
@@ -609,17 +624,6 @@ fs::path ModManager::GetModsDirectory()
         GetModuleFileNameW(module, path, sizeof(path));
         fs::path dll_file(path);
         try {
-            // first check for the existence of the mods folder in Documents/Anno 1800
-            CHAR    my_docs[MAX_PATH];
-            HRESULT grab_my_docs =
-                SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, my_docs);
-            if (SUCCEEDED(grab_my_docs)) {
-                fs::path my_docs_path(my_docs);
-                if (fs::exists(my_docs_path / "Anno 1800" / "mods")) {
-                    return fs::canonical(my_docs_path / "Anno 1800"
-                                         / "mods"); // early bail on "my documents/Anno 1800/mods"
-                }
-            }
 
             auto mods_parent = fs::canonical(dll_file.parent_path() / ".." / "..");
             mods_directory   = mods_parent / "mods";
