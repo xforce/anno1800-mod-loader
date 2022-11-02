@@ -1,0 +1,9 @@
+<ModOps>
+<ModOp Type="merge" Path="/Test/Node">
+    <FullSatisfactionDistance>60</FullSatisfactionDistance>
+    <NoSatisfactionDistance>100</NoSatisfactionDistance>
+    <SomeSatisfactionDistance>
+        <SomeSatisfactionDistance>100</SomeSatisfactionDistance>
+    </SomeSatisfactionDistance>
+</ModOp>
+</ModOps>

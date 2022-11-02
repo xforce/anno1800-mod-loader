@@ -1,0 +1,7 @@
+{
+    "name": "Merge strange shit but unordered",
+    "expected": [
+        "//Values/Maintenance/Maintenances/Item[Product='1010017' and Amount='50000' and InactiveAmount='30000']",
+        "//Values/Maintenance/Maintenances/Item[Product='1010117' and ShutdownThreshold='1']"
+    ]
+}

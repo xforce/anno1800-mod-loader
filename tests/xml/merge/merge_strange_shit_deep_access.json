@@ -1,0 +1,8 @@
+{
+    "name": "Merge strange shit with deep item access (yes ShutdownThreshold should stay 0.5)",
+    "expected": [
+        "//Values/Maintenance/Maintenances/Item[Product='1010017' and Amount='50000']",
+        "//Values/Maintenance/Maintenances/Item[Product='1010117' and NestedAmount/Amount='1500']",
+        "//Values/Maintenance/Maintenances/Item[Product='1010117' and NestedAmount/Amount='1500' and ShutdownThreshold='0.5']"
+    ]
+}

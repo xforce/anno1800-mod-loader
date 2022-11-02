@@ -1,0 +1,13 @@
+<Test>
+    <Node>
+        <FullSatisfactionDistance>5</FullSatisfactionDistance>
+        <NoSatisfactionDistance>
+            <NoSatisfactionDistance>90</NoSatisfactionDistance>
+        </NoSatisfactionDistance>
+        <SomeSatisfactionDistance>
+            <SomeSatisfactionDistance>
+              10
+            </SomeSatisfactionDistance>
+        </SomeSatisfactionDistance>
+    </Node>
+</Test>

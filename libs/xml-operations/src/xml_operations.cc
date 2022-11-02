@@ -374,7 +374,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
                     continue;
                 }
                 pugi::xml_node patching_node = *content_node.begin();
-                RecursiveMerge(game_node, game_node, patching_node);
+				MergeOp(game_node, game_node, patching_node);
             } else if (GetType() == XmlOperation::Type::AddNextSibling) {
                 for (auto &&node : GetContentNode()) {
                     game_node = game_node.parent().insert_copy_after(node, game_node);
@@ -480,16 +480,146 @@ void MergeProperties(pugi::xml_node game_node, pugi::xml_node patching_node)
     }
 }
 
-static bool HasNonTextNode(pugi::xml_node node)
+bool XmlOperation::NodeHasPCDataChild(pugi::xml_node node)
 {
-    while (node) {
-        if (node.type() != pugi::xml_node_type::node_pcdata) {
-            return true;
-        }
-        node = node.next_sibling();
-    }
-    return false;
+	bool find_pcdata_node = false;
+	std::vector<pugi::xml_node> node_children(node.children().begin(), node.children().end());
+	if(node_children.size() == 1 && node_children.front().type() == pugi::xml_node_type::node_pcdata) {
+		find_pcdata_node = true;
+	}
+	
+	return find_pcdata_node;
 }
+
+std::vector<pugi::xml_node> XmlOperation::ChildrenVectorFromNode(pugi::xml_node node)
+{
+	if(node) {
+		return std::vector<pugi::xml_node> (node.children().begin(), node.children().end());
+	} else {
+		return std::vector<pugi::xml_node> ();
+	}
+}
+
+void XmlOperation::MergeOp(pugi::xml_node root_game_node, pugi::xml_node game_node,
+                                 pugi::xml_node patching_node)
+{
+	if (!patching_node) {
+        return;
+    }
+	
+	bool find_pcdata_node = NodeHasPCDataChild(patching_node);
+	bool game_node_has_pcdata = NodeHasPCDataChild(game_node);
+	
+	//If the game node does not match the patching node (in name and if it has a pcdata child), look in its children for a matching node
+	if(std::string(patching_node.name()) != std::string(game_node.name()) || (find_pcdata_node && !game_node_has_pcdata)) {
+		game_node = FindNamedListItemRecursive(ChildrenVectorFromNode(game_node), std::string(patching_node.name()), find_pcdata_node);
+	}
+	
+	if(game_node) {
+		MergeSiblings(root_game_node, game_node, patching_node);
+	} else {
+		spdlog::warn("Found no child with the correct name {}.", std::string(patching_node.name()));
+	}
+	
+}
+
+pugi::xml_node XmlOperation::FindNamedListItemRecursive(std::vector<pugi::xml_node> const& in_nodes, std::string name, bool find_pcdata_node)
+{
+	if(in_nodes.size() == 0) {
+		return {};
+	}
+	
+	//Cannot use named children because we don't know the node layer. So we effectively run dfs on all the children.
+	for(pugi::xml_node test_node : in_nodes) {
+		if(std::string(test_node.name()) == name) {
+			if(find_pcdata_node) {
+				std::vector<pugi::xml_node> test_node_children(test_node.children().begin(), test_node.children().end());
+				if(test_node_children.size() == 1 && test_node_children.front().type() == pugi::xml_node_type::node_pcdata) {
+					return test_node;
+				}
+			} else {
+				return test_node;
+			}
+		}
+		
+		pugi::xml_node nested_child = FindNamedListItemRecursive(ChildrenVectorFromNode(test_node), name, find_pcdata_node);
+		if(nested_child) {
+			return nested_child;
+		}
+	}
+	
+	return {};
+}
+
+void XmlOperation::MergeSiblings(pugi::xml_node root_game_node, pugi::xml_node game_node,
+                                 pugi::xml_node patching_node)
+{
+	//Get List of patching siblings - this should only be used on the top layer
+	//All items of layers below get handled as part of the children
+	std::list<pugi::xml_node> patching_siblings{patching_node};
+	pugi::xml_node patching_sibling = patching_node;
+	while(patching_sibling.next_sibling()) {
+		patching_sibling = patching_sibling.next_sibling();
+		patching_siblings.emplace_back(patching_sibling);
+	}
+	
+	//Get List of game siblings in both directions
+	//Both directions are needed because the FindNamedListItemRecursive used before
+	//might not have returned the first sibling
+	pugi::xml_node game_node_parent;
+	pugi::xml_node game_target_node;
+	
+	std::list<pugi::xml_node> game_siblings{game_node};
+	if(game_node != root_game_node) {
+		game_node_parent = game_node.parent();
+		
+		game_siblings = std::list<pugi::xml_node>(game_node_parent.children().begin(), game_node_parent.children().end());
+	}
+	
+	//Loop over our patching siblings, whenever one gets Merged, pop it
+	while(patching_siblings.size() > 0)
+	{
+		if(game_siblings.size() == 0) {
+			break;
+		}
+		
+		patching_sibling = patching_siblings.front();
+		
+		bool find_pcdata_node = NodeHasPCDataChild(patching_sibling);
+		
+		//If game_node_parent is set, we are not working on the root node and thus have siblings of the game node
+		//Attention: we don't permanently step into children here, if the found target node isn't actually a real sibling
+		//This behaviour differs from RecursiveMerge, where we set our "new" current game node to the parent of the nested item
+		//This is to mirror the old behaviour on the Unit Test from File "merge_multi_node_content_3.json"
+		if(game_node_parent) {
+			game_target_node = FindNamedListItemRecursive(
+				std::vector<pugi::xml_node>(game_siblings.begin(), game_siblings.end()), 
+				std::string(patching_sibling.name()), find_pcdata_node
+			);
+		} else {
+			//If game_node_parent is null, we work on the root game node that never has siblings
+			game_target_node = game_node;
+		}
+		
+		if(!game_target_node) {
+			continue;
+		}
+		
+		MergeProperties(game_target_node, patching_sibling);
+		RecursiveMerge(root_game_node, game_target_node, patching_sibling);
+		
+		patching_siblings.pop_front();
+		
+		//Remove first occurance of game_sibling from game_siblings
+		//This only removes the game_target_node from the "local" game_siblings.
+		//If the game_target_node is a nested child node, it cannot be removed from the siblings.
+		auto first_occurence_game_sibling = std::find(game_siblings.begin(), game_siblings.end(), game_target_node);
+		if(first_occurence_game_sibling != game_siblings.end()) {
+			game_siblings.erase(first_occurence_game_sibling);
+		}
+	}
+}
+
 
 void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node game_node,
                                   pugi::xml_node patching_node)
@@ -497,67 +627,101 @@ void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node 
     if (!patching_node) {
         return;
     }
-
-    const auto find_node_with_name = [](pugi::xml_node game_node, auto name) -> pugi::xml_node {
-        if (game_node.name() == std::string(name)) {
-            return game_node;
+	
+    //Test if both patching node and game node are of type node_pcdata. If so, overwrite game node with patching node.
+    if (patching_node.type() == pugi::xml_node_type::node_pcdata) {
+        if(game_node && game_node.type() == pugi::xml_node_type::node_pcdata) {
+            game_node.set_value(patching_node.value());
+            return;
         }
-        auto children = game_node.children();
-        for (pugi::xml_node cur_node : children) {
-            if (cur_node.name() == std::string(name)) {
-                return cur_node;
-            }
-        }
-        auto cur_node = game_node;
-        while (cur_node) {
-            if (cur_node.name() == std::string(name)) {
-                return cur_node;
-            }
-            cur_node = cur_node.next_sibling();
-        }
-        return {};
-    };
-
-    if (HasNonTextNode(patching_node)) {
-        while (patching_node && patching_node.type() == pugi::xml_node_type::node_pcdata) {
-            patching_node = patching_node.next_sibling();
-        }
-    }
-
-    if (HasNonTextNode(game_node)) {
-        while (game_node && game_node.type() == pugi::xml_node_type::node_pcdata) {
-            game_node = game_node.next_sibling();
-        }
-    }
-
-    pugi::xml_node prev_game_node;
-    for (auto cur_node = patching_node; cur_node; cur_node = cur_node.next_sibling()) {
-        if (game_node && game_node.type() != pugi::xml_node_type::node_pcdata) {
-            prev_game_node = game_node;
-        }
-        game_node = find_node_with_name(game_node, cur_node.name());
-        MergeProperties(game_node, cur_node);
-        if (game_node) {
-            if (game_node.type() == pugi::xml_node_type::node_pcdata) {
-                game_node.set_value(cur_node.value());
-                return;
-            } else {
-                RecursiveMerge(root_game_node, game_node.first_child(), cur_node.first_child());
-            }
-            game_node = game_node.next_sibling();
-        } else {
-            if (cur_node && prev_game_node) {
-                while (prev_game_node) {
-                    RecursiveMerge(root_game_node, prev_game_node.first_child(), cur_node);
-                    if (prev_game_node == game_node) {
-                        break;
-                    }
-                    prev_game_node = prev_game_node.next_sibling();
-                }
-            }
-        }
-    }
+    } else {
+		//Can only iterate into the game node if it is not a pcdata node
+		if(game_node.type() == pugi::xml_node_type::node_pcdata) {
+			spdlog::error("Attempting to patch data node {} with a node with children. Skipping.", std::string(game_node.name())); 
+			return;
+		}
+	}
+	
+	//Create a list with all children of the patching_node (list because pop_front will be used)
+	auto patch_children_iterator = patching_node.children();
+	std::list<pugi::xml_node> patch_children (patch_children_iterator.begin(), patch_children_iterator.end());
+    
+	
+	const pugi::char_t * next_Node_Name;
+	
+	const auto copyPredicate = [&next_Node_Name](pugi::xml_node item) -> bool {
+		return std::string(item.name()) == std::string(next_Node_Name);
+	};
+	
+	//Patch, until all children from the patching node are handled
+	while(patch_children.size() > 0) {
+		//First, get all nodes with the same name from the patching node children
+		pugi::xml_node next_Node = patch_children.front();
+		std::list<pugi::xml_node> same_children (patch_children.size());
+		
+		next_Node_Name = next_Node.name();
+	
+		//Copy all nodes with the right name to the same_children list.
+		auto iteratorEnd = std::copy_if(patch_children.begin(), patch_children.end(), same_children.begin(), copyPredicate);
+		same_children.resize(std::distance(same_children.begin(), iteratorEnd));
+		
+		//Second, get all nodes with the same name from the game node children and save them to a vector
+		auto game_node_children_iterator = game_node.children();
+		std::vector<pugi::xml_node> all_game_node_children (game_node_children_iterator.begin(), game_node_children_iterator.end());
+		
+		//Test if the targeted node we're working with has a pcdata child and find the correct item or child from the game nodes
+		bool find_pcdata_node = NodeHasPCDataChild(next_Node);
+		pugi::xml_node first_target_node = FindNamedListItemRecursive(all_game_node_children, std::string(next_Node_Name), find_pcdata_node);
+		
+		//If we didn't find a target node, then just skip this patching node
+		if(!first_target_node) {
+			patch_children.pop_front();
+			continue;
+		}
+		
+		//If we went down the children of the game nodes, this will set our new game node layer
+		game_node = first_target_node.parent();
+		
+		//Now get all following siblings of the first_target_node.
+		//Previous siblings can be ignored since first_target_node is the first valid one anyways
+		std::list<pugi::xml_node> game_children {first_target_node};
+		pugi::xml_node testing_sibling = first_target_node;
+		
+		while(testing_sibling.next_sibling()) {
+			testing_sibling = testing_sibling.next_sibling();
+			if(std::string(testing_sibling.name()) == std::string(next_Node_Name)) {
+				if(find_pcdata_node) {
+					bool testing_sibling_has_pcdata = NodeHasPCDataChild(testing_sibling);
+					if(testing_sibling_has_pcdata) {
+						game_children.emplace_back(testing_sibling);
+					}
+				} else {
+					game_children.emplace_back(testing_sibling);
+				}
+			}
+		}
+		
+		//See how many items in the game node children can/should be patched
+		//We can't do more patches than we have patching nodes, and we can't patch more nodes than we have potential targets
+		int toIterate = std::min(same_children.size(), game_children.size());
+		
+		//Call the patching methods for all node pairs
+		for(int cnt = 0; cnt < toIterate; cnt++) {
+			pugi::xml_node target_node = game_children.front();
+			pugi::xml_node source_node = same_children.front();
+			MergeProperties(target_node, source_node);
+			RecursiveMerge(root_game_node, target_node, source_node);
+			
+			game_children.pop_front();
+			same_children.pop_front();
+		}
+		
+		//Remove all patched children from the children list, so they don't get handled twice
+		patch_children.remove_if(copyPredicate);
+	}
 }
+
+
 
 std::string XmlOperation::GetPath()
 {

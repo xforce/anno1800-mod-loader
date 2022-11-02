@@ -68,8 +68,23 @@ class XmlOperation
     {
         return node.attribute(prop_name.c_str()).as_string();
     }
+	
+	bool NodeHasPCDataChild(pugi::xml_node node);
+	
+	std::vector<pugi::xml_node> ChildrenVectorFromNode(pugi::xml_node node);
+	
+	void MergeOp(pugi::xml_node root_game_node, pugi::xml_node game_node,
+                        pugi::xml_node patching_node);
+						
+	pugi::xml_node FindNamedListItemRecursive(std::vector<pugi::xml_node> const& in_nodes, std::string name, bool find_pcdata_node);
+	
+    void MergeSiblings(pugi::xml_node root_game_node, pugi::xml_node game_node,
+                        pugi::xml_node patching_node);
+						
     void RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node game_node,
                         pugi::xml_node patching_node);
+						
+						
     void ReadPath(pugi::xml_node node, std::string guid = "", std::string temp = "");
     void ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path, fs::path mod_path);
 
