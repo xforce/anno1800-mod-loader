@@ -168,21 +168,21 @@ For resources it is heavily recommended to use the Anno 1800/data folder.
 
 # Building
 
-You need Bazel, Visual Studio 2019 and that _should_ be it.  
+You need Bazel, Visual Studio 2022 and that _should_ be it.  
 You can checkout `azure-pipelines.yml` and see how it's done there.
 
 easy steps to sucess:
 
-- Install Visual Studio 2019 (community version is fine + C++ tools)
-- Install Bazel (could be a rabbit hole but if unsure use the recommended way for your system)
+- Install Visual Studio 2022 (community version is fine + C++ tools)
+- Install Bazel (I recommend going with Bazelisk here)
 - _optional_ fork this repo
 - clone this repo (make sure you use the most recent branch/tag) into a workingdir
-- open the folder in Visual Studio 2019
-- _optiona_ make changes
+- open the folder in Visual Studio 2022
+- _optional_ make changes
 - open a command prompt (admin) & navigate to the workingdir
 - If you have installed another version of Visual Studio as well:
-  - `set BAZEL_VC=C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC`
-  - this will use the correct build tools (if your VS 2019 install dir differ, please adapt)
+  - `set BAZEL_VC=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC`
+  - this will use the correct build tools (if your VS 2022 install dir differ, please adapt)
 - use `bazel build //libs/python35:python35.dll` to build the .dll
 - find the DLL in your workingdir \bazel-bin\libs\python35
 
