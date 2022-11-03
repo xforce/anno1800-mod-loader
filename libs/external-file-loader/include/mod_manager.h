@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mod.h"
+#include "fs.h"
 
 #include "nlohmann/json.hpp"
 
@@ -93,9 +94,9 @@ class ModManager
     std::vector<Mod>                                      mods_;
     std::vector<std::string>                              python_scripts_;
     mutable std::mutex                                    file_cache_mutex_;
-    std::unordered_map<fs::path, File>                    file_cache_;
-    std::unordered_map<fs::path, std::vector<fs::path>>   modded_patchable_files_;
-    std::unordered_map<fs::path, std::vector<CacheLayer>> modded_file_cache_info_;
+    PathMap<File>                    file_cache_;
+    PathMap<std::vector<fs::path>>   modded_patchable_files_;
+    PathMap<std::vector<CacheLayer>> modded_file_cache_info_;
     mutable std::thread                                   patching_file_thread_;
     mutable std::thread                                   watch_file_thread_;
     OVERLAPPED                                            watch_file_ov_;
