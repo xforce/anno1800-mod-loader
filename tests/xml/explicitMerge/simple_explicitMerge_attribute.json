@@ -1,0 +1,7 @@
+{
+    "name": "Simple explicitMerge Attribute",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[@Attr='Meow']"
+    ]
+}

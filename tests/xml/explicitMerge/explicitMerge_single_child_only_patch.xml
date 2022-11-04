@@ -1,0 +1,7 @@
+<ModOps>
+  <ModOp Type="explicitMerge" GUID="1010371" Path="/Values/Cost/Costs/Item[Ingredient='1010017']">
+    <Item>
+      <Amount>100</Amount>
+    </Item>
+  </ModOp>
+</ModOps>

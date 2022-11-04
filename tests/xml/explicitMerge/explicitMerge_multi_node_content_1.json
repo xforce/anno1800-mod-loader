@@ -1,0 +1,9 @@
+{
+    "name": "explicitMerge content",
+    "expected": [
+        "/Test/Node/FullSatisfactionDistance",
+        "/Test/Node/NoSatisfactionDistance",
+        "/Test/Node[FullSatisfactionDistance='60']",
+        "/Test/Node[NoSatisfactionDistance='90']"
+    ]
+}
