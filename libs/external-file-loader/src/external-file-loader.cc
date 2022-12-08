@@ -10,6 +10,7 @@
 // #include "meow_hook/memory.h"
 #include "spdlog/spdlog.h"
 
+#include <shellapi.h>
 #include <Windows.h>
 
 #include <cstdint>
@@ -416,6 +417,25 @@ void EnableExtenalFileLoading(Events& events)
             return (uintptr_t)FindFirstFileW_S;
         }
         return uintptr_t(0);
+    });
+    events.CreateFileW.connect([](LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+        LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
+        DWORD dwFlagsAndAttributes, HANDLE hTemplateFile) {
+        auto mapped_path = ModManager::MapAliasedPath(lpFileName);
+        if (ModManager::instance().IsFileModded(mapped_path)) {
+#if defined(ADVANCED_HOOK_LOGS)
+            spdlog::debug(L"CreateFile Modded File {} {}", mapped_path.wstring());
+#endif
+            auto info = ModManager::instance().GetModdedFileInfo(mapped_path);
+            if (!info.is_patched) {
+                // This is not a file that we can patch
+                // Just load it from disk
+                auto hFile = CreateFileW(info.disk_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
+                    OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                return hFile;
+            }
+        }
+        return INVALID_HANDLE_VALUE;
     });
     set_import("FindFirstFileW", (uintptr_t)FindFirstFileW_S);
 

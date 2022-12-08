@@ -167,6 +167,14 @@ HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMod
             DoResumeThreads(GetCurrentProcessId());
         });
     }
+
+    auto results = events.CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    for (auto& proc : results) {
+        if (proc != INVALID_HANDLE_VALUE) {
+            return proc;
+        }
+    }
     return CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
                        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
 }
