@@ -435,11 +435,14 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                         mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_path);
                     }
                 } else if (stricmp(node.name(), "Include") == 0) {
-                    const auto file = GetXmlPropString(node, "File");
-                    auto       include_ops =
-                        GetXmlOperationsFromFile(doc_path / file, mod_name, game_path, mod_path);
-                    mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
-                                          std::end(include_ops));
+                    const bool skip = node.attribute("Skip");
+                    if (!skip) {
+                        const auto file = GetXmlPropString(node, "File");
+                        auto       include_ops =
+                            GetXmlOperationsFromFile(doc_path / file, mod_name, game_path, mod_path);
+                        mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
+                                            std::end(include_ops));
+                    }
                 }
             }
         }
