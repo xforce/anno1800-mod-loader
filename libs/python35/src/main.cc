@@ -13,9 +13,6 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
 
-#include <WinInet.h>
-#include <Windows.h>
-#include <tlhelp32.h>
 
 #pragma comment(lib, "Wininet.lib")
 
@@ -23,21 +20,31 @@
 #include <filesystem>
 #include <thread>
 
+#include <wininet.h>
+#include <Windows.h>
+#include <TlHelp32.h>
+#include <shellapi.h>
+
 namespace fs = std::filesystem;
 
 // Global events instance
 static Events events;
 
+size_t writeFunction(void* ptr, size_t size, size_t nmemb, std::string* data) {
+    data->append((char*)ptr, size * nmemb);
+    return size * nmemb;
+}
+
 static std::string GetLatestVersion()
 {
-    char data[1024] = {0};
+    char data[128] = {0};
 
     // initialize WinInet
     HINTERNET hInternet =
         ::InternetOpen(TEXT("Anno 1800 Mod Loader"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (hInternet != nullptr) {
         // 5 second timeout for now
-        DWORD timeout = 5 * 1000;
+        DWORD timeout = 1 * 1000;
         auto  result  = InternetSetOption(hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout,
                                         sizeof(timeout));
         InternetSetOption(hInternet, INTERNET_OPTION_SEND_TIMEOUT, &timeout, sizeof(timeout));
@@ -62,7 +69,8 @@ static std::string GetLatestVersion()
                                   &status_code, &status_code_size, 0);
 
                     if (status_code != 200) {
-                        throw std::runtime_error("Failed to read version info");
+                        // This is rubbish
+                        return "";
                     }
                     for (;;) {
                         // reading data
@@ -73,7 +81,7 @@ static std::string GetLatestVersion()
                         // break cycle if error or end
                         if (was_read == FALSE || bytes_read == 0) {
                             if (was_read == FALSE) {
-                                throw std::runtime_error("Failed to read version info");
+                                return "";
                             }
                             break;
                         }
@@ -92,7 +100,6 @@ static std::string GetLatestVersion()
     return data;
 }
 
-
 void ForEachThread(std::function<void(DWORD threadId, DWORD processId, HANDLE)> func)
 {
     HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
@@ -103,7 +110,7 @@ void ForEachThread(std::function<void(DWORD threadId, DWORD processId, HANDLE)> 
         if (Thread32First(h, &te))
         {
             do
-            {
+            { 
                 if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID))
                 {
                     HANDLE thread = ::OpenThread(THREAD_ALL_ACCESS, FALSE, te.th32ThreadID);
@@ -149,8 +156,10 @@ HANDLE CreateFileW_S(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMod
                      LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
                      DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
+    spdlog::debug(L"File {}", std::wstring(lpFileName));
     if (!checked_hooking && std::wstring(lpFileName).find(L"maindata/file.db") != std::string::npos) {
         checked_hooking = true;
+        events.IHateEverything();
 
         std::call_once(hooking_once_flag, []() {
             DoSuspendThread(GetCurrentProcessId(), GetCurrentThreadId());
@@ -189,6 +198,7 @@ FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
     });
 
     if ((uintptr_t)lpProcName > 0x1000) {
+        spdlog::debug("GetProcAddress {}", lpProcName);
         if (lpProcName == std::string("CreateFileW")) {
             return (FARPROC)CreateFileW_S;
         }
@@ -196,7 +206,6 @@ FARPROC GetProcAddress_S(HMODULE hModule, LPCSTR lpProcName)
             // 
             return (FARPROC)CreateWindowExW_S;
         }
-        spdlog::debug("GetProcAddress {}", lpProcName);
         auto procs = events.GetProcAddress(lpProcName);
         for (auto& proc : procs) {
             if (proc > 0) {
@@ -311,7 +320,11 @@ static void CheckVersion()
 {
     // Version Check
     try {
-        auto        body        = GetLatestVersion();
+        auto body = GetLatestVersion();
+        if (body.empty())
+        {
+            return;
+        }
         const auto& data        = nlohmann::json::parse(body);
         const auto& version_str = data["version"].get<std::string>();
 
@@ -332,7 +345,7 @@ static void CheckVersion()
                             MB_ICONQUESTION | MB_YESNO | MB_SYSTEMMODAL)
                 == IDYES) {
                 auto result =
-                    ShellExecuteA(nullptr, "open",
+                    ShellExecute(nullptr, "open",
                                   "https://github.com/xforce/anno1800-mod-loader/releases/latest",
                                   nullptr, nullptr, SW_SHOWNORMAL);
                 result = result;
@@ -399,9 +412,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                 }
             }
 
-            events.DoHooking.connect([]() {
-                CheckVersion();
+            events.IHateEverything.connect([]() {
+                std::thread([] {
+                    CheckVersion();
+                }).detach();
+            });
 
+            events.DoHooking.connect([]() {
                 // Let's start loading the list of files we want to have
                 HMODULE module;
                 if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
@@ -446,6 +463,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             // TODO(alexander): Add code that can load other dll libraries here
             // that offer more features later on
             set_import("GetProcAddress", (uintptr_t)GetProcAddress_S);
+            set_import("CreateFileW", (uintptr_t)CreateFileW_S);
         }
         case DLL_THREAD_ATTACH:
             break;

@@ -14,7 +14,7 @@ windows_resources(
 cc_binary(
     name = "python35.dll",
     srcs = glob(["src/**/*.cc"]) + glob(["src/**/*.h"]) + glob(["include/**/*.h"]),
-    defines = ["_WINSOCKAPI_"] + select({
+    defines = ["WIN32_LEAN_AND_MEAN"] + select({
         ":internal": [
             "INTERNAL_ENABLED",
         ],

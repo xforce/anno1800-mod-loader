@@ -42,6 +42,17 @@ http_archive(
     sha256 = "2a7b7e5d3f8c759894f0fea9917a590733600574d20cb53f3be827c7c62862e1"
 )
 
+http_archive(
+    name = "com_github_curl",
+    sha256 = "3dfdd39ba95e18847965cd3051ea6d22586609d9011d91df7bc5521288987a82",
+    strip_prefix = "curl-7.86.0",
+    urls = [
+        "https://github.com/curl/curl/releases/download/curl-7_86_0/curl-7.86.0.tar.gz",
+        "https://curl.haxx.se/download/curl-7.86.0.tar.gz",
+    ],
+    build_file = "@//:curl.BUILD",
+)
+
 new_local_repository(
     name = "pugixml",
     build_file = "pugixml.BUILD",

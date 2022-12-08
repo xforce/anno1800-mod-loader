@@ -82,18 +82,18 @@ bool FindAddresses()
 
         // Do a combined pre-search
         ADDRESSES[READ_FILE_FROM_CONTAINER] = {[](std::optional<std::string_view> game_file) {
-            // Game Update 13
+            // Exact matching
             try {
-                auto match = meow_hook::pattern("E8 ? ? ? ? 0F B6 D8 48 8D 4D C0", game_file)
-                                 .count(1)
-                                 .get(0);
+                auto match = meow_hook::pattern("48 89 5C 24 08 4C 89 44 24 18 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC E0 04 00 00", game_file)
+                                    .count(1)
+                                    .get(0);
                 if (game_file) {
-                    match = match.adjust(
-                        RebaseFileOffsetToMemoryAddess(
-                            match.as<uintptr_t>() - reinterpret_cast<intptr_t>(game_file->data()))
-                        - match.as<uintptr_t>());
+                    match = match.adjust(RebaseFileOffsetToMemoryAddess(
+                                                match.as<uintptr_t>()
+                                                - reinterpret_cast<intptr_t>(game_file->data()))
+                                            - match.as<uintptr_t>());
                 }
-                return match.extract_call();
+                return match.as<uintptr_t>();
             } catch (...) {
             }
 

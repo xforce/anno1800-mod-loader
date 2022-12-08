@@ -7,4 +7,5 @@
 struct Events {
     ksignals::Event<void()>                 DoHooking;
     ksignals::Event<uintptr_t(std::string)> GetProcAddress;
+    ksignals::Event<void()>                 IHateEverything;
 };
