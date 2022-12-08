@@ -454,10 +454,14 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                         file_path = mod_path.parent_path() / file;
                     }
 
-                    auto include_ops = GetXmlOperationsFromFile(file_path.lexically_normal(), 
-                                                                mod_name, game_path, mod_base_path);
-                    mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
-                                          std::end(include_ops));
+                    const bool skip = node.attribute("Skip");
+                    if (!skip) {
+                        const auto file = GetXmlPropString(node, "File");
+                        auto include_ops = GetXmlOperationsFromFile(file_path.lexically_normal(),
+                                                                    mod_name, game_path, mod_base_path);
+                        mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
+                                            std::end(include_ops));
+                    }
                 }
             }
         }
