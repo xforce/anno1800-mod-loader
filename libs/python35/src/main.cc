@@ -44,7 +44,7 @@ static std::string GetLatestVersion()
         ::InternetOpen(TEXT("Anno 1800 Mod Loader"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (hInternet != nullptr) {
         // 5 second timeout for now
-        DWORD timeout = 1 * 1000;
+        DWORD timeout = 5 * 1000;
         auto  result  = InternetSetOption(hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout,
                                         sizeof(timeout));
         InternetSetOption(hInternet, INTERNET_OPTION_SEND_TIMEOUT, &timeout, sizeof(timeout));
