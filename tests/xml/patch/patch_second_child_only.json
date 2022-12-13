@@ -1,0 +1,7 @@
+{
+    "name": "patch second list child only without XPath",
+    "expected": [
+        "//Values/Cost/Costs/Item[Ingredient='1010017' and Amount='500']",
+        "//Values/Cost/Costs/Item[Ingredient='1010196' and Amount='123']"
+    ]
+}

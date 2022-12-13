@@ -42,6 +42,9 @@
 !.vscode/launch.json
 !.vscode/extensions.json
 
+#Visual Studio
+.vs/*
+
 # Private code that will not be shared publically
 /libs/internal/
 /.ccls-cache/

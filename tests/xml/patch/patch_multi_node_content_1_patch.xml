@@ -1,0 +1,8 @@
+<ModOps>
+  <ModOp Type="patch" Path="/Test/Node">
+    <Node>
+      <FullSatisfactionDistance>60</FullSatisfactionDistance>
+      <NoSatisfactionDistance>90</NoSatisfactionDistance>
+    </Node>
+  </ModOp>
+</ModOps>

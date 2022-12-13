@@ -6,13 +6,15 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <stack>
+#include <unordered_set>
 
 namespace fs = std::filesystem;
 
 class XmlOperation
 {
   public:
-    enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
+    enum class Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge, Patch };
 
     XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                  std::string guid = "", std::string temp = "", std::string mod_name = "",
@@ -70,6 +72,10 @@ class XmlOperation
     }
     void RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node game_node,
                         pugi::xml_node patching_node);
+    void PatchOp(pugi::xml_object_range<pugi::xml_node_iterator> content_node,
+                 pugi::xml_node game_node);
+    void PatchNode(pugi::xml_node game_node, pugi::xml_node patching_node);
+
     void ReadPath(pugi::xml_node node, std::string guid = "", std::string temp = "");
     void ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path, fs::path mod_path);
 
