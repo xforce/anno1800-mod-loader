@@ -1,0 +1,7 @@
+{
+    "name": "Simple patch Attribute",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[@Attr='Meow']"
+    ]
+}

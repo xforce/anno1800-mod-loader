@@ -1,0 +1,34 @@
+<AssetList>
+<Groups>
+<Group>
+<Assets>
+    <Asset>
+        <Template>PowerplantBuilding</Template>
+        <Values>
+            <Standard>
+                <GUID>100780</GUID>
+                <Name>electricity_02 (Oil Power Plant)</Name>
+                <IconFilename>data/ui/2kimages/main/3dicons/icon_electric_works_oil.png</IconFilename>
+                <ID>OilPowerPlant</ID>
+                <InfoDescription>10946</InfoDescription>
+            </Standard>
+            <Maintenance>
+                <Maintenances>
+                    <Item>
+                        <Product>1010017</Product>
+                        <Amount>400</Amount>
+                        <InactiveAmount>200</InactiveAmount>
+                    </Item>
+                    <Item>
+                        <Product>1010117</Product>
+                        <Amount>150</Amount>
+                        <ShutdownThreshold>0.5</ShutdownThreshold>
+                    </Item>
+                </Maintenances>
+            </Maintenance>
+        </Values>
+    </Asset>
+</Assets>
+</Group>
+</Group>
+</AssetList>

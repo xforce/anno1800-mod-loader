@@ -1,0 +1,5 @@
+<ModOps>
+  <ModOp Type="patch" Path="/Test/Node">
+    <Node Attr="Meow"></Node>
+  </ModOp>
+</ModOps>

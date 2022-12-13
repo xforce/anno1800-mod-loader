@@ -1,0 +1,9 @@
+{
+    "name": "Multi node patch content - patching fails",
+    "expected": [
+        "/Test/Node/FullSatisfactionDistance",
+        "/Test/Node/NoSatisfactionDistance",
+        "/Test/Node[FullSatisfactionDistance='5']",
+        "/Test/Node[NoSatisfactionDistance='5']"
+    ]
+}

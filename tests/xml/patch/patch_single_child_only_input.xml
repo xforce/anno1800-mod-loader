@@ -1,0 +1,151 @@
+<AssetList>
+<Groups>
+<Group>
+<Assets>
+<Asset>
+<Template>Warehouse</Template>
+<Values>
+    <Standard>
+        <GUID>1010371</GUID>
+        <Name>logistic_02 (Warehouse I)</Name>
+        <IconFilename>data/ui/2kimages/main/3dicons/icon_warehouse.png</IconFilename>
+        <InfoDescription>2975</InfoDescription>
+    </Standard>
+    <Text>
+        <LocaText>
+            <English>
+                <Text>Small Warehouse</Text>
+                <Status>Exported</Status>
+                <ExportCount>2</ExportCount>
+            </English>
+        </LocaText>
+        <LineID>6986</LineID>
+    </Text>
+    <Blocking>
+        <HasBuildingBaseTiles>1</HasBuildingBaseTiles>
+    </Blocking>
+    <Building>
+        <BuildingType>Logistic</BuildingType>
+        <BuildingCategoryName>11151</BuildingCategoryName>
+        <SkipUnlockMessage>1</SkipUnlockMessage>
+        <BuildModeRandomRotation>90</BuildModeRandomRotation>
+        <AssociatedRegions>Moderate</AssociatedRegions>
+    </Building>
+    <Cost>
+        <Costs>
+            <Item>
+                <Ingredient>1010017</Ingredient>
+                <Amount>500</Amount>
+            </Item>
+            <Item>
+                <Ingredient>1010196</Ingredient>
+                <Amount>10</Amount>
+            </Item>
+            <Item>
+                <Ingredient>1010205</Ingredient>
+            </Item>
+            <Item>
+                <Ingredient>1010218</Ingredient>
+            </Item>
+            <Item>
+                <Ingredient>1010207</Ingredient>
+            </Item>
+            <Item>
+                <Ingredient>1010202</Ingredient>
+            </Item>
+        </Costs>
+    </Cost>
+    <Selection>
+        <GUIType>Warehouse</GUIType>
+        <ParticipantMessageTrigger>ClickKontor</ParticipantMessageTrigger>
+        <Colors>
+            <WeakSelectionColorType>NoColor</WeakSelectionColorType>
+        </Colors>
+    </Selection>
+    <Object>
+        <Variations>
+            <Item>
+                <Filename>data/graphics/buildings/public/logistic_02/logistic_02.cfg</Filename>
+            </Item>
+        </Variations>
+    </Object>
+    <Constructable />
+    <Mesh />
+    <SoundEmitter>
+        <ActiveSounds>
+            <Item>
+                <Sound>200834</Sound>
+            </Item>
+        </ActiveSounds>
+        <DestroySounds>
+            <Item>
+                <Sound>9818756</Sound>
+            </Item>
+        </DestroySounds>
+        <BuildingRepaired>
+            <Item>
+                <Sound>203866</Sound>
+            </Item>
+        </BuildingRepaired>
+    </SoundEmitter>
+    <Locked />
+    <Infolayer />
+    <FeedbackController />
+    <Warehouse>
+        <WarehouseStorage>
+            <StorageMax>0</StorageMax>
+        </WarehouseStorage>
+    </Warehouse>
+    <LogisticNode />
+    <UpgradeList />
+    <AmbientMoodProvider>
+        <AmbientMood>ResidenceTier1</AmbientMood>
+    </AmbientMoodProvider>
+    <Maintenance>
+        <Maintenances>
+            <Item>
+                <Product>1010017</Product>
+                <Amount>20</Amount>
+                <InactiveAmount>20</InactiveAmount>
+            </Item>
+        </Maintenances>
+    </Maintenance>
+    <StorageBase />
+    <Attackable>
+        <MaximumHitPoints>2500</MaximumHitPoints>
+        <SelfHealPerHealTick>4</SelfHealPerHealTick>
+    </Attackable>
+    <Upgradable>
+        <NextGUID>100516</NextGUID>
+        <UpgradeCost>
+            <Item>
+                <Amount>2500</Amount>
+                <Ingredient>1010017</Ingredient>
+            </Item>
+            <Item>
+                <Amount>20</Amount>
+                <Ingredient>1010196</Ingredient>
+            </Item>
+            <Item>
+                <Amount>20</Amount>
+                <Ingredient>1010205</Ingredient>
+            </Item>
+            <Item>
+                <Ingredient>1010218</Ingredient>
+            </Item>
+            <Item>
+                <Ingredient>1010207</Ingredient>
+            </Item>
+            <Item>
+                <Ingredient>1010202</Ingredient>
+            </Item>
+        </UpgradeCost>
+        <CurrentTier>1</CurrentTier>
+    </Upgradable>
+    <Pausable />
+</Values>
+</Asset>
+</Assets>
+</Group>
+</Groups>
+</AssetList>

@@ -175,6 +175,8 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
         type_ = Type::Replace;
     } else if (stricmp(type.c_str(), "merge") == 0) {
         type_ = Type::Merge;
+    } else if (stricmp(type.c_str(), "patch") == 0) {
+        type_ = Type::Patch;
     } else {
         type_ = Type::None;
         offset_data_t offset_data;
@@ -375,6 +377,9 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
                 }
                 pugi::xml_node patching_node = *content_node.begin();
                 RecursiveMerge(game_node, game_node, patching_node);
+            } else if (GetType() == XmlOperation::Type::Patch){
+                auto content_node = GetContentNode();
+                PatchOp(content_node, game_node);
             } else if (GetType() == XmlOperation::Type::AddNextSibling) {
                 for (auto &&node : GetContentNode()) {
                     game_node = game_node.parent().insert_copy_after(node, game_node);
@@ -555,6 +560,97 @@ void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node 
                     prev_game_node = prev_game_node.next_sibling();
                 }
             }
+        }
+    }
+}
+
+void XmlOperation::PatchOp(pugi::xml_object_range<pugi::xml_node_iterator> content_node,
+                           pugi::xml_node game_node)
+{
+    auto num_content_nodes = std::distance(content_node.begin(), content_node.end());
+    if (num_content_nodes <= 0) {
+        return;
+    } else if (num_content_nodes > 1) {
+        spdlog::error("Patch ModOps can only have one patching node, but {0} "
+                      "were supplied. "
+                      "If you want to target multiple siblings, consider either "
+                      "targeting their parent or "
+                      "targeting the items with an XPath expression.",
+                      num_content_nodes);
+        return;
+    } else {
+        pugi::xml_node patching_node = *content_node.begin();
+        if (std::string(patching_node.name()) == std::string(game_node.name())) {
+            PatchNode(game_node, patching_node);
+        } else {
+            spdlog::error("Patch ModOps can only have a patching node that has "
+                          "the same name as the target node, "
+                          "but the patching node is named {0} while the targeted node "
+                          "is named {1}. ",
+                          std::string(patching_node.name()), std::string(game_node.name()));
+        }
+    }
+}
+
+void XmlOperation::PatchNode(pugi::xml_node game_node,
+                                  pugi::xml_node patching_node)
+{
+    std::stack<std::tuple<int, pugi::xml_node, pugi::xml_node>> nodes;
+
+    struct xml_hash {
+        size_t operator()(const pugi::xml_node &x) const
+        {
+            return x.hash_value();
+        }
+    };
+    std::unordered_set<pugi::xml_node, xml_hash> patched_game_nodes;
+    
+    nodes.emplace(1, game_node, patching_node);
+
+    while (!nodes.empty()) {
+        auto [level, game_node, patch_node] = nodes.top();
+        nodes.pop();
+
+        if (!patch_node || !game_node) {
+            continue;
+        }
+
+        // Already patched game nodes shouldn't be considered
+        if (patched_game_nodes.count(game_node) > 0) {
+            nodes.emplace(level, game_node.next_sibling(patch_node.name()), patch_node);
+            continue;
+        }
+
+        using node_type = pugi::xml_node_type;
+
+        // If both are plain character nodes we want to patch them now
+        // All the other code made sure that they are a match (name)
+        if (game_node.type() == node_type::node_pcdata
+            && patch_node.type() == node_type::node_pcdata) {
+            patched_game_nodes.emplace(game_node);
+            game_node.set_value(patch_node.value());
+        } else if (game_node.type() != patch_node.type()) {
+            // If the types of the node don't match, we can't consider this branch for further
+            // processing
+            spdlog::info("Skip");
+        } else if (game_node.type() == node_type::node_element
+                   && strcmp(game_node.name(), patch_node.name()) == 0) {
+            // This is a valid match for a subtree node, so we merge props and then move on to the
+            // next things
+            MergeProperties(game_node, patch_node);
+            // Traverse down the tree by pushing all patch children with the first game child
+            // We don't have to worry here whether one of them is null as that is checked at the
+            // start of the loop
+            auto patch_child = patch_node.last_child();
+            while (patch_child) {
+                nodes.emplace(level + 1, game_node.first_child(), patch_child);
+                patch_child = patch_child.previous_sibling();
+            }
+
+            patched_game_nodes.emplace(game_node);
+            
+        } else {
+            nodes.emplace(level, game_node.next_sibling(patch_node.name()), patch_node);
         }
     }
 }
