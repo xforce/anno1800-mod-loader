@@ -12,7 +12,7 @@ namespace fs = std::filesystem;
 class XmlOperation
 {
   public:
-    enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
+    enum class Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
 
     XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                  std::string guid = "", std::string temp = "", std::string mod_name = "",
