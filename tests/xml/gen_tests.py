@@ -39,6 +39,14 @@ def main():
                         else:
                             f.write("CHECK(runner.PathExists(\"" +
                                     expected_path + "\"));")
+
+                    # check log warnings
+                    f.write("INFO(runner.DumpLog());")
+                    if data.get("issuesExpected", "0") == "1":
+                        f.write("CHECK(runner.HasIssues());")
+                    else:
+                        f.write("CHECK_FALSE(runner.HasIssues());")
+
                     f.write("}\n\n")
 
 
