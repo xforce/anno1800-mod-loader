@@ -1,0 +1,18 @@
+<Test>
+    <Asset>
+        <Values>
+            <Standard>
+                <GUID>5</GUID>
+            </Standard>
+            <Meow>5</Meow>
+        </Values>
+    </Asset>
+    <Asset>
+        <Values>
+            <Standard>
+                <GUID>4</GUID>
+            </Standard>
+            <Meow>4</Meow>
+        </Values>
+    </Asset>
+</Test>
