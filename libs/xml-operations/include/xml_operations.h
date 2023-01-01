@@ -50,6 +50,7 @@ class XmlOperation
 
     bool           skip_ = false;
     std::string    condition_;
+    bool           allow_no_match_ = false;
 
     std::string mod_name_;
     fs::path    game_path_;
