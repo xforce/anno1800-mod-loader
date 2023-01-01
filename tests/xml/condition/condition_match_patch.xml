@@ -1,0 +1,8 @@
+<ModOps>
+<ModOp Type="add" Path="/Test/Node[Meow='5']" Condition="/Test/Node[Meow='4']">
+    <Meow>3</Meow>
+</ModOp>
+<ModOp Type="add" Path="/Test/Node[Meow='5']" Condition="/Test/Node[Meow='1']">
+    <Meow>2</Meow>
+</ModOp>
+</ModOps>

@@ -1,0 +1,8 @@
+{
+    "name": "Condition Match",
+    "expected": [
+        "/Test/Node[Meow='5']",
+        "/Test/Node[Meow='3']",
+        "!/Test/Node[Meow='2']"
+    ]
+}

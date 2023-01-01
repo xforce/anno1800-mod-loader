@@ -63,6 +63,7 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
     }
 
     skip_ = node.attribute("Skip");
+    condition_ = node.attribute("Condition").as_string();
 }
 
 void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string temp)
@@ -344,6 +345,11 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
     if (skip_ || GetType() == XmlOperation::Type::None) {
         return;
     }
+
+    if (!CheckCondition(doc)) {
+        return;
+    }
+
     try {
         spdlog::debug("Looking up {}", path_);
         pugi::xpath_node_set results = ReadGuidNodes(doc);
@@ -557,6 +563,32 @@ void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node 
             }
         }
     }
+}
+
+bool XmlOperation::CheckCondition(std::shared_ptr<pugi::xml_document> doc)
+{
+    if (condition_.empty()) {
+        return true;
+    }
+
+    try {
+        bool negative_match = condition_[0] == '!';
+        auto condition_path = condition_.c_str() + (negative_match ? 1 : 0);
+
+        const auto match_nodes = doc->select_nodes(condition_path);
+        if (negative_match != match_nodes.empty()) {
+            offset_data_t offset_data;
+            build_offset_data(offset_data, mod_path_.string().c_str());
+            auto [line, column] = get_location(offset_data, node_.offset_debug());
+            spdlog::debug("Condition not matching {} in {} ({}:{})", condition_, mod_name_,
+                        game_path_.string(), line);
+            return false;
+        }
+    } catch (const pugi::xpath_exception &e) {
+        spdlog::error("Failed to parse path {} in {}: {}", condition_, mod_path_.string(), e.what());
+    }
+
+    return true;
 }
 
 std::string XmlOperation::GetPath()

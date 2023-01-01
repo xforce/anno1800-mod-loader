@@ -49,6 +49,7 @@ class XmlOperation
     pugi::xml_node node_;
 
     bool           skip_ = false;
+    std::string    condition_;
 
     std::string mod_name_;
     fs::path    game_path_;
@@ -83,4 +84,6 @@ class XmlOperation
 
     pugi::xpath_node_set ReadGuidNodes(std::shared_ptr<pugi::xml_document> doc);
     pugi::xpath_node_set ReadTemplateNodes(std::shared_ptr<pugi::xml_document> doc);
+
+    bool CheckCondition(std::shared_ptr<pugi::xml_document> doc);
 };
