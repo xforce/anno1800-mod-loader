@@ -63,6 +63,7 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
     }
 
     skip_ = node.attribute("Skip");
+    allow_no_match_ = node.attribute("AllowNoMatch");
 }
 
 void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string temp)
@@ -359,8 +360,15 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
             offset_data_t offset_data;
             build_offset_data(offset_data, mod_path_.string().c_str());
             auto [line, column] = get_location(offset_data, node_.offset_debug());
-            spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name_,
-                         game_path_.string(), line);
+
+            const std::string msg = "No matching node for Path {} in {} ({}:{})";
+            if (allow_no_match_) {
+                spdlog::debug(msg, GetPath(), mod_name_, game_path_.string(), line);
+            }
+            else {
+                spdlog::warn(msg, GetPath(), mod_name_, game_path_.string(), line);
+            }
+
             return;
         }
 
