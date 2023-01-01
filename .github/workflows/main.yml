@@ -17,11 +17,6 @@ jobs:
         with:
           submodules: "recursive"
 
-      - name: Setup Bazelisk
-        uses: doppelganger113/bazelisk-setup-action@v1.0.5
-        with:
-          version: "latest"
-
       - name: Build
         run: |
           bazel build //... -c opt
@@ -49,11 +44,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: "recursive"
-
-      - name: Setup Bazelisk
-        uses: doppelganger113/bazelisk-setup-action@v1.0.5
-        with:
-          version: "latest"
 
       - name: Build
         run: |
