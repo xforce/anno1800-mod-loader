@@ -91,7 +91,7 @@ void ModManager::CollectPatchableFiles()
                     std::string start_script   = "console.startScript('mods\\"
                                                + fs::relative(file_path, mods_directory).string()
                                                + "')";
-                    spdlog::info("Loading ptyhon script {}", start_script);
+                    spdlog::info("Loading python script {}", start_script);
                     python_scripts_.emplace_back(start_script);
                 } else {
                     auto hFile = CreateFileW(file_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL,
