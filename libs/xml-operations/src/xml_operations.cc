@@ -45,19 +45,20 @@ static std::pair<size_t, size_t> get_location(const offset_data_t &data, ptrdiff
 
 XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                            std::string guid, std::string temp, std::string mod_name,
-                           fs::path game_path, fs::path mod_path)
+                           fs::path game_path, fs::path mod_path, fs::path mod_base_path)
 {
     guid_     = guid;
     template_ = temp;
     node_     = node;
     doc_      = doc;
 
-    mod_name_  = mod_name;
-    game_path_ = game_path;
-    mod_path_  = mod_path;
+    mod_name_      = mod_name;
+    game_path_     = game_path;
+    mod_path_      = mod_path;
+    mod_base_path_ = mod_base_path;
 
     ReadPath(node, guid, temp);
-    ReadType(node, mod_name, game_path, mod_path);
+    ReadType(node, mod_name, game_path, mod_path, mod_base_path);
     if (type_ != Type::Remove) {
         nodes_ = node.children();
     }
@@ -156,7 +157,7 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string t
 }
 
 void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path,
-                            fs::path mod_path)
+                            fs::path mod_path, fs::path mod_base_path)
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
@@ -182,7 +183,7 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
         build_offset_data(offset_data, mod_path.string().c_str());
         auto [line, column] = get_location(offset_data, node_.offset_debug());
         spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name,
-                     game_path.string(), line);
+                     mod_path_.lexically_relative(mod_base_path_).string(), line);
         spdlog::error("Unknown ModOp({}), ignoring {}", type, GetPath());
     }
 }
@@ -366,7 +367,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
             build_offset_data(offset_data, mod_path_.string().c_str());
             auto [line, column] = get_location(offset_data, node_.offset_debug());
             spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name_,
-                         game_path_.string(), line);
+                         mod_path_.lexically_relative(mod_base_path_).string(), line);
             return;
         }
 
@@ -409,7 +410,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::xml_document> doc,
                                                          std::string mod_name, fs::path game_path,
-                                                         fs::path mod_path, fs::path doc_path)
+                                                         fs::path mod_path, fs::path mod_base_path)
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
@@ -433,17 +434,22 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                     if (!guid.empty()) {
                         std::vector<std::string> guids = absl::StrSplit(guid, ',');
                         for (auto g : guids) {
-                            mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path, mod_path);
+                            mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path, 
+                                                        mod_path, mod_base_path);
                         }   
                     } else if (!temp.empty()) {
-                        mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_path);
+                        mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_path, 
+                                                    mod_base_path);
                     } else {
-                        mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_path);
+                        mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_path, 
+                                                    mod_base_path);
                     }
                 } else if (stricmp(node.name(), "Include") == 0) {
                     const auto file = GetXmlPropString(node, "File");
-                    auto       include_ops =
-                        GetXmlOperationsFromFile(doc_path / file, mod_name, game_path, mod_path);
+                    const auto file_path = mod_path.parent_path() / file;
+
+                    auto include_ops = GetXmlOperationsFromFile(file_path.lexically_normal(), 
+                                                                mod_name, game_path, mod_base_path);
                     mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
                                           std::end(include_ops));
                 }
@@ -455,23 +461,23 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
     return mod_operations;
 }
 
-std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    path,
+std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    mod_path,
                                                                  std::string mod_name,
                                                                  fs::path    game_path,
-                                                                 fs::path    mod_path)
+                                                                 fs::path    mod_base_path)
 {
     std::shared_ptr<pugi::xml_document> doc          = std::make_shared<pugi::xml_document>();
-    auto                                parse_result = doc->load_file(path.string().c_str());
+    auto                                parse_result = doc->load_file(mod_path.string().c_str());
     if (!parse_result) {
         offset_data_t offset_data;
-        build_offset_data(offset_data, path.string().c_str());
+        build_offset_data(offset_data, mod_path.string().c_str());
         auto location = get_location(offset_data, parse_result.offset);
-        spdlog::error("[{}] Failed to parse {}({}, {}): {}", mod_name, path.string(),
+        spdlog::error("[{}] Failed to parse {}({}, {}): {}", mod_name, mod_path.string(),
                       location.first, location.second, parse_result.description());
         return {};
     }
-    const auto doc_path = path.lexically_normal().parent_path();
-    return GetXmlOperations(doc, mod_name, game_path, mod_path, doc_path);
+
+    return GetXmlOperations(doc, mod_name, game_path, mod_path, mod_base_path);
 }
 
 void MergeProperties(pugi::xml_node game_node, pugi::xml_node patching_node)
