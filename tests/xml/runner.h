@@ -13,9 +13,9 @@
 class TestRunner
 {
 public:
-    TestRunner(std::string_view mod_path, std::string_view input, std::string_view patch) {
+    TestRunner(std::string_view mod_base_path, std::string_view input, std::string_view patch) {
         {
-            xml_operations_ = XmlOperation::GetXmlOperationsFromFile(patch, "", input, mod_path);
+            xml_operations_ = XmlOperation::GetXmlOperationsFromFile(fs::absolute(patch), "", input, fs::absolute(mod_base_path));
         }
         {
             input_doc_ = std::make_shared<pugi::xml_document>();

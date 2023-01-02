@@ -30,7 +30,7 @@ int main(int argc, const char **argv)
         doc->load_buffer(buffer.data(), buffer.size());
     }
 
-    auto operations = XmlOperation::GetXmlOperationsFromFile(argv[2]);
+    auto operations = XmlOperation::GetXmlOperationsFromFile(argv[2], "", {}, fs::absolute(fs::current_path()));
     for (auto &&operation : operations) {
         operation.Apply(doc);
     }
