@@ -446,7 +446,13 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                     }
                 } else if (stricmp(node.name(), "Include") == 0) {
                     const auto file = GetXmlPropString(node, "File");
-                    const auto file_path = mod_path.parent_path() / file;
+                    fs::path file_path;
+                    if (file.rfind("/", 0) == 0) {
+                        file_path = mod_base_path;
+                        file_path += file;
+                    } else {
+                        file_path = mod_path.parent_path() / file;
+                    }
 
                     auto include_ops = GetXmlOperationsFromFile(file_path.lexically_normal(), 
                                                                 mod_name, game_path, mod_base_path);
