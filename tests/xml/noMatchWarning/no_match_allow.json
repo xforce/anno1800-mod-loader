@@ -1,0 +1,7 @@
+{
+    "name": "Add No Allow",
+    "expected": [
+        "/Test/Node/Meow[GUID='1']"
+    ],
+    "issuesExpected": "0"
+}

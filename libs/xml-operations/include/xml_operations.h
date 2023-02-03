@@ -49,6 +49,7 @@ class XmlOperation
     pugi::xml_node node_;
 
     bool           skip_ = false;
+    bool           allow_no_match_ = false;
 
     std::string mod_name_;
     fs::path    game_path_;

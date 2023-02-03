@@ -1,0 +1,7 @@
+{
+    "name": "XPath | Behavior",
+    "expected": [
+        "!/Test/Asset/Values[Standard/GUID='5']/Meow",
+        "/Test/Asset/Values[Standard/GUID='4']/Meow"
+    ]
+}
