@@ -16,7 +16,7 @@ class XmlOperation
 
     XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                  std::string guid = "", std::string temp = "", std::string mod_name = "",
-                 fs::path game_path = {}, fs::path mod_path = {});
+                 fs::path game_path = {}, fs::path mod_path = {}, fs::path mod_base_path = {});
 
     pugi::xml_object_range<pugi::xml_node_iterator> GetContentNode();
     Type                                            GetType() const;
@@ -26,14 +26,14 @@ class XmlOperation
 
   public:
     static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<pugi::xml_document> doc,
-                                                      std::string mod_name  = "",
-                                                      fs::path    game_path = {},
-                                                      fs::path    mod_path  = {},
-                                                      fs::path    doc_path  = {});
-    static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path    path,
-                                                              std::string mod_name  = "",
-                                                              fs::path    game_path = {},
-                                                              fs::path    mod_path  = {});
+                                                      std::string mod_name       = "",
+                                                      fs::path    game_path      = {},
+                                                      fs::path    mod_path       = {},
+                                                      fs::path    mod_base_path  = {});
+    static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path    mod_path,
+                                                              std::string mod_name       = "",
+                                                              fs::path    game_path      = {},
+                                                              fs::path    mod_base_path  = {});
 
   private:
     Type        type_;
@@ -50,10 +50,12 @@ class XmlOperation
 
     bool           skip_ = false;
     std::string    condition_;
+    bool           allow_no_match_ = false;
 
     std::string mod_name_;
     fs::path    game_path_;
     fs::path    mod_path_;
+    fs::path    mod_base_path_;
 
     enum SpeculativePathType {
         NONE,
@@ -72,7 +74,8 @@ class XmlOperation
     void RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node game_node,
                         pugi::xml_node patching_node);
     void ReadPath(pugi::xml_node node, std::string guid = "", std::string temp = "");
-    void ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path, fs::path mod_path);
+    void ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path, fs::path mod_path,
+                  fs::path mod_base_path);
 
     std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node);
     std::optional<pugi::xml_node> FindTemplate(std::string temp, pugi::xml_node node);

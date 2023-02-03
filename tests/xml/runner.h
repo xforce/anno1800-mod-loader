@@ -1,4 +1,6 @@
 #include "pugixml.hpp"
+#include "spdlog/sinks/ostream_sink.h"
+#include "spdlog/spdlog.h"
 
 #include "xml_operations.h"
 
@@ -13,9 +15,16 @@
 class TestRunner
 {
 public:
-    TestRunner(std::string_view mod_path, std::string_view input, std::string_view patch) {
+    TestRunner(std::string_view mod_base_path, std::string_view input, std::string_view patch) {
         {
-            xml_operations_ = XmlOperation::GetXmlOperationsFromFile(patch, "", input, mod_path);
+            auto sink = std::make_shared<spdlog::sinks::ostream_sink_st>(test_log_);
+            auto test_logger = std::make_shared<spdlog::logger>("test_logger", sink);
+            test_logger->set_pattern("[%l] %v");
+            test_logger->set_level(spdlog::level::info);
+            spdlog::set_default_logger(test_logger);
+        }
+        {
+            xml_operations_ = XmlOperation::GetXmlOperationsFromFile(fs::absolute(patch), "", input, fs::absolute(mod_base_path));
         }
         {
             input_doc_ = std::make_shared<pugi::xml_document>();
@@ -42,7 +51,6 @@ public:
         return exists;
     }
 
-
     std::string DumpXml() {
         std::stringstream ss;
         input_doc_->print(ss, "   ");
@@ -50,8 +58,26 @@ public:
         return buf;
     }
 
-    ~TestRunner() = default;
+    bool HasIssues() {
+        auto log_content = test_log_.str();
+        
+        if (log_content.find("[warning]") != std::string::npos || 
+            log_content.find("[error]") != std::string::npos) {
+            return true;
+        }
+
+        return false;
+    }
+
+    std::string DumpLog() {
+        return test_log_.str();
+    }
+
+    ~TestRunner() {
+        spdlog::drop("test_logger");
+    }
 private:
     std::vector<XmlOperation> xml_operations_;
     std::shared_ptr<pugi::xml_document> input_doc_ = nullptr;
+    std::ostringstream test_log_;
 };

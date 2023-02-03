@@ -1,0 +1,3 @@
+<ModOps>
+<ModOp Type="remove" Path="/Test/Node/Meow" />
+</ModOps>

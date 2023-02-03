@@ -1,0 +1,3 @@
+<ModOps>
+<ModOp Type="remove" GUID="7" Path="/Values/Meow | //Asset/Values[Standard/GUID='5']/Meow" />
+</ModOps>

@@ -217,10 +217,9 @@ void ModManager::WaitModsReady() const
 
 Mod& ModManager::GetModContainingFile(const fs::path& file)
 {
+    const auto file_path_str = file.lexically_normal().generic_string();
     for (auto& mod : mods_) {
-        if (file.lexically_normal().generic_string().find(
-                mod.Path().lexically_normal().generic_string())
-            == 0) {
+        if (file_path_str.find((mod.Path() / "").lexically_normal().generic_string()) == 0) {
             return mod;
         }
     }
@@ -489,7 +488,7 @@ void ModManager::GameFilesReady()
                     // Cache miss
                     auto& mod        = GetModContainingFile(on_disk_file);
                     auto  operations = XmlOperation::GetXmlOperationsFromFile(
-                         on_disk_file, mod.Name(), game_path, on_disk_file);
+                         on_disk_file, mod.Name(), game_path, mod.Path());
                     for (auto&& operation : operations) {
                         operation.Apply(game_xml);
                     }
