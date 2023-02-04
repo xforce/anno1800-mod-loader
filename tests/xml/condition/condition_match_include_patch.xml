@@ -1,0 +1,7 @@
+<ModOps>
+<ModOp Type="merge" Path="/Test/Node[Meow='5']" Condition="/Test/Node[Meow='4']">
+    <Meow>3</Meow>
+</ModOp>
+<Include File="./include.xml" Condition="/Test/Node[Meow='3']" />
+<Include File="./include2.xml" Condition="/Test/Node[Meow='7']" />
+</ModOps>

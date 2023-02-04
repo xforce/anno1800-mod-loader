@@ -170,6 +170,11 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
+    if (stricmp(node.name(), "Include") == 0) {
+        type_ = Type::Group;
+        return;
+    }
+
     auto type = GetXmlPropString(node, "Type");
     if (stricmp(type.c_str(), "add") == 0) {
         type_ = Type::Add;
@@ -359,6 +364,13 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
         return;
     }
 
+    if (type_ == Type::Group) {
+        for (auto& modop : group_) {
+            modop.Apply(doc);
+        }
+        return;
+    }
+
     try {
         spdlog::debug("Looking up {}", path_);
         pugi::xpath_node_set results = ReadGuidNodes(doc);
@@ -480,14 +492,14 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                     const bool skip = node.attribute("Skip");
                     if (!skip) {
                         const auto include_doc = include_loader(relative_include_path);
-                        auto include_ops = GetXmlOperations(include_doc, 
-                                                            include_loader,
-                                                            relative_include_path,
-                                                            mod_name, 
-                                                            game_path, 
-                                                            mod_path);
-                        mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
-                                            std::end(include_ops));
+                        auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path, mod_relative_path, mod_path};
+                        group_op.group_ = GetXmlOperations(include_doc, 
+                                                           include_loader,
+                                                           relative_include_path,
+                                                           mod_name, 
+                                                           game_path, 
+                                                           mod_path);
+                        mod_operations.push_back(group_op);
                     }
                 }
             }

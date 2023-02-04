@@ -56,6 +56,15 @@ Before you had to always add, remove the duplicate and deal with warnings.
          Path="//Asset[Values/Standard/GUID='1500010714'][position() < last()]"/>
 ```
 
+### Conditional Includes
+
+Conditions also work for includes.
+
+```xml
+<Include File="/products/cheese/assets.include.xml"
+         Condition="!//Values[Standard/GUID='1500010102']" />
+```
+
 ## Disable warnings with `AllowNoMatch`
 
 Disable match not found warnings.

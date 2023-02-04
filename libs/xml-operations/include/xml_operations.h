@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 class XmlOperation
 {
   public:
-    enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
+    enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge, Group };
 
     XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                  std::string guid = "", std::string temp = "", std::string mod_name = "",
@@ -53,6 +53,8 @@ class XmlOperation
     bool           skip_ = false;
     std::string    condition_;
     bool           allow_no_match_ = false;
+
+    std::vector<XmlOperation> group_;
 
     std::string mod_name_;
     fs::path    game_path_;

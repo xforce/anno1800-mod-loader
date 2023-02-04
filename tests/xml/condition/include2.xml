@@ -1,0 +1,6 @@
+<ModOps>
+<ModOp Type="add" Path="/Test/Node">
+    <Meow>7</Meow>
+</ModOp>
+</ModOps>
+  
