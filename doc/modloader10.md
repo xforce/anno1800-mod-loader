@@ -121,13 +121,16 @@ The same without `AllowNoMatch` while dealing with warnings:
 
 
 
-## Include `Skip`
+## Include `Skip` and Mod Relative Paths
 
 The `Skip` attribute is now also supported on `Include` operations.
 
+And you don't need to use endless `../../` anymore if you want to point to top-level files in your mod.
+If you start with `/` the path is treated as relative to your mod folder.
+
 ```xml
 <ModOps>
-  <Include File="feature.include.xml" Skip="1" />
+  <Include File="/feature.include.xml" Skip="1" />
 </ModOps>
 ```
 
