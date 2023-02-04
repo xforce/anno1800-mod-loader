@@ -188,10 +188,10 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
     } else {
         type_ = Type::None;
         offset_data_t offset_data;
-        build_offset_data(offset_data, mod_path.string().c_str());
+        build_offset_data(offset_data, (mod_base_path / mod_path).string().c_str());
         auto [line, column] = get_location(offset_data, node_.offset_debug());
         spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name,
-                     mod_path_.lexically_relative(mod_base_path_).string(), line);
+                     mod_path_.string(), line);
         spdlog::error("Unknown ModOp({}), ignoring {}", type, GetPath());
     }
 }
@@ -372,7 +372,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
         }
         if (results.empty()) {
             offset_data_t offset_data;
-            build_offset_data(offset_data, mod_path_.string().c_str());
+            build_offset_data(offset_data, (mod_base_path_ / mod_path_).string().c_str());
             auto [line, column] = get_location(offset_data, node_.offset_debug());
 
             const char* msg = "No matching node for Path {} in {} ({}:{})";
@@ -430,8 +430,11 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 }
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::xml_document> doc,
-                                                         std::string mod_name, fs::path game_path,
-                                                         fs::path mod_path, fs::path mod_base_path)
+                                                         std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
+                                                         fs::path mod_relative_path,
+                                                         std::string mod_name, 
+                                                         fs::path game_path,
+                                                         fs::path mod_path)
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
@@ -456,30 +459,33 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
                         std::vector<std::string> guids = absl::StrSplit(guid, ',');
                         for (auto g : guids) {
                             mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path, 
-                                                        mod_path, mod_base_path);
+                                                        mod_relative_path, mod_path);
                         }   
                     } else if (!temp.empty()) {
-                        mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_path, 
-                                                    mod_base_path);
+                        mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_relative_path, 
+                                                    mod_path);
                     } else {
-                        mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_path, 
-                                                    mod_base_path);
+                        mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_relative_path, 
+                                                    mod_path);
                     }
                 } else if (stricmp(node.name(), "Include") == 0) {
                     const auto file = GetXmlPropString(node, "File");
-                    fs::path file_path;
+                    fs::path relative_include_path;
                     if (file.rfind("/", 0) == 0) {
-                        file_path = mod_base_path;
-                        file_path += file;
+                        relative_include_path = file.substr(1);
                     } else {
-                        file_path = mod_path.parent_path() / file;
+                        relative_include_path = (mod_relative_path.parent_path() / file).lexically_normal();
                     }
 
                     const bool skip = node.attribute("Skip");
                     if (!skip) {
-                        const auto file = GetXmlPropString(node, "File");
-                        auto include_ops = GetXmlOperationsFromFile(file_path.lexically_normal(),
-                                                                    mod_name, game_path, mod_base_path);
+                        const auto include_doc = include_loader(relative_include_path);
+                        auto include_ops = GetXmlOperations(include_doc, 
+                                                            include_loader,
+                                                            relative_include_path,
+                                                            mod_name, 
+                                                            game_path, 
+                                                            mod_path);
                         mod_operations.insert(std::end(mod_operations), std::begin(include_ops),
                                             std::end(include_ops));
                     }
@@ -492,23 +498,29 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
     return mod_operations;
 }
 
-std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    mod_path,
+std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    file_path,
                                                                  std::string mod_name,
                                                                  fs::path    game_path,
-                                                                 fs::path    mod_base_path)
+                                                                 fs::path    mod_path)
 {
-    std::shared_ptr<pugi::xml_document> doc          = std::make_shared<pugi::xml_document>();
-    auto                                parse_result = doc->load_file(mod_path.string().c_str());
+    auto doc          = std::make_shared<pugi::xml_document>();
+    auto parse_result = doc->load_file(file_path.string().c_str());
     if (!parse_result) {
         offset_data_t offset_data;
-        build_offset_data(offset_data, mod_path.string().c_str());
+        build_offset_data(offset_data, file_path.string().c_str());
         auto location = get_location(offset_data, parse_result.offset);
-        spdlog::error("[{}] Failed to parse {}({}, {}): {}", mod_name, mod_path.string(),
+        spdlog::error("[{}] Failed to parse {}({}, {}): {}", mod_name, file_path.string(),
                       location.first, location.second, parse_result.description());
         return {};
     }
 
-    return GetXmlOperations(doc, mod_name, game_path, mod_path, mod_base_path);
+    const auto include_loader = [&mod_path](fs::path filePath) {
+        std::shared_ptr<pugi::xml_document> doc = std::make_shared<pugi::xml_document>();
+        auto parse_result = doc->load_file((mod_path / filePath).string().c_str());
+        return doc;
+    };
+    const auto mod_relative_path = file_path.lexically_relative(mod_path);
+    return GetXmlOperations(doc, include_loader, mod_relative_path, mod_name, game_path, mod_path);
 }
 
 void MergeProperties(pugi::xml_node game_node, pugi::xml_node patching_node)
@@ -597,10 +609,10 @@ bool XmlOperation::CheckCondition(std::shared_ptr<pugi::xml_document> doc)
         const auto match_nodes = doc->select_nodes(condition_path);
         if (negative_match != match_nodes.empty()) {
             offset_data_t offset_data;
-            build_offset_data(offset_data, mod_path_.string().c_str());
+            build_offset_data(offset_data, (mod_base_path_ / mod_path_).string().c_str());
             auto [line, column] = get_location(offset_data, node_.offset_debug());
             spdlog::debug("Condition not matching {} in {} ({}:{})", condition_, mod_name_,
-                        game_path_.string(), line);
+                        mod_path_.string(), line);
             return false;
         }
     } catch (const pugi::xpath_exception &e) {

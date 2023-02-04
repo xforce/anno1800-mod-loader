@@ -3,6 +3,7 @@
 #include "pugixml.hpp"
 
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -26,14 +27,15 @@ class XmlOperation
 
   public:
     static std::vector<XmlOperation> GetXmlOperations(std::shared_ptr<pugi::xml_document> doc,
-                                                      std::string mod_name       = "",
-                                                      fs::path    game_path      = {},
-                                                      fs::path    mod_path       = {},
-                                                      fs::path    mod_base_path  = {});
-    static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path    mod_path,
-                                                              std::string mod_name       = "",
-                                                              fs::path    game_path      = {},
-                                                              fs::path    mod_base_path  = {});
+                                                      std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
+                                                      fs::path    mod_relative_path,
+                                                      std::string mod_name,
+                                                      fs::path    game_path,
+                                                      fs::path    mod_path);
+    static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path    file_path,
+                                                              std::string mod_name,
+                                                              fs::path    game_path,
+                                                              fs::path    mod_path);
 
   private:
     Type        type_;
