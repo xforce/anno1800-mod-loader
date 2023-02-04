@@ -64,7 +64,6 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
         nodes_ = node.children();
     }
 
-    skip_ = node.attribute("Skip");
     condition_ = node.attribute("Condition").as_string();
     allow_no_match_ = node.attribute("AllowNoMatch");
 }
@@ -170,7 +169,7 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
-    if (stricmp(node.name(), "Include") == 0) {
+    if (stricmp(node.name(), "Include") == 0 || stricmp(node.name(), "Group") == 0) {
         type_ = Type::Group;
         return;
     }
@@ -356,7 +355,7 @@ pugi::xpath_node_set XmlOperation::ReadTemplateNodes(std::shared_ptr<pugi::xml_d
 
 void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 {
-    if (skip_ || GetType() == XmlOperation::Type::None) {
+    if (GetType() == XmlOperation::Type::None) {
         return;
     }
 
@@ -456,57 +455,92 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
         spdlog::error("Failed to get root element");
         return {};
     }
-    std::vector<XmlOperation> mod_operations;
-    if (stricmp(root.first_child().name(), "ModOps") == 0) {
-        for (pugi::xml_node node : root.first_child().children()) {
-            if (node.type() == pugi::xml_node_type::node_element) {
-                if (stricmp(node.name(), "ModOp") == 0) {
-                    const auto guid = GetXmlPropString(node, "GUID");
-                    const auto temp = GetXmlPropString(node, "Template");
-                    std::vector<std::string> guids;
-                    if (!temp.empty() && !guid.empty()) {
-                        spdlog::error("Cannot supply both `Template` and `GUID`");
-                    }
-                    if (!guid.empty()) {
-                        std::vector<std::string> guids = absl::StrSplit(guid, ',');
-                        for (auto g : guids) {
-                            mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path, 
-                                                        mod_relative_path, mod_path);
-                        }   
-                    } else if (!temp.empty()) {
-                        mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_relative_path, 
-                                                    mod_path);
-                    } else {
-                        mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_relative_path, 
-                                                    mod_path);
-                    }
-                } else if (stricmp(node.name(), "Include") == 0) {
-                    const auto file = GetXmlPropString(node, "File");
-                    fs::path relative_include_path;
-                    if (file.rfind("/", 0) == 0) {
-                        relative_include_path = file.substr(1);
-                    } else {
-                        relative_include_path = (mod_relative_path.parent_path() / file).lexically_normal();
-                    }
+    
+    if (stricmp(root.first_child().name(), "ModOps") != 0) {
+        spdlog::warn("[{}] Mod doesn't contain ModOps root node", mod_name);
+        return {};
+    }
 
-                    const bool skip = node.attribute("Skip");
-                    if (!skip) {
-                        const auto include_doc = include_loader(relative_include_path);
-                        auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path, mod_relative_path, mod_path};
-                        group_op.group_ = GetXmlOperations(include_doc, 
-                                                           include_loader,
-                                                           relative_include_path,
-                                                           mod_name, 
-                                                           game_path, 
-                                                           mod_path);
-                        mod_operations.push_back(group_op);
-                    }
+    return GetXmlOperationsFromNodes(doc,
+                                     root.first_child().children(),
+                                     include_loader,
+                                     mod_relative_path,
+                                     mod_name,
+                                     game_path,
+                                     mod_path);
+}
+
+std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromNodes(std::shared_ptr<pugi::xml_document> doc,
+                                                                  pugi::xml_object_range<pugi::xml_node_iterator> nodes,
+                                                                  std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
+                                                                  fs::path mod_relative_path,
+                                                                  std::string mod_name, 
+                                                                  fs::path game_path,
+                                                                  fs::path mod_path)
+{
+#ifndef _WIN32
+    auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
+#endif
+
+    std::vector<XmlOperation> mod_operations;
+    for (pugi::xml_node node : nodes) {
+        if (node.type() == pugi::xml_node_type::node_element) {
+            if (node.attribute("Skip")) {
+                continue;
+            }
+
+            if (stricmp(node.name(), "ModOp") == 0) {
+                const auto guid = GetXmlPropString(node, "GUID");
+                const auto temp = GetXmlPropString(node, "Template");
+                std::vector<std::string> guids;
+                if (!temp.empty() && !guid.empty()) {
+                    spdlog::error("Cannot supply both `Template` and `GUID`");
                 }
+                if (!guid.empty()) {
+                    std::vector<std::string> guids = absl::StrSplit(guid, ',');
+                    for (auto g : guids) {
+                        mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path, 
+                                                    mod_relative_path, mod_path);
+                    }   
+                } else if (!temp.empty()) {
+                    mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_relative_path, 
+                                                mod_path);
+                } else {
+                    mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_relative_path, 
+                                                mod_path);
+                }
+            } else if (stricmp(node.name(), "Group") == 0) {
+                auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path, mod_relative_path, mod_path};
+                group_op.group_ = GetXmlOperationsFromNodes(doc,
+                                                            node.children(), 
+                                                            include_loader,
+                                                            mod_relative_path,
+                                                            mod_name, 
+                                                            game_path, 
+                                                            mod_path);
+                mod_operations.push_back(group_op);
+            } else if (stricmp(node.name(), "Include") == 0) {
+                const auto file = GetXmlPropString(node, "File");
+                fs::path relative_include_path;
+                if (file.rfind("/", 0) == 0) {
+                    relative_include_path = file.substr(1);
+                } else {
+                    relative_include_path = (mod_relative_path.parent_path() / file).lexically_normal();
+                }
+                
+                const auto include_doc = include_loader(relative_include_path);
+                auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path, mod_relative_path, mod_path};
+                group_op.group_ = GetXmlOperations(include_doc, 
+                                                    include_loader,
+                                                    relative_include_path,
+                                                    mod_name, 
+                                                    game_path, 
+                                                    mod_path);
+                mod_operations.push_back(group_op);
             }
         }
-    } else {
-        spdlog::warn("[{}] Mod doesn't contain ModOps root node", mod_name);
     }
+
     return mod_operations;
 }
 

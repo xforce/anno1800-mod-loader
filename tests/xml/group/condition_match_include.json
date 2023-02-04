@@ -1,0 +1,9 @@
+{
+    "name": "Group Condition Match Include",
+    "expected": [
+        "!/Test/Node[Meow='5']",
+        "!/Test/Node[Meow='3']",
+        "/Test/Node[Meow='2']",
+        "!/Test/Node[Meow='7']"
+    ]
+}

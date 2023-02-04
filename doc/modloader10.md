@@ -65,6 +65,18 @@ Conditions also work for includes.
          Condition="!//Values[Standard/GUID='1500010102']" />
 ```
 
+## Groups
+
+You can now also group your ModOps for combined `Skip` or `Condition` use.
+They basically behave the same was as `Include` except you don't need an extra file.
+
+```xml
+<Group Condition="">
+  <ModOp />
+  <ModOp />
+</Group>
+```
+
 ## Disable warnings with `AllowNoMatch`
 
 Disable match not found warnings.

@@ -1,0 +1,15 @@
+<ModOps>
+<ModOp Type="merge" Path="/Test/Node[Meow='5']" Condition="/Test/Node[Meow='4']">
+    <Meow>3</Meow>
+</ModOp>
+<Group Condition="!/Test/Node[Meow='3']">
+    <ModOp Type="merge" Path="/Test/Node[Meow='3']">
+        <Meow>2</Meow>
+    </ModOp>
+</Group>
+<Group Condition="!/Test/Node[Meow='7']">
+    <ModOp Type="add" Path="/Test/Node">
+        <Meow>7</Meow>
+    </ModOp>
+</Group>
+</ModOps>

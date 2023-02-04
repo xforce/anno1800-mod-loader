@@ -32,6 +32,13 @@ class XmlOperation
                                                       std::string mod_name,
                                                       fs::path    game_path,
                                                       fs::path    mod_path);
+    static std::vector<XmlOperation> GetXmlOperationsFromNodes(std::shared_ptr<pugi::xml_document> doc,
+                                                      pugi::xml_object_range<pugi::xml_node_iterator> nodes,
+                                                      std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
+                                                      fs::path    mod_relative_path,
+                                                      std::string mod_name,
+                                                      fs::path    game_path,
+                                                      fs::path    mod_path);
     static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path    file_path,
                                                               std::string mod_name,
                                                               fs::path    game_path,
@@ -50,7 +57,6 @@ class XmlOperation
     std::shared_ptr<pugi::xml_document> doc_; // This is here to keep the node below alive
     pugi::xml_node node_;
 
-    bool           skip_ = false;
     std::string    condition_;
     bool           allow_no_match_ = false;
 
