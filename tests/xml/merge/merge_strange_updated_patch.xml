@@ -1,0 +1,12 @@
+<ModOps>
+<ModOp Type="merge" GUID='100780' Path="/Values/Maintenance/Maintenances/Item[Product='1010017']">
+    <Product>1010017</Product>
+    <Amount>50000</Amount>
+    <InactiveAmount>30000</InactiveAmount>
+</ModOp>
+<ModOp Type="merge" GUID='100780' Path="/Values/Maintenance/Maintenances/Item[Product='1010367']">
+    <Product>1010367</Product>
+    <Amount>150</Amount>
+    <ShutdownThreshold>1</ShutdownThreshold>
+</ModOp>
+</ModOps>

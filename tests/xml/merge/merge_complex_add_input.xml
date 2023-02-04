@@ -1,0 +1,16 @@
+<AssetList>
+<Groups>
+<Group>
+<Assets>
+    <Asset>
+        <Template>PowerplantBuilding</Template>
+        <Values>
+            <Standard>
+                <GUID>100780</GUID>
+            </Standard>
+        </Values>
+    </Asset>
+</Assets>
+</Group>
+</Group>
+</AssetList>
