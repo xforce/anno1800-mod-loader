@@ -1,0 +1,12 @@
+{
+    "name": "Special Characters < and >",
+    "expected": [
+        "/Test/Node/Meow[GUID='5']",
+        "/Test/Node/Meow[GUID='6']",
+        "/Test/Node/Meow[GUID='1']/following-sibling::Meow[GUID='6']",
+        "/Test/Node/Meow[GUID='6']/following-sibling::Meow[GUID='2']",
+        "/Test/Node/Meow[GUID='2']/following-sibling::Meow[GUID='5']",
+        "/Test/Node/Meow[GUID='3']/following-sibling::Meow[GUID='5']",
+        "/Test/Node/Meow[GUID='4']/following-sibling::Meow[GUID='5']"
+    ]
+}

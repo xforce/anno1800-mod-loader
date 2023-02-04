@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <regex>
 
 using offset_data_t = std::vector<ptrdiff_t>;
 
@@ -73,6 +74,12 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string t
     auto prop_path = GetXmlPropString(node, "Path");
     if (prop_path.empty()) {
         prop_path = "/";
+    }
+
+    if (prop_path.find('&') != -1)
+    {
+        prop_path = std::regex_replace(prop_path, std::regex{"&gt;"}, ">");
+        prop_path = std::regex_replace(prop_path, std::regex{"&lt;"}, "<");
     }
 
     if (guid.empty()) {

@@ -1,0 +1,8 @@
+<ModOps>
+<ModOp Type="addNextSibling" Path="/Test/Node/Meow[GUID&gt;1]">
+    <Meow><GUID>5</GUID></Meow>
+</ModOp>
+<ModOp Type="addNextSibling" Path="/Test/Node/Meow[GUID&lt;=1]">
+    <Meow><GUID>6</GUID></Meow>
+</ModOp>
+</ModOps>

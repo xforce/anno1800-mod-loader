@@ -1,0 +1,8 @@
+<Test>
+    <Node>
+        <Meow><GUID>1</GUID></Meow>
+        <Meow><GUID>2</GUID></Meow>
+        <Meow><GUID>3</GUID></Meow>
+        <Meow><GUID>4</GUID></Meow>
+    </Node>
+</Test>
