@@ -1,0 +1,8 @@
+{
+    "name": "Merge add content",
+    "expected": [
+        "/Test/Node/Building[BuildingCategoryName='0']",
+        "/Test/Node/Building[AssociatedRegions='Moderate;Colony01']",
+        "/Test/Node/Skins/SkinList/Item[SkinAssetGuid='1500010407']"
+    ]
+}

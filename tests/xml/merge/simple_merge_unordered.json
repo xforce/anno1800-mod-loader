@@ -1,0 +1,8 @@
+{
+    "name": "Merge unordered content",
+    "expected": [
+        "/Test/Node[Meow1='4']",
+        "/Test/Node[Meow2='5']",
+        "/Test/Node[Meow3='6']"
+    ]
+}

@@ -31,6 +31,8 @@ def main():
                              base_name_patch.replace("\\", "/")))
                     f.write("runner.ApplyPatches();\n")
                     f.write("INFO(runner.DumpXml());")
+                    f.write("INFO(runner.DumpLog());")
+
                     expected_paths = data['expected']
                     for expected_path in expected_paths:
                         if expected_path.startswith('!'):
@@ -41,7 +43,6 @@ def main():
                                     expected_path + "\"));")
 
                     # check log warnings
-                    f.write("INFO(runner.DumpLog());")
                     if data.get("issuesExpected", "0") == "1":
                         f.write("CHECK(runner.HasIssues());")
                     else:

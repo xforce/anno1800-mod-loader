@@ -3,5 +3,6 @@
     "expected": [
         "/Test/Node/Meow",
         "/Test/Node[Meow='10']"
-    ]
+    ],
+    "issuesExpected": "1"
 }

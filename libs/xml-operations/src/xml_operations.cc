@@ -375,13 +375,12 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
             build_offset_data(offset_data, mod_path_.string().c_str());
             auto [line, column] = get_location(offset_data, node_.offset_debug());
 
-            const std::string msg = "No matching node for Path {} in {} ({}:{})";
-            const auto game_path = mod_path_.lexically_relative(mod_base_path_).string();
+            const char* msg = "No matching node for Path {} in {} ({}:{})";
             if (allow_no_match_) {
-                spdlog::debug(msg, GetPath(), mod_name_, game_path, line);
+                spdlog::debug(msg, GetPath(), mod_name_, mod_path_.string(), line);
             }
             else {
-                spdlog::warn(msg, GetPath(), mod_name_, game_path, line);
+                spdlog::warn(msg, GetPath(), mod_name_, mod_path_.string(), line);
             }
 
             return;
@@ -391,13 +390,19 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
         for (pugi::xpath_node xnode : results) {
             pugi::xml_node game_node = xnode.node();
             if (GetType() == XmlOperation::Type::Merge) {
-                auto content_node = GetContentNode();
-                if (content_node.begin() == content_node.end()) {
-                    //
-                    continue;
+                for (auto& node : GetContentNode()) {
+                    if (strcmp(node.name(), game_node.name()) == 0) {
+                        // legacy support
+                        offset_data_t offset_data;
+                        build_offset_data(offset_data, mod_path_.string().c_str());
+                        auto [line, column] = get_location(offset_data, node_.offset_debug());
+                        spdlog::warn("Deprecated: remove <{}> parent from merge in {} ({}:{})", node.name(), mod_name_, mod_path_.string(), line);
+                        RecursiveMerge(game_node, game_node.parent(), node);
+                        continue;
+                    }
+
+                    RecursiveMerge(game_node, game_node, node);
                 }
-                pugi::xml_node patching_node = *content_node.begin();
-                RecursiveMerge(game_node, game_node, patching_node);
             } else if (GetType() == XmlOperation::Type::AddNextSibling) {
                 for (auto &&node : GetContentNode()) {
                     game_node = game_node.parent().insert_copy_after(node, game_node);
@@ -536,22 +541,12 @@ void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node 
         return;
     }
 
-    const auto find_node_with_name = [](pugi::xml_node game_node, auto name) -> pugi::xml_node {
-        if (game_node.name() == std::string(name)) {
-            return game_node;
-        }
+    const auto find_node_with_name = [&root_game_node](pugi::xml_node game_node, auto name) -> pugi::xml_node {
         auto children = game_node.children();
         for (pugi::xml_node cur_node : children) {
-            if (cur_node.name() == std::string(name)) {
+            if (strcmp(cur_node.name(), name) == 0) {
                 return cur_node;
             }
-        }
-        auto cur_node = game_node;
-        while (cur_node) {
-            if (cur_node.name() == std::string(name)) {
-                return cur_node;
-            }
-            cur_node = cur_node.next_sibling();
         }
         return {};
     };
@@ -568,31 +563,23 @@ void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node 
         }
     }
 
+    auto root_node = game_node;
+
     pugi::xml_node prev_game_node;
     for (auto cur_node = patching_node; cur_node; cur_node = cur_node.next_sibling()) {
-        if (game_node && game_node.type() != pugi::xml_node_type::node_pcdata) {
-            prev_game_node = game_node;
-        }
-        game_node = find_node_with_name(game_node, cur_node.name());
-        MergeProperties(game_node, cur_node);
+        game_node = find_node_with_name(root_node, cur_node.name());
         if (game_node) {
-            if (game_node.type() == pugi::xml_node_type::node_pcdata) {
+            if (cur_node.type() == pugi::xml_node_type::node_pcdata) {
                 game_node.set_value(cur_node.value());
-                return;
             } else {
-                RecursiveMerge(root_game_node, game_node.first_child(), cur_node.first_child());
-            }
-            game_node = game_node.next_sibling();
-        } else {
-            if (cur_node && prev_game_node) {
-                while (prev_game_node) {
-                    RecursiveMerge(root_game_node, prev_game_node.first_child(), cur_node);
-                    if (prev_game_node == game_node) {
-                        break;
-                    }
-                    prev_game_node = prev_game_node.next_sibling();
+                MergeProperties(game_node, cur_node);
+                for (auto& child : cur_node.children()) {
+                    RecursiveMerge(root_game_node, game_node, child);
                 }
             }
+        }
+        else {
+            root_node.append_copy(cur_node);
         }
     }
 }

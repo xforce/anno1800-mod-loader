@@ -1,0 +1,9 @@
+<ModOps>
+<ModOp Type="merge" Path="/Test/Node">
+    <!-- <Node> -->
+        <Meow3>6</Meow3>
+        <Meow2>5</Meow2>
+        <Meow1>4</Meow1>
+    <!-- </Node> -->
+</ModOp>
+</ModOps>
