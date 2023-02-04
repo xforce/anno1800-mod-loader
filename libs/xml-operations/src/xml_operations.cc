@@ -66,6 +66,18 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
 
     condition_ = node.attribute("Condition").as_string();
     allow_no_match_ = node.attribute("AllowNoMatch");
+
+    if (type_ != Type::Remove) {
+        content_ = node.attribute("Content").as_string();
+        if (!content_.empty() && nodes_->begin() != nodes_->end()) {
+            offset_data_t offset_data;
+            build_offset_data(offset_data, (mod_base_path / mod_path).string().c_str());
+            auto [line, column] = get_location(offset_data, node_.offset_debug());
+            spdlog::warn("ModOp must be empty when Content is used in {} ({}:{})", mod_name,
+                     mod_path_.string(), line);
+            nodes_ = {};
+        }
+    }
 }
 
 void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string temp)
@@ -370,6 +382,27 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
         return;
     }
 
+    std::vector<pugi::xml_node> content_nodes;
+    if (type_ != Type::Remove && !content_.empty()) {
+        pugi::xpath_node_set result;
+        if (result.empty()) {
+            result = doc->select_nodes(content_.c_str());
+        }
+        if (result.empty()) {
+            offset_data_t offset_data;
+            build_offset_data(offset_data, (mod_base_path_ / mod_path_).string().c_str());
+            auto [line, column] = get_location(offset_data, node_.offset_debug());
+
+            spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name_, mod_path_.string(), line);
+            return;
+        }
+        for (auto& node : result)
+            content_nodes.push_back(node.node());
+    }
+    if (content_.empty() && nodes_) {
+        content_nodes.insert(content_nodes.end(), nodes_->begin(), nodes_->end());
+    }
+
     try {
         spdlog::debug("Looking up {}", path_);
         pugi::xpath_node_set results = ReadGuidNodes(doc);
@@ -401,7 +434,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
         for (pugi::xpath_node xnode : results) {
             pugi::xml_node game_node = xnode.node();
             if (GetType() == XmlOperation::Type::Merge) {
-                for (auto& node : GetContentNode()) {
+                for (auto& node : content_nodes) {
                     if (strcmp(node.name(), game_node.name()) == 0) {
                         // legacy support
                         offset_data_t offset_data;
@@ -415,21 +448,21 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
                     RecursiveMerge(game_node, game_node, node);
                 }
             } else if (GetType() == XmlOperation::Type::AddNextSibling) {
-                for (auto &&node : GetContentNode()) {
+                for (auto &&node : content_nodes) {
                     game_node = game_node.parent().insert_copy_after(node, game_node);
                 }
             } else if (GetType() == XmlOperation::Type::AddPrevSibling) {
-                for (auto &&node : GetContentNode()) {
+                for (auto &&node : content_nodes) {
                     game_node.parent().insert_copy_before(node, game_node);
                 }
             } else if (GetType() == XmlOperation::Type::Add) {
-                for (auto &node : GetContentNode()) {
+                for (auto &node : content_nodes) {
                     game_node.append_copy(node);
                 }
             } else if (GetType() == XmlOperation::Type::Remove) {
                 game_node.parent().remove_child(game_node);
             } else if (GetType() == XmlOperation::Type::Replace) {
-                for (auto &node : GetContentNode()) {
+                for (auto &node : content_nodes) {
                     game_node.parent().insert_copy_after(node, game_node);
                 }
                 game_node.parent().remove_child(game_node);

@@ -134,7 +134,16 @@ If you start with `/` the path is treated as relative to your mod folder.
 </ModOps>
 ```
 
-Note: `Skip="0"` does not disable it. You have to remove the attribute.
+Note: the skip happens when the attribute `Skip` is present.
+It doesn't matter if you write `Skip="1"`, `Skip="True"` or even `Skip="0"` - all of them lead to skipping the include.
+
+## Copy Existing Nodes with `Content`
+
+```xml
+<ModOp Type="replace" GUID="1500010225"
+       Path="/Properties/Building/InfluencedVariationDirection"
+       Content="//Values[Standard/GUID='1500010200']/Building/InfluencedVariationDirection" />
+```
 
 ## &amp;gt; and &amp;lt; in Path
 
@@ -231,7 +240,7 @@ It will instead add the node to `Values`.
 ```xml
 <ModOp GUID="123" Type="merge" Path="/Values">
   <AllowChangeVariation>1</AllowChangeVariation>
-  <Buidling>
+  <Building>
     <BuildModeStartVariation>0</BuildModeStartVariation>
   </Building>
 </ModOp>
@@ -260,7 +269,7 @@ Merging with multiple same name nodes (usually `Item`) is not supported anymore.
 Relying on index is prone to compatibility issues.
 
 ```xml
-<ModOp Type="merge" GUID='100780' Path="/Values/Maintenance">
+<ModOp Type="merge" GUID="100780" Path="/Values/Maintenance">
   <Maintenances>
     <Item>
       <Product>1010017</Product>
@@ -278,7 +287,7 @@ Relying on index is prone to compatibility issues.
 Do individual merges instead:
 
 ```xml
-<ModOp Type="merge" GUID='100780' Path="/Values/Maintenance/Maintenances/Item[Product='1010017']">
+<ModOp Type="merge" GUID="100780" Path="/Values/Maintenance/Maintenances/Item[Product='1010017']">
   <Product>1010017</Product>
   <Amount>50000</Amount>
   <InactiveAmount>30000</InactiveAmount>
@@ -286,7 +295,7 @@ Do individual merges instead:
 ```
 
 ```xml
-<ModOp Type="merge" GUID='100780' Path="/Values/Maintenance/Maintenances/Item[Product='1010367']">
+<ModOp Type="merge" GUID="100780" Path="/Values/Maintenance/Maintenances/Item[Product='1010367']">
   <Product>1010367</Product>
   <Amount>50</Amount>
 </ModOp>

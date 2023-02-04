@@ -1,0 +1,6 @@
+{
+    "name": "Simple content",
+    "expected": [
+        "/Test/Target/Building/InfluencedVariationDirection/Item[Type='Mid']"
+    ]
+}

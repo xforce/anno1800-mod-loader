@@ -1,0 +1,5 @@
+<ModOps>
+<ModOp Type="replace" Path="/Test/Target/Building" Content="/Test/Source/Building">
+    <Building />
+</ModOp>
+</ModOps>

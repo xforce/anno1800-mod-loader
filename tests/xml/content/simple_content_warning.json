@@ -1,0 +1,7 @@
+{
+    "name": "Simple content warning",
+    "expected": [
+        "/Test/Target/Building/InfluencedVariationDirection/Item[Type='Mid']"
+    ],
+    "issuesExpected": "1"
+}

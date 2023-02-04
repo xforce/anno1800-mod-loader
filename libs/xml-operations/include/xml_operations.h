@@ -59,6 +59,7 @@ class XmlOperation
 
     std::string    condition_;
     bool           allow_no_match_ = false;
+    std::string    content_;
 
     std::vector<XmlOperation> group_;
 
