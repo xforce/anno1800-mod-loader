@@ -34,32 +34,72 @@ static bool build_offset_data(offset_data_t &result, const char *file)
 
     return true;
 }
-
-static std::pair<size_t, size_t> get_location(const offset_data_t &data, ptrdiff_t offset)
-{
-    offset_data_t::const_iterator it    = std::lower_bound(data.begin(), data.end(), offset);
-    size_t                        index = it - data.begin();
-
-    return std::make_pair(1 + index, index == 0 ? offset + 1 : offset - data[index - 1]);
-}
 } // namespace
 
-XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
+XmlOperationContext::XmlOperationContext(fs::path mod_relative_path,
+                                         fs::path mod_base_path,
+                                         std::string mod_name)
+{
+    include_loader_ = [this, &mod_name](fs::path file_path) {
+        std::shared_ptr<pugi::xml_document> doc = std::make_shared<pugi::xml_document>();
+        auto parse_result = doc->load_file((this->mod_base_path_ / file_path).string().c_str());
+        if (!parse_result) {
+            spdlog::error("[{}] Failed to parse {} (line {}): {}", mod_name, file_path.string(),
+                        this->GetLine(parse_result.offset), parse_result.description());
+            return std::shared_ptr<pugi::xml_document>{};
+        }
+        return doc;
+    };
+
+    const auto file_path = (mod_base_path / mod_relative_path);
+    build_offset_data(offset_data_, file_path.string().c_str());
+    doc_ = include_loader_(file_path);
+
+    mod_relative_path_ = mod_relative_path;
+    mod_base_path_ = mod_base_path;
+}
+
+XmlOperationContext::XmlOperationContext(std::shared_ptr<pugi::xml_document> doc,
+                                         std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
+                                         fs::path mod_relative_path,
+                                         std::string mod_name)
+{
+    doc_ = doc;
+    include_loader_ = include_loader;
+    mod_relative_path_ = mod_relative_path;
+}
+
+size_t XmlOperationContext::GetLine(pugi::xml_node node)
+{
+    return GetLine(node.offset_debug());
+}
+
+size_t XmlOperationContext::GetLine(ptrdiff_t offset)
+{
+    auto it = std::lower_bound(offset_data_.begin(), offset_data_.end(), offset);
+    return 1 + it - offset_data_.begin();
+}
+
+XmlOperationContext XmlOperationContext::OpenInclude(fs::path file_path)
+{ 
+    auto include_doc = include_loader_(file_path); 
+    return XmlOperationContext{include_doc, include_loader_, file_path};
+}
+
+XmlOperation::XmlOperation(XmlOperationContext doc, pugi::xml_node node,
                            std::string guid, std::string temp, std::string mod_name,
-                           fs::path game_path, fs::path mod_path, fs::path mod_base_path)
+                           fs::path game_path) : doc_(doc)
 {
     guid_     = guid;
     template_ = temp;
     node_     = node;
-    doc_      = doc;
 
     mod_name_      = mod_name;
     game_path_     = game_path;
-    mod_path_      = mod_path;
-    mod_base_path_ = mod_base_path;
+    mod_path_      = doc.mod_relative_path_;
 
     ReadPath(node, guid, temp);
-    ReadType(node, mod_name, game_path, mod_path, mod_base_path);
+    ReadType(node, mod_name, game_path);
     if (type_ != Type::Remove) {
         nodes_ = node.children();
     }
@@ -70,11 +110,8 @@ XmlOperation::XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_no
     if (type_ != Type::Remove) {
         content_ = node.attribute("Content").as_string();
         if (!content_.empty() && nodes_->begin() != nodes_->end()) {
-            offset_data_t offset_data;
-            build_offset_data(offset_data, (mod_base_path / mod_path).string().c_str());
-            auto [line, column] = get_location(offset_data, node_.offset_debug());
             spdlog::warn("ModOp must be empty when Content is used in {} ({}:{})", mod_name,
-                     mod_path_.string(), line);
+                     mod_path_.string(), doc.GetLine(node_));
             nodes_ = {};
         }
     }
@@ -175,19 +212,18 @@ void XmlOperation::ReadPath(pugi::xml_node node, std::string guid, std::string t
     }
 }
 
-void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path,
-                            fs::path mod_path, fs::path mod_base_path)
+void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path)
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
-    if (stricmp(node.name(), "Include") == 0 || stricmp(node.name(), "Group") == 0) {
-        type_ = Type::Group;
-        return;
-    }
-
     auto type = GetXmlPropString(node, "Type");
-    if (stricmp(type.c_str(), "add") == 0) {
+
+    if (stricmp(node.name(), "Include") == 0 ||
+        stricmp(node.name(), "Group") == 0) {
+        type_ = Type::Group;
+    }
+    else if (stricmp(type.c_str(), "add") == 0) {
         type_ = Type::Add;
     } else if (stricmp(type.c_str(), "addNextSibling") == 0) {
         type_ = Type::AddNextSibling;
@@ -203,11 +239,8 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
         type_ = Type::Merge;
     } else {
         type_ = Type::None;
-        offset_data_t offset_data;
-        build_offset_data(offset_data, (mod_base_path / mod_path).string().c_str());
-        auto [line, column] = get_location(offset_data, node_.offset_debug());
         spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name,
-                     mod_path_.string(), line);
+                     mod_path_.string(), doc_.GetLine(node_));
         spdlog::error("Unknown ModOp({}), ignoring {}", type, GetPath());
     }
 }
@@ -389,11 +422,8 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
             result = doc->select_nodes(content_.c_str());
         }
         if (result.empty()) {
-            offset_data_t offset_data;
-            build_offset_data(offset_data, (mod_base_path_ / mod_path_).string().c_str());
-            auto [line, column] = get_location(offset_data, node_.offset_debug());
-
-            spdlog::warn("No matching node for Path {} in {} ({}:{})", GetPath(), mod_name_, mod_path_.string(), line);
+            spdlog::warn("No matching node for Path {} in {} ({}:{})", 
+                GetPath(), mod_name_, mod_path_.string(), doc_.GetLine(node_));
             return;
         }
         for (auto& node : result)
@@ -415,16 +445,12 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
             results = doc->select_nodes(GetPath().c_str());
         }
         if (results.empty()) {
-            offset_data_t offset_data;
-            build_offset_data(offset_data, (mod_base_path_ / mod_path_).string().c_str());
-            auto [line, column] = get_location(offset_data, node_.offset_debug());
-
             const char* msg = "No matching node for Path {} in {} ({}:{})";
             if (allow_no_match_) {
-                spdlog::debug(msg, GetPath(), mod_name_, mod_path_.string(), line);
+                spdlog::debug(msg, GetPath(), mod_name_, mod_path_.string(), doc_.GetLine(node_));
             }
             else {
-                spdlog::warn(msg, GetPath(), mod_name_, mod_path_.string(), line);
+                spdlog::warn(msg, GetPath(), mod_name_, mod_path_.string(), doc_.GetLine(node_));
             }
 
             return;
@@ -437,10 +463,8 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
                 for (auto& node : content_nodes) {
                     if (strcmp(node.name(), game_node.name()) == 0) {
                         // legacy support
-                        offset_data_t offset_data;
-                        build_offset_data(offset_data, mod_path_.string().c_str());
-                        auto [line, column] = get_location(offset_data, node_.offset_debug());
-                        spdlog::warn("Deprecated: remove <{}> parent from merge in {} ({}:{})", node.name(), mod_name_, mod_path_.string(), line);
+                        spdlog::warn("Deprecated: remove <{}> parent from merge in {} ({}:{})", 
+                            node.name(), mod_name_, mod_path_.string(), doc_.GetLine(node_));
                         RecursiveMerge(game_node, game_node.parent(), node);
                         continue;
                     }
@@ -473,17 +497,14 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
     }
 }
 
-std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::xml_document> doc,
-                                                         std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
-                                                         fs::path mod_relative_path,
+std::vector<XmlOperation> XmlOperation::GetXmlOperations(XmlOperationContext doc,
                                                          std::string mod_name, 
-                                                         fs::path game_path,
-                                                         fs::path mod_path)
+                                                         fs::path game_path)
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
-    pugi::xml_node root = doc->root();
+    pugi::xml_node root = doc.doc_->root();
     if (!root) {
         spdlog::error("Failed to get root element");
         return {};
@@ -496,20 +517,14 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(std::shared_ptr<pugi::x
 
     return GetXmlOperationsFromNodes(doc,
                                      root.first_child().children(),
-                                     include_loader,
-                                     mod_relative_path,
                                      mod_name,
-                                     game_path,
-                                     mod_path);
+                                     game_path);
 }
 
-std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromNodes(std::shared_ptr<pugi::xml_document> doc,
+std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromNodes(XmlOperationContext doc,
                                                                   pugi::xml_object_range<pugi::xml_node_iterator> nodes,
-                                                                  std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
-                                                                  fs::path mod_relative_path,
                                                                   std::string mod_name, 
-                                                                  fs::path game_path,
-                                                                  fs::path mod_path)
+                                                                  fs::path game_path)
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
@@ -532,25 +547,19 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromNodes(std::shared_pt
                 if (!guid.empty()) {
                     std::vector<std::string> guids = absl::StrSplit(guid, ',');
                     for (auto g : guids) {
-                        mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path, 
-                                                    mod_relative_path, mod_path);
+                        mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path);
                     }   
                 } else if (!temp.empty()) {
-                    mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path, mod_relative_path, 
-                                                mod_path);
+                    mod_operations.emplace_back(doc, node, "", temp, mod_name, game_path);
                 } else {
-                    mod_operations.emplace_back(doc, node, "", "", mod_name, game_path, mod_relative_path, 
-                                                mod_path);
+                    mod_operations.emplace_back(doc, node, "", "", mod_name, game_path);
                 }
             } else if (stricmp(node.name(), "Group") == 0) {
-                auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path, mod_relative_path, mod_path};
+                auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path};
                 group_op.group_ = GetXmlOperationsFromNodes(doc,
                                                             node.children(), 
-                                                            include_loader,
-                                                            mod_relative_path,
                                                             mod_name, 
-                                                            game_path, 
-                                                            mod_path);
+                                                            game_path);
                 mod_operations.push_back(group_op);
             } else if (stricmp(node.name(), "Include") == 0) {
                 const auto file = GetXmlPropString(node, "File");
@@ -558,17 +567,13 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromNodes(std::shared_pt
                 if (file.rfind("/", 0) == 0) {
                     relative_include_path = file.substr(1);
                 } else {
-                    relative_include_path = (mod_relative_path.parent_path() / file).lexically_normal();
+                    relative_include_path = (doc.mod_relative_path_.parent_path() / file).lexically_normal();
                 }
                 
-                const auto include_doc = include_loader(relative_include_path);
-                auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path, mod_relative_path, mod_path};
-                group_op.group_ = GetXmlOperations(include_doc, 
-                                                    include_loader,
-                                                    relative_include_path,
-                                                    mod_name, 
-                                                    game_path, 
-                                                    mod_path);
+                auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path};
+                group_op.group_ = GetXmlOperations(doc.OpenInclude(relative_include_path),
+                                                   mod_name, 
+                                                   game_path);
                 mod_operations.push_back(group_op);
             }
         }
@@ -582,24 +587,8 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    fil
                                                                  fs::path    game_path,
                                                                  fs::path    mod_path)
 {
-    auto doc          = std::make_shared<pugi::xml_document>();
-    auto parse_result = doc->load_file(file_path.string().c_str());
-    if (!parse_result) {
-        offset_data_t offset_data;
-        build_offset_data(offset_data, file_path.string().c_str());
-        auto location = get_location(offset_data, parse_result.offset);
-        spdlog::error("[{}] Failed to parse {}({}, {}): {}", mod_name, file_path.string(),
-                      location.first, location.second, parse_result.description());
-        return {};
-    }
-
-    const auto include_loader = [&mod_path](fs::path filePath) {
-        std::shared_ptr<pugi::xml_document> doc = std::make_shared<pugi::xml_document>();
-        auto parse_result = doc->load_file((mod_path / filePath).string().c_str());
-        return doc;
-    };
     const auto mod_relative_path = file_path.lexically_relative(mod_path);
-    return GetXmlOperations(doc, include_loader, mod_relative_path, mod_name, game_path, mod_path);
+    return GetXmlOperations(XmlOperationContext{mod_relative_path, mod_path}, mod_name, game_path);
 }
 
 void MergeProperties(pugi::xml_node game_node, pugi::xml_node patching_node)
@@ -687,11 +676,8 @@ bool XmlOperation::CheckCondition(std::shared_ptr<pugi::xml_document> doc)
 
         const auto match_nodes = doc->select_nodes(condition_path);
         if (negative_match != match_nodes.empty()) {
-            offset_data_t offset_data;
-            build_offset_data(offset_data, (mod_base_path_ / mod_path_).string().c_str());
-            auto [line, column] = get_location(offset_data, node_.offset_debug());
             spdlog::debug("Condition not matching {} in {} ({}:{})", condition_, mod_name_,
-                        mod_path_.string(), line);
+                        mod_path_.string(), doc_.GetLine(node_));
             return false;
         }
     } catch (const pugi::xpath_exception &e) {
@@ -704,11 +690,6 @@ bool XmlOperation::CheckCondition(std::shared_ptr<pugi::xml_document> doc)
 std::string XmlOperation::GetPath()
 {
     return path_;
-}
-
-pugi::xml_object_range<pugi::xml_node_iterator> XmlOperation::GetContentNode()
-{
-    return *nodes_;
 }
 
 XmlOperation::Type XmlOperation::GetType() const
