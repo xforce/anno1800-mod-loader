@@ -12,29 +12,36 @@ namespace fs = std::filesystem;
 
 class XmlOperationContext
 {
-  public:
-    XmlOperationContext(fs::path mod_relative_path,
-                        fs::path mod_base_path,
-                        std::string mod_name = {});
-    XmlOperationContext(std::shared_ptr<pugi::xml_document> doc,
-                        std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
-                        fs::path mod_relative_path,
-                        std::string mod_name = {});
+public:
+    using offset_data_t = std::vector<ptrdiff_t>;
+    using include_loader_t = std::function<XmlOperationContext(fs::path)>;
 
-    size_t GetLine(pugi::xml_node node);
-    size_t GetLine(ptrdiff_t offset);
-    static size_t GetLine(fs::path file_path, ptrdiff_t offset);
+    XmlOperationContext();
+    XmlOperationContext(const fs::path& mod_relative_path,
+                        const fs::path& mod_base_path,
+                        std::string_view mod_name = {});
+    XmlOperationContext(const char* buffer, size_t size,
+                        include_loader_t include_loader,
+                        const fs::path& doc_path,
+                        std::string_view mod_name = {});
 
-    XmlOperationContext OpenInclude(fs::path file_path);
-
-  //private:
-    std::shared_ptr<pugi::xml_document> doc_;
-    fs::path mod_base_path_;
-    fs::path mod_relative_path_;
+    inline XmlOperationContext OpenInclude(fs::path file_path) const;
     
-  private:
-    std::vector<ptrdiff_t> offset_data_;
-    std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader_;
+    inline size_t GetLine(pugi::xml_node node) const { return node.offset_debug(); }
+    size_t GetLine(ptrdiff_t offset) const;
+    
+    pugi::xml_node GetRoot() const;
+    inline const fs::path& GetPath() const { return doc_path_; };
+    
+private:
+    std::string mod_name_;
+    std::shared_ptr<pugi::xml_document> doc_;
+    offset_data_t offset_data_;
+    include_loader_t include_loader_;
+    fs::path doc_path_;
+
+    bool ReadFile(const fs::path& file_path, std::vector<char>& buffer, size_t& size);
+    static offset_data_t BuildOffsetData(const char* buffer, size_t size);
 };
 
 class XmlOperation

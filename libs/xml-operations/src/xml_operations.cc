@@ -5,85 +5,108 @@
 
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <regex>
 
-using offset_data_t = std::vector<ptrdiff_t>;
-
-namespace
+XmlOperationContext::XmlOperationContext() 
 {
-static bool build_offset_data(offset_data_t &result, const char *file)
-{
-    FILE *f = fopen(file, "rb");
-    if (!f)
-        return false;
-
-    ptrdiff_t offset = 0;
-
-    char   buffer[1024];
-    size_t size;
-
-    while ((size = fread(buffer, 1, sizeof(buffer), f)) > 0) {
-        for (size_t i = 0; i < size; ++i)
-            if (buffer[i] == '\n')
-                result.push_back(offset + i);
-
-        offset += size;
-    }
-
-    fclose(f);
-
-    return true;
 }
-} // namespace
 
-XmlOperationContext::XmlOperationContext(fs::path mod_relative_path,
-                                         fs::path mod_base_path,
-                                         std::string mod_name)
+XmlOperationContext::XmlOperationContext(const fs::path& mod_relative_path,
+                                         const fs::path& mod_base_path,
+                                         std::string_view mod_name)
 {
-    include_loader_ = [this, &mod_name](fs::path file_path) {
-        std::shared_ptr<pugi::xml_document> doc = std::make_shared<pugi::xml_document>();
-        auto parse_result = doc->load_file((this->mod_base_path_ / file_path).string().c_str());
-        if (!parse_result) {
-            spdlog::error("[{}] Failed to parse {} (line {}): {}", mod_name, file_path.string(),
-                        this->GetLine(parse_result.offset), parse_result.description());
-            return std::shared_ptr<pugi::xml_document>{};
+    include_loader_ = [this, &mod_base_path, &mod_name](fs::path file_path) {
+        std::vector<char> buffer;
+        size_t size;
+        if (!ReadFile(mod_base_path / file_path, buffer, size)) {
+            spdlog::error("{}: Failed to open {}",
+                          mod_name.empty() ? mod_base_path.string() : mod_name, 
+                          file_path.string());
+            return XmlOperationContext{};
         }
-        return doc;
+        return XmlOperationContext{buffer.data(), size, this->include_loader_, file_path};
     };
 
-    const auto file_path = (mod_base_path / mod_relative_path);
-    build_offset_data(offset_data_, file_path.string().c_str());
-    doc_ = include_loader_(file_path);
-
-    mod_relative_path_ = mod_relative_path;
-    mod_base_path_ = mod_base_path;
+    *this = include_loader_(mod_relative_path);
+    mod_name_ = mod_name;
 }
 
-XmlOperationContext::XmlOperationContext(std::shared_ptr<pugi::xml_document> doc,
-                                         std::function<std::shared_ptr<pugi::xml_document>(fs::path)> include_loader,
-                                         fs::path mod_relative_path,
-                                         std::string mod_name)
+XmlOperationContext::XmlOperationContext(const char* buffer, size_t size,
+                                         include_loader_t include_loader,
+                                         const fs::path& doc_path,
+                                         std::string_view mod_name)
 {
-    doc_ = doc;
+    mod_name_ = mod_name;
     include_loader_ = include_loader;
-    mod_relative_path_ = mod_relative_path;
+    doc_path_ = doc_path;
+
+    offset_data_ = BuildOffsetData(buffer, size);
+    doc_ = std::make_shared<pugi::xml_document>();
+    auto parse_result = doc_->load_buffer(buffer, size);
+    if (!parse_result) {
+        spdlog::error("{}: Failed to parse {} (line {}): {}",
+                      mod_name, doc_path.string(),
+                      this->GetLine(parse_result.offset), parse_result.description());
+    }
 }
 
-size_t XmlOperationContext::GetLine(pugi::xml_node node)
-{
-    return GetLine(node.offset_debug());
+inline XmlOperationContext XmlOperationContext::OpenInclude(fs::path file_path) const
+{ 
+    auto include = include_loader_(file_path);
+    include.mod_name_ = mod_name_;
+    return include; 
 }
 
-size_t XmlOperationContext::GetLine(ptrdiff_t offset)
+size_t XmlOperationContext::GetLine(ptrdiff_t offset) const
 {
     auto it = std::lower_bound(offset_data_.begin(), offset_data_.end(), offset);
     return 1 + it - offset_data_.begin();
 }
 
-XmlOperationContext XmlOperationContext::OpenInclude(fs::path file_path)
-{ 
-    auto include_doc = include_loader_(file_path); 
-    return XmlOperationContext{include_doc, include_loader_, file_path};
+pugi::xml_node XmlOperationContext::GetRoot() const
+{
+#ifndef _WIN32
+    auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
+#endif
+
+    auto root = doc_ ? doc_->root() : pugi::xml_node{};
+    if (!root) {
+        spdlog::error("Failed to get root element");
+        return {};
+    }
+    
+    if (!root.first_child() || stricmp(root.first_child().name(), "ModOps") != 0) {
+        spdlog::warn("{}: Doesn't contain ModOps root node", mod_name_);
+        return {};
+    }
+
+    return root.first_child();
+}
+
+bool XmlOperationContext::ReadFile(const fs::path& file_path, std::vector<char>& buffer, size_t& size)
+{
+    std::ifstream ifs(file_path, std::ios::in | std::ios::ate);
+    if (!ifs) {
+        return false;
+    }
+
+    size = ifs.tellg();
+    ifs.seekg(0, std::ios::beg);
+    buffer.resize(size);
+    ifs.read(buffer.data(), size);
+    return true;
+}
+
+XmlOperationContext::offset_data_t XmlOperationContext::BuildOffsetData(const char* buffer, size_t size)
+{
+    offset_data_t result;
+    for (size_t i = 0; i < size; ++i) {
+        if (buffer[i] == '\n') {
+            result.push_back(i);
+        }
+    }
+    return result;
 }
 
 XmlOperation::XmlOperation(XmlOperationContext doc, pugi::xml_node node,
@@ -96,7 +119,7 @@ XmlOperation::XmlOperation(XmlOperationContext doc, pugi::xml_node node,
 
     mod_name_      = mod_name;
     game_path_     = game_path;
-    mod_path_      = doc.mod_relative_path_;
+    mod_path_      = doc.GetPath();
 
     ReadPath(node, guid, temp);
     ReadType(node, mod_name, game_path);
@@ -504,19 +527,10 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(XmlOperationContext doc
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
-    pugi::xml_node root = doc.doc_->root();
-    if (!root) {
-        spdlog::error("Failed to get root element");
-        return {};
-    }
-    
-    if (stricmp(root.first_child().name(), "ModOps") != 0) {
-        spdlog::warn("[{}] Mod doesn't contain ModOps root node", mod_name);
-        return {};
-    }
+    auto root = doc.GetRoot();
 
     return GetXmlOperationsFromNodes(doc,
-                                     root.first_child().children(),
+                                     root.children(),
                                      mod_name,
                                      game_path);
 }
@@ -567,7 +581,7 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromNodes(XmlOperationCo
                 if (file.rfind("/", 0) == 0) {
                     relative_include_path = file.substr(1);
                 } else {
-                    relative_include_path = (doc.mod_relative_path_.parent_path() / file).lexically_normal();
+                    relative_include_path = (doc.GetPath().parent_path() / file).lexically_normal();
                 }
                 
                 auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path};
