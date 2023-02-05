@@ -31,7 +31,12 @@ public:
     size_t GetLine(ptrdiff_t offset) const;
     
     pugi::xml_node GetRoot() const;
-    inline const fs::path& GetPath() const { return doc_path_; };
+    inline const fs::path& GetPath() const { return doc_path_; }
+    inline const std::string& GetName() const { return mod_name_; }
+
+    template<typename... Args> void Debug(std::string_view msg, const Args &... args) const;
+    void Warn(std::string_view msg, pugi::xml_node node = {}) const;
+    void Error(std::string_view msg, pugi::xml_node node = {}) const;
     
 private:
     std::string mod_name_;
@@ -46,7 +51,7 @@ private:
 
 class XmlOperation
 {
-  public:
+public:
     enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge, Group };
 
     XmlOperation(XmlOperationContext doc, pugi::xml_node node,
@@ -58,20 +63,18 @@ class XmlOperation
 
     void Apply(std::shared_ptr<pugi::xml_document> doc);
 
-  public:
-    static std::vector<XmlOperation> GetXmlOperations(XmlOperationContext doc,
-                                                      std::string mod_name,
-                                                      fs::path    game_path);
-    static std::vector<XmlOperation> GetXmlOperationsFromNodes(XmlOperationContext doc,
-                                                      pugi::xml_object_range<pugi::xml_node_iterator> nodes,
-                                                      std::string mod_name,
-                                                      fs::path    game_path);
-    static std::vector<XmlOperation> GetXmlOperationsFromFile(fs::path    file_path,
-                                                              std::string mod_name,
-                                                              fs::path    game_path,
-                                                              fs::path    mod_path);
+public:
+    static std::vector<XmlOperation> GetXmlOperations(
+        XmlOperationContext doc,
+        fs::path    game_path,
+        std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes = {});
+    static std::vector<XmlOperation> GetXmlOperationsFromFile(
+        fs::path    file_path,
+        std::string mod_name,
+        fs::path    game_path,
+        fs::path    mod_path);
 
-  private:
+private:
     Type        type_;
     std::string path_;
 
