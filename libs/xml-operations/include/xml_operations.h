@@ -27,7 +27,7 @@ public:
 
     inline XmlOperationContext OpenInclude(fs::path file_path) const;
     
-    inline size_t GetLine(pugi::xml_node node) const { return node.offset_debug(); }
+    inline size_t GetLine(pugi::xml_node node) const { return GetLine(node.offset_debug()); }
     size_t GetLine(ptrdiff_t offset) const;
     
     std::shared_ptr<pugi::xml_document> GetDoc() const { return doc_; }
@@ -63,23 +63,24 @@ public:
 
     pugi::xpath_node_set Select(std::shared_ptr<pugi::xml_document> doc) const;
 
-    inline bool IsEmpty() const { return original_path_.empty(); };
+    inline bool IsEmpty() const { return empty_path_; };
     inline bool IsNegative() const { return negative_; };
-    inline const std::string& GetPath() const { return original_path_; };
+    inline const std::string& GetPath() const { return path_; };
 
 private:
     XmlOperationContext context_;
     pugi::xml_node node_;
 
+    bool empty_path_;
     bool negative_;
     std::string path_;
-    std::string original_path_;
     std::string guid_;
     std::string template_;
 
     enum SpeculativePathType {
         NONE,
         SINGLE_ASSET,
+        VALUES_CONTAINER,
         ASSET_CONTAINER,
         SINGLE_TEMPLATE,
         TEMPLATE_CONTAINER,

@@ -59,7 +59,7 @@ inline XmlOperationContext XmlOperationContext::OpenInclude(fs::path file_path) 
 size_t XmlOperationContext::GetLine(ptrdiff_t offset) const
 {
     auto it = std::lower_bound(offset_data_.begin(), offset_data_.end(), offset);
-    return 1 + it - offset_data_.begin();
+    return (it - offset_data_.begin()) + 1;
 }
 
 pugi::xml_node XmlOperationContext::GetRoot() const
@@ -135,12 +135,12 @@ XmlLookup::XmlLookup(std::string_view path,
     context_ = context;
     node_ = node;
 
+    empty_path_ = path.empty();
     negative_ = !path.empty() && path[0] == '!';
-    original_path_ = path;
 
     std::string_view read_path = negative_ ? path.substr(1) : path;
 
-    if (!path.empty() && path[0] == '~') {
+    if (!read_path.empty() && read_path[0] == '~') {
         read_path = read_path.substr(1);
         guid_ = guid;
         template_ = templ;
@@ -208,10 +208,6 @@ XmlOperation::XmlOperation(XmlOperationContext doc, pugi::xml_node node,
 
 void XmlLookup::ReadPath(std::string prop_path, std::string guid, std::string temp)
 {
-    if (prop_path.empty()) {
-        prop_path = "/";
-    }
-
     if (prop_path.find('&') != -1)
     {
         prop_path = std::regex_replace(prop_path, std::regex{"&gt;"}, ">");
@@ -221,7 +217,6 @@ void XmlLookup::ReadPath(std::string prop_path, std::string guid, std::string te
     if (guid.empty()) {
         // Rewrite path to use faster GUID lookup
         int g;
-        char s[256];
         // Matches stuff like this and extracts GUID //Assets[Asset/Values/Standard/GUID='102119']
         if (sscanf(prop_path.c_str(), "//Assets[Asset/Values/Standard/GUID='%d']", &g) > 0) {
             if (std::string("//Assets[Asset/Values/Standard/GUID='") + std::to_string(g) + "']"
@@ -231,22 +226,39 @@ void XmlLookup::ReadPath(std::string prop_path, std::string guid, std::string te
                 speculative_path_type_ = SpeculativePathType::ASSET_CONTAINER;
             }
         }
-        //else if (sscanf(prop_path.c_str(), "//Asset[Values/Standard/GUID='%d']%s", &g, s) > 0) {
-        //    if (std::string("//Asset[Values/Standard/GUID='") + std::to_string(g) + "']" + s
-        //        == prop_path) {
-        //        guid = std::to_string(g);
-        //        guid_ = std::to_string(g);
-        //        speculative_path_type_ = SpeculativePathType::SINGLE_ASSET;
-        //        prop_path = s;
-        //        path_ = "//Asset[Values/Standard/GUID='" + guid + "']";
-        //    }
-        //    else {
-        //        spdlog::warn("Failed to construct speculative path lookup");
-        //    }
-        //}
+        else if (sscanf(prop_path.c_str(), "//Asset/Values[Standard/GUID='%d']", &g) > 0) {
+            const auto match = std::string("//Asset/Values[Standard/GUID='") + std::to_string(g) + "']";
+            if (prop_path.rfind(match, 0) == 0) {
+                guid = std::to_string(g);
+                guid_ = std::to_string(g);
+                speculative_path_type_ = SpeculativePathType::VALUES_CONTAINER;
+                prop_path = prop_path.substr(match.length());
+                path_ = "//Asset/Values[Standard/GUID='" + guid + "']";
+            }
+            else {
+                context_.Warn("Failed to construct speculative path lookup: '" + prop_path + "'", node_);
+            }
+        }
+        else if (sscanf(prop_path.c_str(), "//Values[Standard/GUID='%d']", &g) > 0) {
+            const auto match = std::string("//Values[Standard/GUID='") + std::to_string(g) + "']";
+            if (prop_path.rfind(match, 0) == 0) {
+                guid = std::to_string(g);
+                guid_ = std::to_string(g);
+                speculative_path_type_ = SpeculativePathType::VALUES_CONTAINER;
+                prop_path = prop_path.substr(match.length());
+                path_ = "//Values[Standard/GUID='" + guid + "']";
+            }
+            else {
+                context_.Warn("Failed to construct speculative path lookup: '" + prop_path + "'", node_);
+            }
+        }
     } else {
         speculative_path_type_ = SpeculativePathType::SINGLE_ASSET;
         path_                  = "//Asset[Values/Standard/GUID='" + guid + "']";
+    }
+    
+    if (prop_path.empty()) {
+        prop_path = "/";
     }
 
     if (temp.empty()) {
@@ -365,6 +377,8 @@ std::optional<pugi::xml_node> XmlLookup::FindAsset(std::string guid, pugi::xml_n
                 return parent;
             }
             return {};
+        } else if (speculative_path_type_ == SpeculativePathType::VALUES_CONTAINER) {
+            return values;
         } else {
             return node;
         }
@@ -493,7 +507,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
     if (type_ != Type::Remove && !content_.IsEmpty()) {
         pugi::xpath_node_set result = content_.Select(doc);
         if (result.empty()) {
-            doc_.Warn("No matching node for Path" + path_.GetPath(), node_);
+            doc_.Warn("No matching node for path " + path_.GetPath() , node_);
             return;
         }
         for (auto& node : result)

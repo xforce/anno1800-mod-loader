@@ -1,0 +1,7 @@
+{
+    "name": "Group Condition With GUID Helper",
+    "expected": [
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset/Values[Standard/GUID='1010521']/Cost",
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset/Values[Standard/GUID='1010521']/Building"
+    ]
+}

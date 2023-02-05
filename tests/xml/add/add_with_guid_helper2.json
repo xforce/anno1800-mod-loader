@@ -1,0 +1,6 @@
+{
+    "name": "Add With GUID Helper 2",
+    "expected": [
+        "/AssetList/Groups/Group/Groups/Group/Groups/Group/Assets/Asset/Values/Shipyard/AssemblyOptions/Item[Vehicle='Meow']"
+    ]
+}
