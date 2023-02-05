@@ -3,6 +3,5 @@
     "expected": [
         "/Test/Node/Meow",
         "/Test/Node[@Attr='Meow']"
-    ],
-    "issuesExpected": "1"
+    ]
 }

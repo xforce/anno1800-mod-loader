@@ -75,7 +75,7 @@ pugi::xml_node XmlOperationContext::GetRoot() const
     }
     
     if (!root.first_child() || stricmp(root.first_child().name(), "ModOps") != 0) {
-        Warn("Doesn't contain ModOps root node");
+        Error("Doesn't contain ModOps root node");
         return {};
     }
 
@@ -147,7 +147,7 @@ XmlOperation::XmlOperation(XmlOperationContext doc, pugi::xml_node node,
     if (type_ != Type::Remove) {
         content_ = node.attribute("Content").as_string();
         if (!content_.empty() && nodes_->begin() != nodes_->end()) {
-            doc_.Warn("ModOp must be empty when Content is used", node_);
+            doc_.Error("ModOp must be empty when Content is used", node_);
             nodes_ = {};
         }
     }
@@ -485,16 +485,16 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
         for (pugi::xpath_node xnode : results) {
             pugi::xml_node game_node = xnode.node();
             if (GetType() == XmlOperation::Type::Merge) {
-                for (auto& node : content_nodes) {
-                    if (strcmp(node.name(), game_node.name()) == 0) {
-                        // legacy support
-                        doc_.Warn(std::string("Deprecated: remove <") + node.name() + "> parent from merge", 
-                                  node_);
-                        RecursiveMerge(game_node, game_node.parent(), node);
-                        continue;
+                if (content_nodes.size() == 1 &&
+                    strcmp(content_nodes.begin()->name(), game_node.name()) == 0) {
+                    // legacy merge
+                    // skip single container if it's named same as the target node
+                    RecursiveMerge(game_node, game_node.parent(), *content_nodes.begin());
+                }
+                else {
+                    for (auto& node : content_nodes) {
+                        RecursiveMerge(game_node, game_node, node);
                     }
-
-                    RecursiveMerge(game_node, game_node, node);
                 }
             } else if (GetType() == XmlOperation::Type::AddNextSibling) {
                 for (auto &&node : content_nodes) {
@@ -553,7 +553,7 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(
                 const auto temp = GetXmlPropString(node, "Template");
                 std::vector<std::string> guids;
                 if (!temp.empty() && !guid.empty()) {
-                    doc.Warn("Cannot supply both `Template` and `GUID`", node);
+                    doc.Error("Cannot supply both `Template` and `GUID`", node);
                 }
                 if (!guid.empty()) {
                     std::vector<std::string> guids = absl::StrSplit(guid, ',');

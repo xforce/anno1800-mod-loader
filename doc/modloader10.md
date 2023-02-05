@@ -216,18 +216,24 @@ Result:
 </Asset>
 ```
 
-### Merge top-level node behavior
+### Merge top-level container like `replace`
 
-Merge throws a warning when the top-level node is the same as the selected path node.
-
-This behavior is deprecated and should be fixed.
-It still works to not break mods though.
+If you have exactly one content node named the same as the last path element it will be skipped and it's content merged into the path node.
 
 ```xml
 <ModOp GUID="123" Type="merge" Path="/Values/Building">
   <Building>
     <AllowChangeVariation>1</AllowChangeVariation>
   </Building>
+</ModOp>
+```
+
+This behavior is kept to ensure backwards compatibility.
+The recommended way is to omit that container node:
+
+```xml
+<ModOp GUID="123" Type="merge" Path="/Values/Building">
+  <AllowChangeVariation>1</AllowChangeVariation>
 </ModOp>
 ```
 
