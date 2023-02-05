@@ -20,7 +20,7 @@ public:
             auto sink = std::make_shared<spdlog::sinks::ostream_sink_st>(test_log_);
             auto test_logger = std::make_shared<spdlog::logger>("test_logger", sink);
             test_logger->set_pattern("[%l] %v");
-            test_logger->set_level(spdlog::level::info);
+            test_logger->set_level(spdlog::level::debug);
             spdlog::set_default_logger(test_logger);
         }
         {

@@ -30,6 +30,7 @@ public:
     inline size_t GetLine(pugi::xml_node node) const { return node.offset_debug(); }
     size_t GetLine(ptrdiff_t offset) const;
     
+    std::shared_ptr<pugi::xml_document> GetDoc() const { return doc_; }
     pugi::xml_node GetRoot() const;
     inline const fs::path& GetPath() const { return doc_path_; }
     inline const std::string& GetName() const { return mod_name_; }
@@ -49,6 +50,54 @@ private:
     static offset_data_t BuildOffsetData(const char* buffer, size_t size);
 };
 
+class XmlLookup
+{
+public:
+    XmlLookup();
+    XmlLookup(std::string_view path,
+              std::string_view guid,
+              std::string_view templ,
+              bool explicit_speculative,
+              const XmlOperationContext& context,
+              pugi::xml_node node);
+
+    pugi::xpath_node_set Select(std::shared_ptr<pugi::xml_document> doc) const;
+
+    inline bool IsEmpty() const { return original_path_.empty(); };
+    inline bool IsNegative() const { return negative_; };
+    inline const std::string& GetPath() const { return original_path_; };
+
+private:
+    XmlOperationContext context_;
+    pugi::xml_node node_;
+
+    bool negative_;
+    std::string path_;
+    std::string original_path_;
+    std::string guid_;
+    std::string template_;
+
+    enum SpeculativePathType {
+        NONE,
+        SINGLE_ASSET,
+        ASSET_CONTAINER,
+        SINGLE_TEMPLATE,
+        TEMPLATE_CONTAINER,
+    };
+
+    std::string speculative_path_;
+    SpeculativePathType speculative_path_type_ = SpeculativePathType::NONE;
+
+    void ReadPath(std::string prop_path, std::string guid, std::string temp);
+    std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc, std::string guid) const;
+    std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node) const;
+    std::optional<pugi::xml_node> FindTemplate(std::string temp, pugi::xml_node node) const;
+    std::optional<pugi::xml_node> FindTemplate(std::shared_ptr<pugi::xml_document> doc,
+                                                         std::string                         temp) const;
+    pugi::xpath_node_set ReadGuidNodes(std::shared_ptr<pugi::xml_document> doc) const;
+    pugi::xpath_node_set ReadTemplateNodes(std::shared_ptr<pugi::xml_document> doc) const;
+};
+
 class XmlOperation
 {
 public:
@@ -59,7 +108,7 @@ public:
                  fs::path game_path = {});
 
     Type                                            GetType() const;
-    std::string                                     GetPath();
+    // std::string                                     GetPath();
 
     void Apply(std::shared_ptr<pugi::xml_document> doc);
 
@@ -76,20 +125,15 @@ public:
 
 private:
     Type        type_;
-    std::string path_;
-
-    std::string speculative_path_;
-    std::string guid_;
-    std::string template_;
+    XmlLookup   path_;
+    bool        allow_no_match_ = false;
+    XmlLookup   condition_;
+    XmlLookup   content_;
 
     std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes_;
 
     XmlOperationContext doc_;
     pugi::xml_node node_;
-
-    std::string    condition_;
-    bool           allow_no_match_ = false;
-    std::string    content_;
 
     std::vector<XmlOperation> group_;
 
@@ -97,35 +141,13 @@ private:
     fs::path    game_path_;
     fs::path    mod_path_;
 
-    enum SpeculativePathType {
-        NONE,
-        SINGLE_ASSET,
-        ASSET_CONTAINER,
-        SINGLE_TEMPLATE,
-        TEMPLATE_CONTAINER,
-    };
-
-    SpeculativePathType speculative_path_type_ = SpeculativePathType::NONE;
-
     static std::string GetXmlPropString(pugi::xml_node node, std::string prop_name)
     {
         return node.attribute(prop_name.c_str()).as_string();
     }
     void RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node game_node,
                         pugi::xml_node patching_node);
-    void ReadPath(pugi::xml_node node, std::string guid = "", std::string temp = "");
     void ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path);
-
-    std::optional<pugi::xml_node> FindAsset(std::string guid, pugi::xml_node node);
-    std::optional<pugi::xml_node> FindTemplate(std::string temp, pugi::xml_node node);
-
-    std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc,
-                                            std::string                         guid);
-    std::optional<pugi::xml_node> FindTemplate(std::shared_ptr<pugi::xml_document> doc,
-                                               std::string                         temp);
-
-    pugi::xpath_node_set ReadGuidNodes(std::shared_ptr<pugi::xml_document> doc);
-    pugi::xpath_node_set ReadTemplateNodes(std::shared_ptr<pugi::xml_document> doc);
 
     bool CheckCondition(std::shared_ptr<pugi::xml_document> doc);
 };

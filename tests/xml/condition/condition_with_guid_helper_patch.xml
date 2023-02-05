@@ -1,0 +1,6 @@
+<ModOps>
+    <ModOp Type="add" GUID="1010521" Path="/Values"
+           Condition="~/Values/Shipyard/AssemblyOptions">
+        <Cost />
+    </ModOp>
+</ModOps>
