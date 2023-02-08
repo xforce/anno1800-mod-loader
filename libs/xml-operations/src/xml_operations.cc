@@ -12,28 +12,32 @@ XmlOperationContext::XmlOperationContext() { }
 
 XmlOperationContext::XmlOperationContext(const fs::path& mod_relative_path,
                                          const fs::path& mod_base_path,
-                                         std::string_view mod_name)
+                                         std::string mod_name)
 {
-    include_loader_ = [this, &mod_base_path, &mod_name](fs::path file_path) {
+    if (mod_name.empty()) {
+        mod_name = mod_base_path.filename().string();
+    }
+
+    include_loader_ = [this, &mod_base_path, &mod_name](const fs::path& file_path) {
         std::vector<char> buffer;
         size_t size;
         if (!ReadFile(mod_base_path / file_path, buffer, size)) {
             spdlog::error("{}: Failed to open {}",
-                          mod_name.empty() ? mod_base_path.string() : mod_name, 
+                          mod_name, 
                           file_path.string());
             return XmlOperationContext{};
         }
-        return XmlOperationContext{buffer.data(), size, this->include_loader_, file_path};
+        return XmlOperationContext{buffer.data(), size, file_path, mod_name, *this->include_loader_};
     };
 
-    *this = include_loader_(mod_relative_path);
+    *this = (*include_loader_)(mod_relative_path);
     mod_name_ = mod_name;
 }
 
 XmlOperationContext::XmlOperationContext(const char* buffer, size_t size,
-                                         include_loader_t include_loader,
                                          const fs::path& doc_path,
-                                         std::string_view mod_name)
+                                         const std::string& mod_name,
+                                         std::optional<include_loader_t> include_loader)
 {
     mod_name_ = mod_name;
     include_loader_ = include_loader;
@@ -49,11 +53,16 @@ XmlOperationContext::XmlOperationContext(const char* buffer, size_t size,
     }
 }
 
-inline XmlOperationContext XmlOperationContext::OpenInclude(fs::path file_path) const
+XmlOperationContext XmlOperationContext::OpenInclude(const fs::path& file_path) const
 { 
-    auto include = include_loader_(file_path);
+    if (!include_loader_) {
+        return {};
+    }
+
+    auto include = (*include_loader_)(file_path);
     include.mod_name_ = mod_name_;
-    return include; 
+    include.include_loader_ = this->include_loader_;
+    return include;
 }
 
 size_t XmlOperationContext::GetLine(ptrdiff_t offset) const
@@ -125,9 +134,9 @@ XmlOperationContext::offset_data_t XmlOperationContext::BuildOffsetData(const ch
 
 XmlLookup::XmlLookup() { }
 
-XmlLookup::XmlLookup(std::string_view path,
-                     std::string_view guid,
-                     std::string_view templ,
+XmlLookup::XmlLookup(const std::string& path,
+                     const std::string& guid,
+                     const std::string& templ,
                      bool explicit_speculative,
                      const XmlOperationContext& context,
                      pugi::xml_node node)
@@ -138,7 +147,7 @@ XmlLookup::XmlLookup(std::string_view path,
     empty_path_ = path.empty();
     negative_ = !path.empty() && path[0] == '!';
 
-    std::string_view read_path = negative_ ? path.substr(1) : path;
+    std::string read_path = negative_ ? path.substr(1) : path;
 
     if (!read_path.empty() && read_path[0] == '~') {
         read_path = read_path.substr(1);
@@ -154,7 +163,7 @@ XmlLookup::XmlLookup(std::string_view path,
         template_ = templ; 
     }
 
-    ReadPath(std::string(read_path), guid_, template_);
+    ReadPath(read_path, guid_, template_);
 }
 
 pugi::xpath_node_set XmlLookup::Select(std::shared_ptr<pugi::xml_document> doc) const
@@ -179,8 +188,8 @@ pugi::xpath_node_set XmlLookup::Select(std::shared_ptr<pugi::xml_document> doc) 
 }
 
 XmlOperation::XmlOperation(XmlOperationContext doc, pugi::xml_node node,
-                           std::string guid, std::string templ, std::string mod_name,
-                           fs::path game_path) : doc_(doc)
+                           const std::string& guid, const std::string& templ, const std::string& mod_name,
+                           const fs::path& game_path) : doc_(doc)
 {
     node_     = node;
 
@@ -189,7 +198,7 @@ XmlOperation::XmlOperation(XmlOperationContext doc, pugi::xml_node node,
     mod_path_      = doc.GetPath();
 
     path_ = XmlLookup{GetXmlPropString(node, "Path"), guid, templ, false, doc, node};
-    ReadType(node, mod_name, game_path);
+    ReadType(node);
     if (type_ != Type::Remove) {
         nodes_ = node.children();
     }
@@ -312,7 +321,7 @@ void XmlLookup::ReadPath(std::string prop_path, std::string guid, std::string te
     }
 }
 
-void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path)
+void XmlOperation::ReadType(pugi::xml_node node)
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
@@ -343,7 +352,7 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
     }
 }
 
-std::optional<pugi::xml_node> XmlLookup::FindAsset(std::string guid, pugi::xml_node node) const
+std::optional<pugi::xml_node> XmlLookup::FindAsset(const std::string& guid, pugi::xml_node node) const
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
@@ -394,12 +403,12 @@ std::optional<pugi::xml_node> XmlLookup::FindAsset(std::string guid, pugi::xml_n
 }
 
 std::optional<pugi::xml_node> XmlLookup::FindAsset(std::shared_ptr<pugi::xml_document> doc,
-                                                   std::string guid) const
+                                                   const std::string& guid) const
 {
     return FindAsset(guid, doc->root());
 }
 
-std::optional<pugi::xml_node> XmlLookup::FindTemplate(std::string temp, pugi::xml_node node) const
+std::optional<pugi::xml_node> XmlLookup::FindTemplate(const std::string& temp, pugi::xml_node node) const
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
@@ -439,7 +448,7 @@ std::optional<pugi::xml_node> XmlLookup::FindTemplate(std::string temp, pugi::xm
 }
 
 std::optional<pugi::xml_node> XmlLookup::FindTemplate(std::shared_ptr<pugi::xml_document> doc,
-                                                      std::string temp) const
+                                                      const std::string& temp) const
 {
     return FindTemplate(temp, doc->root());
 }
@@ -573,7 +582,7 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperations(
     XmlOperationContext doc,
-    fs::path game_path,
+    const fs::path& game_path,
     std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes)
 {
 #ifndef _WIN32
@@ -628,9 +637,14 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(
                 }
                 
                 auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path};
-                group_op.group_ = GetXmlOperations(doc.OpenInclude(relative_include_path),
-                                                   game_path);
-                mod_operations.push_back(group_op);
+                const auto include_context = doc.OpenInclude(relative_include_path);
+                if (include_context.GetPath().empty()) {
+                    doc.Error("Include file missing or empty: " + relative_include_path.string());
+                }
+                else {
+                    group_op.group_ = GetXmlOperations(include_context, game_path);
+                    mod_operations.push_back(group_op);
+                }
             }
         }
     }
@@ -638,10 +652,10 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(
     return mod_operations;
 }
 
-std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(fs::path    file_path,
-                                                                 std::string mod_name,
-                                                                 fs::path    game_path,
-                                                                 fs::path    mod_path)
+std::vector<XmlOperation> XmlOperation::GetXmlOperationsFromFile(const fs::path&    file_path,
+                                                                 std::string        mod_name,
+                                                                 const fs::path&    game_path,
+                                                                 const fs::path&    mod_path)
 {
     const auto mod_relative_path = file_path.lexically_relative(mod_path);
     return GetXmlOperations(XmlOperationContext{mod_relative_path, mod_path, mod_name}, game_path);

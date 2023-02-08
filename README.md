@@ -176,7 +176,8 @@ easy steps to sucess:
 - Install Visual Studio 2022 (community version is fine + C++ tools)
 - Install Bazel (I recommend going with Bazelisk here)
 - _optional_ fork this repo
-- clone this repo (make sure you use the most recent branch/tag) into a workingdir
+- clone this repo and its submodules:
+  `git submodule update --init --recursive`
 - open the folder in Visual Studio 2022
 - _optional_ make changes
 - open a command prompt (admin) & navigate to the workingdir
