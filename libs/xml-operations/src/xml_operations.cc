@@ -1,12 +1,33 @@
 #include "xml_operations.h"
 
-#include "absl/strings/str_split.h"
 #include "spdlog/spdlog.h"
 
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <regex>
+
+std::vector<std::string> StrSplit(const std::string& input, char delimiter) {
+    std::vector<std::string> result;
+
+    int last_pos = 0;
+    for (int i = 0; i < input.length(); i++) {
+        if (input[i] != delimiter) {
+            continue;
+        }
+
+        if (i - last_pos > 0) {
+            result.emplace_back(input.substr(last_pos, i - last_pos));
+        }
+        last_pos = i + 1;
+    }
+
+    if (last_pos != input.length()) {
+        result.emplace_back(input.substr(last_pos, input.length() - last_pos));
+    }
+    
+    return result;
+}
 
 XmlOperationContext::XmlOperationContext() { }
 
@@ -217,7 +238,7 @@ XmlOperation::XmlOperation(XmlOperationContext doc, pugi::xml_node node,
 
 void XmlLookup::ReadPath(std::string prop_path, std::string guid, std::string temp)
 {
-    if (prop_path.find('&') != -1)
+    if (prop_path.find('&') != std::string::npos)
     {
         prop_path = std::regex_replace(prop_path, std::regex{"&gt;"}, ">");
         prop_path = std::regex_replace(prop_path, std::regex{"&lt;"}, "<");
@@ -614,7 +635,7 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(
                     doc.Error("Cannot supply both `Template` and `GUID`", node);
                 }
                 if (!guid.empty()) {
-                    std::vector<std::string> guids = absl::StrSplit(guid, ',');
+                    std::vector<std::string> guids = StrSplit(guid, ',');
                     for (auto g : guids) {
                         mod_operations.emplace_back(doc, node, g.data(), "", mod_name, game_path);
                     }   
