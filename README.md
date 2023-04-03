@@ -6,7 +6,7 @@ No file size limit. No more repacking. Less likely to break after updates (in ge
 
 This changes the games XML files using XPath, this makes it easy and possible to only have the changes in a mod that you absolutely need instead of handling megabytes of XML files.
 
-# Installation
+# Installation Windows
 
 Short shitty video to show how easy it is to install the loader.
 
@@ -24,6 +24,37 @@ You will be asked to overwrite python35.dll, just accept that.
 You probably also need the VS 2019 Redist https://aka.ms/vs/16/release/VC_redist.x64.exe
 
 And that's basically it.
+
+# Installation Linux
+
+
+# Automatic
+
+Download the Linux installer script.
+
+Use the default path when using steam.
+
+Enjoy!
+
+> You have to install all mods seperately and not put them into any folders!
+
+# Manually
+
+Head over to the releases page and download the loader.zip from the latest release.  
+
+Unzip the contents to the location where Anno1800.exe is
+
+> Steam Default Path is `/home/(user)/.local/share/Steam/steamapps/common/Anno 1800/Bin/Win64/`
+
+You will be asked to overwrite python35.dll, just accept that.
+
+Create a mods folder in the parent directory.
+
+And Thats it! 
+
+> You have to install all mods seperately and not put them into any folders!
+
+# Mod loading
 
 Mods will always be loaded in alphabetical order.
 Mods are either loaded from:
