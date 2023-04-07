@@ -1,5 +1,6 @@
 #include <charconv>
 #include <functional>
+#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -117,7 +118,7 @@ void DependencyGraph::SortRecursive(const string& id, set<string>& visited, vect
 void DependencyGraph::Sort(vector<string>& sorted)
 {
     vector<string> packages;
-    for (auto& vertex : this->packages_) {
+    for (auto& vertex : packages_) {
         packages.push_back(vertex);
     }
 
@@ -148,7 +149,7 @@ void annomods::ModLoadingOrder::AddMod(const std::string& path,
     const std::string& name,
     const std::string& id,
     const std::string& version,
-    const std::vector<std::string>&       deprecationIDs,
+    const std::vector<std::string>& deprecationIDs,
     const std::vector<std::string>& dependencyIDs)
 {
     Version parsedVersion = version;
@@ -165,7 +166,7 @@ void annomods::ModLoadingOrder::AddMod(const std::string& path,
 
     mods_[id] = Mod{ path, name, id, parsedVersion, dependencyIDs, loadLast };
     for (auto& alias : deprecationIDs) {
-        this->aliases_.insert({ alias, id });
+        aliases_.insert({ alias, id });
     }
 }
 
