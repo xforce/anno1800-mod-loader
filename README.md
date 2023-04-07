@@ -1,41 +1,46 @@
 # Anno 1800 Mod Loader
 
-The one and only mod loader for Anno 1800, supports loading of unpacked RDA files, XML auto merging and DLL based mods.
+This is a fork of the original mod loader from the great [meow](https://github.com/xforce/anno1800-mod-loader).
+Many thanks to him for creating and maintaining that project for so long.
 
-No file size limit. No more repacking. Less likely to break after updates (in general a mod should continue to work after every update, YMMV).
-
-This changes the games XML files using XPath, this makes it easy and possible to only have the changes in a mod that you absolutely need instead of handling megabytes of XML files.
-
-# Installation
-
-Short shitty video to show how easy it is to install the loader.
-
-> Mods have to be installed seperately.
-
-<a href="https://files.guettler.space/98e3009f-1232-4705-b2a0-5936bd7ba477.mp4" target="_blank" title="Watch the video"><img src="https://files.guettler.space/98e3009f-1232-4705-b2a0-5936bd7ba477.jpeg" alt="Watch the video" /></a>
-
-Head over to the releases page and download the loader.zip from the latest release.  
-Unzip the contents to the location where Anno1800.exe is
-
-> Uplay default path is `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\Bin\Win64`
-
-You will be asked to overwrite python35.dll, just accept that.
-
-You probably also need the VS 2019 Redist https://aka.ms/vs/16/release/VC_redist.x64.exe
-
-And that's basically it.
-
-Mods will always be loaded in alphabetical order.
-Mods are either loaded from:
-
-- `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\mods` assuming default Uplay path. _This depends on the location you chose when installing Anno 1800_
-- your Documents folder if that contains a `mods` folder. _You can access this using <kbd>Win</kbd> + <kbd>R</kbd> and entering `shell:Personal\Anno 1800`_
-
-> `mods` in Documents takes precedence over game install directory, meaning if you have a `mods` folder in the documents location mods will no longer be loaded from the game directory.
-
-> For more experienced users symlinks made with `mklink` will be followd (resulting in an easier way to manage different reposetories of mods).
+Read [loader10 changes](./doc/modloader10.md) if you are interested in recent changes to the mod loader.
 
 A short introduction for mod creation with the mod loader is given below. For an example zoom extend mod see the `examples` directory.
+
+## Installation
+
+### Mod Loader
+
+The game already includes it.
+You do not need to install the mod loader.
+
+### Mods
+
+There are two locations for mods:
+- `This PC\Documents\Anno 1800\mods`
+- In `mods/` within your game installation, 
+  typically `C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Anno 1800\mods` 
+
+Mods will be loaded in alphabetical order, or by the order they have specified in their mod configuration `modinfo.json`.
+
+If a mod is found twice, the newest version will be used.
+
+### Activation
+
+You can deactivate mods by adding `-` or `.` in front of the folder name.
+
+Additional, mods can be disabled with a `activations.json` in the respective `mods/` folders:
+
+```json
+{
+  "disabledIds": [
+    "ModA",
+    "ModB"
+  ]
+}
+```
+
+`ModID` from `modinfo.json` is used, and if not specified the folder name of the mod as a fallback.
 
 # Asset modding
 
