@@ -1,0 +1,3 @@
+<ModOps>
+<ModOp Type="add" Path="/Test/Target" Content="/Test/Source/Building" />
+</ModOps>

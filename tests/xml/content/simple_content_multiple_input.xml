@@ -1,0 +1,9 @@
+<Test>
+    <Source>
+        <Building>1</Building>
+        <Building>2</Building>
+    </Source>
+    <Target>
+        <Building>0</Building>
+    </Target>
+</Test>

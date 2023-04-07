@@ -1,0 +1,8 @@
+{
+    "name": "Simple content multiple",
+    "expected": [
+        "/Test/Target[Building='0']",
+        "/Test/Target[Building='1']",
+        "/Test/Target[Building='2']"
+    ]
+}
