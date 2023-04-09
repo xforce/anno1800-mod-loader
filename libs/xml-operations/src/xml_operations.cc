@@ -192,19 +192,22 @@ XmlLookup::XmlLookup(const std::string& path,
     ReadPath(read_path, guid_, template_);
 }
 
-pugi::xpath_node_set XmlLookup::Select(std::shared_ptr<pugi::xml_document> doc, std::optional<pugi::xml_node>* assetNode) const
+pugi::xpath_node_set XmlLookup::Select(std::shared_ptr<pugi::xml_document> doc, std::optional<pugi::xml_node>* assetNode, bool strict) const
 {
     try {
         auto results = ReadGuidNodes(doc, assetNode);
-        if (!results.empty() || (!guid_.empty() && assetNode && *assetNode)) {
+        if (!results.empty() || (strict && !guid_.empty())) {
             return results;
         }
 
         results = ReadTemplateNodes(doc);
-        if (!results.empty()) {
+        if (!results.empty() || (strict && !template_.empty())) {
             return results;
         }
 
+        if (!guid_.empty() || !template_.empty()) {
+            context_.Debug("Speculative path failed to find node with path {} {}", path_, speculative_path_);
+        }
         return doc->select_nodes(path_.c_str());
     } catch (const pugi::xpath_exception &e) {
         context_.Error("Failed to parse path '" + path_ + "': " + e.what(), node_);
@@ -487,11 +490,6 @@ pugi::xpath_node_set XmlLookup::ReadGuidNodes(std::shared_ptr<pugi::xml_document
                     results = node->select_nodes(speculative_path_.c_str());
                 }
             }
-            
-            if (results.empty()) {
-                context_.Debug("Speculative path failed to find node with path {} {}", GetPath(),
-                           speculative_path_);
-            }
         } catch (const pugi::xpath_exception& e) {
             context_.Error("Speculative path failed to find node with path '" + GetPath() +
                        "' " + speculative_path_);
@@ -513,10 +511,6 @@ pugi::xpath_node_set XmlLookup::ReadTemplateNodes(std::shared_ptr<pugi::xml_docu
             auto node = FindTemplate(doc, template_);
             if (node && speculative_path_ != "*") {
                 results = node->select_nodes(speculative_path_.c_str());
-            }
-            if (results.empty()) {
-                context_.Debug("Speculative path failed to find node with path {} {}", GetPath(),
-                           speculative_path_);
             }
         } catch (const pugi::xpath_exception& e) {
             context_.Error("Speculative path failed to find node with path '" + GetPath() +
@@ -780,7 +774,7 @@ bool XmlOperation::CheckCondition(std::shared_ptr<pugi::xml_document> doc, std::
         return true;
     }
 
-    const auto match_nodes = condition_.Select(doc, &cachedNode);
+    const auto match_nodes = condition_.Select(doc, &cachedNode, true);
 
     if (condition_.IsNegative() != match_nodes.empty()) {
         doc_.Debug("Condition not matching {} in {} ({}:{})", condition_.GetPath(), mod_name_,

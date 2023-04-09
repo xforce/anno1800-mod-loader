@@ -67,8 +67,10 @@ public:
 
     /// @brief Select XPath nodes.
     /// @param assetNode Start search here. Resulting asset is stored back.
+    /// @param strict Skip normal XPath selection if GUID or Template is specified.
     pugi::xpath_node_set Select(std::shared_ptr<pugi::xml_document> doc,
-        std::optional<pugi::xml_node>* assetNode = nullptr) const;
+        std::optional<pugi::xml_node>* assetNode = nullptr,
+        bool strict = false) const;
 
     bool IsEmpty() const { return empty_path_; };
     bool IsNegative() const { return negative_; };
