@@ -41,6 +41,8 @@ public:
     void Warn(std::string_view msg, pugi::xml_node node = {}) const;
     void Error(std::string_view msg, pugi::xml_node node = {}) const;
 
+    static bool ReadFile(const fs::path& file_path, std::vector<char>& buffer, size_t& size);
+
 private:
     std::string mod_name_;
     std::shared_ptr<pugi::xml_document> doc_;
@@ -48,7 +50,6 @@ private:
     std::optional<include_loader_t> include_loader_;
     fs::path doc_path_;
 
-    bool ReadFile(const fs::path& file_path, std::vector<char>& buffer, size_t& size);
     static offset_data_t BuildOffsetData(const char* buffer, size_t size);
 };
 

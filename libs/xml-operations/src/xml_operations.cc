@@ -660,7 +660,7 @@ std::vector<XmlOperation> XmlOperation::GetXmlOperations(
                 auto group_op = XmlOperation{doc, node, "", "", mod_name, game_path};
                 const auto include_context = doc.OpenInclude(relative_include_path);
                 if (include_context.GetPath().empty()) {
-                    doc.Error("Include file missing or empty: " + relative_include_path.string());
+                    doc.Error("Include file missing or empty: " + relative_include_path.string(), node);
                 }
                 else {
                     group_op.group_ = GetXmlOperations(include_context, game_path);
