@@ -38,6 +38,7 @@ public:
     const std::string& GetName() const { return mod_name_; }
 
     template<typename... Args> void Debug(std::string_view msg, const Args &... args) const;
+    void Debug(std::string_view msg, pugi::xml_node node) const;
     void Warn(std::string_view msg, pugi::xml_node node = {}) const;
     void Error(std::string_view msg, pugi::xml_node node = {}) const;
 
@@ -64,7 +65,10 @@ public:
               const XmlOperationContext& context,
               pugi::xml_node node);
 
-    pugi::xpath_node_set Select(std::shared_ptr<pugi::xml_document> doc) const;
+    /// @brief Select XPath nodes.
+    /// @param assetNode Start search here. Resulting asset is stored back.
+    pugi::xpath_node_set Select(std::shared_ptr<pugi::xml_document> doc,
+        std::optional<pugi::xml_node>* assetNode = nullptr) const;
 
     bool IsEmpty() const { return empty_path_; };
     bool IsNegative() const { return negative_; };
@@ -93,11 +97,14 @@ private:
     SpeculativePathType speculative_path_type_ = SpeculativePathType::NONE;
 
     void ReadPath(std::string prop_path, std::string guid, std::string templ);
-    std::optional<pugi::xml_node> FindAsset(std::shared_ptr<pugi::xml_document> doc, const std::string& guid) const;
     std::optional<pugi::xml_node> FindAsset(const std::string& guid, pugi::xml_node node) const;
     std::optional<pugi::xml_node> FindTemplate(const std::string& temp, pugi::xml_node node) const;
     std::optional<pugi::xml_node> FindTemplate(std::shared_ptr<pugi::xml_document> doc, const std::string& templ) const;
-    pugi::xpath_node_set ReadGuidNodes(std::shared_ptr<pugi::xml_document> doc) const;
+    
+    /// @brief Select XPath nodes via Values/Standard/GUID.
+    /// @param assetNode Start search here. Resulting asset is stored back.
+    pugi::xpath_node_set ReadGuidNodes(std::shared_ptr<pugi::xml_document> doc, 
+        std::optional<pugi::xml_node>* assetNode) const;
     pugi::xpath_node_set ReadTemplateNodes(std::shared_ptr<pugi::xml_document> doc) const;
 };
 
@@ -151,5 +158,9 @@ private:
                         pugi::xml_node patching_node);
     void ReadType(pugi::xml_node node);
 
-    bool CheckCondition(std::shared_ptr<pugi::xml_document> doc);
+    /// @brief Check Condition XPath. Can use GUID attribute.
+    //         True when nodes are found.
+    //         Can be negated with `!`.
+    /// @param assetNode Returns GUID asset if found.
+    bool CheckCondition(std::shared_ptr<pugi::xml_document> doc, std::optional<pugi::xml_node>& assetNode);
 };
