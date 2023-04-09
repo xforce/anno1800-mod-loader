@@ -522,14 +522,30 @@ pugi::xpath_node_set XmlLookup::ReadTemplateNodes(std::shared_ptr<pugi::xml_docu
 
 void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
 {
+    auto start = std::chrono::high_resolution_clock::now();
+    auto logTime = [&start, this](const char* group = "ModOp") {
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        this->doc_.Debug("Time: {}ms {} ({}:{})", duration, group,
+            this->doc_.GetPath().string(), this->doc_.GetLine(node_));
+    };
+
     if (GetType() == XmlOperation::Type::None || !CheckCondition(doc)) {
+        if (type_ == Type::Group) {
+            logTime("Group");
+        }
+        else {
+            logTime();
+        }
         return;
     }
 
     if (type_ == Type::Group) {
+        // logTime();
         for (auto& modop : group_) {
             modop.Apply(doc);
         }
+        logTime("Group");
         return;
     }
 
@@ -599,6 +615,8 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
     } catch (const pugi::xpath_exception &e) {
         doc_.Error("Failed to parse path '" + path_.GetPath() + "': " + e.what());
     }
+
+    logTime();
 }
 
 std::vector<XmlOperation> XmlOperation::GetXmlOperations(
