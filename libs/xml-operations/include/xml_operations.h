@@ -100,10 +100,10 @@ private:
     SpeculativePathType speculative_path_type_ = SpeculativePathType::NONE;
 
     void ReadPath(std::string prop_path, std::string guid, std::string templ);
-    std::optional<pugi::xml_node> FindAsset(const std::string& guid, pugi::xml_node node) const;
+    std::optional<pugi::xml_node> FindAsset(const std::string& guid, pugi::xml_node node, int speculate_position = 2) const;
     std::optional<pugi::xml_node> FindTemplate(const std::string& temp, pugi::xml_node node) const;
     std::optional<pugi::xml_node> FindTemplate(std::shared_ptr<pugi::xml_document> doc, const std::string& templ) const;
-    
+
     /// @brief Select XPath nodes via Values/Standard/GUID.
     /// @param assetNode Start search here. Resulting asset is stored back.
     pugi::xpath_node_set ReadGuidNodes(std::shared_ptr<pugi::xml_document> doc, 

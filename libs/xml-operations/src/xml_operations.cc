@@ -376,11 +376,12 @@ void XmlOperation::ReadType(pugi::xml_node node)
     }
 }
 
-std::optional<pugi::xml_node> XmlLookup::FindAsset(const std::string& guid, pugi::xml_node node) const
+std::optional<pugi::xml_node> XmlLookup::FindAsset(const std::string& guid, pugi::xml_node node, int speculate_position) const
 {
 #ifndef _WIN32
     auto stricmp = [](auto a, auto b) { return strcasecmp(a, b); };
 #endif
+
     //
     if (stricmp(node.name(), "Asset") == 0) {
         auto values = node.child("Values");
@@ -417,9 +418,34 @@ std::optional<pugi::xml_node> XmlLookup::FindAsset(const std::string& guid, pugi
         }
     }
 
-    for (pugi::xml_node n : node.children()) {
-        if (auto found = FindAsset(guid, n); found) {
-            return found;
+    if (speculate_position == 0) {
+        // first group level
+        static std::optional<pugi::xml_node> last_search;
+        if (last_search) {
+            for (pugi::xml_node n : node.children()) {
+                if (n == last_search) {
+                    if (auto found = FindAsset(guid, n, speculate_position - 1); found) {
+                        last_search = n;
+                        return found;
+                    }
+                }
+            }
+        }
+        for (pugi::xml_node n : node.children()) {
+            if (n != last_search) {
+                if (auto found = FindAsset(guid, n, speculate_position - 1); found) {
+                    last_search = n;
+                    return found;
+                }
+            }
+        }
+    }
+    else {
+        // normal asset finding
+        for (pugi::xml_node n : node.children()) {
+            if (auto found = FindAsset(guid, n, speculate_position - 1); found) {
+                return found;
+            }
         }
     }
 
