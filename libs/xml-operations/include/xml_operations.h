@@ -34,7 +34,8 @@ public:
 
     std::shared_ptr<pugi::xml_document> GetDoc() const { return doc_; }
     pugi::xml_node GetRoot() const;
-    const fs::path& GetPath() const { return doc_path_; }
+    fs::path GetPath() const { return doc_path_; }
+    const std::string& GetGenericPath() const { return doc_path_; }
     const std::string& GetName() const { return mod_name_; }
 
     template<typename... Args> void Debug(std::string_view msg, const Args &... args) const;
@@ -49,7 +50,7 @@ private:
     std::shared_ptr<pugi::xml_document> doc_;
     offset_data_t offset_data_;
     std::optional<include_loader_t> include_loader_;
-    fs::path doc_path_;
+    std::string doc_path_;
 
     static offset_data_t BuildOffsetData(const char* buffer, size_t size);
 };
@@ -116,8 +117,7 @@ public:
     enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge, Group };
 
     XmlOperation(XmlOperationContext doc, pugi::xml_node node,
-                 const std::string& guid = "", const std::string& temp = "", const std::string& mod_name = "",
-                 const fs::path& game_path = {});
+                 const std::string& guid = "", const std::string& templ = "");
 
     Type GetType() const;
 
@@ -147,10 +147,6 @@ private:
     pugi::xml_node node_;
 
     std::vector<XmlOperation> group_;
-
-    std::string mod_name_;
-    fs::path    game_path_;
-    fs::path    mod_path_;
 
     static std::string GetXmlPropString(pugi::xml_node node, const std::string& prop_name)
     {
