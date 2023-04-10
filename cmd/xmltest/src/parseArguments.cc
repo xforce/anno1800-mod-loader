@@ -28,12 +28,6 @@ static bool invalidUsage(const std::string& pArg)
     return false;
 }
 
-static bool checkFile(const std::string& filePath)
-{
-    struct stat buffer;
-    return (stat(filePath.c_str(), &buffer) == 0);
-}
-
 bool parseArguments(int argc, const char* argv[], XmltestParameters& params)
 {
     if (argc < 3) {
@@ -45,7 +39,7 @@ bool parseArguments(int argc, const char* argv[], XmltestParameters& params)
     params.useStdin = false;
     params.verbose = false;
     for (int i = 0; i < argc; i++) {
-		if (strcmp(argv[i], "-v") == 0) {
+		if (argv[i] == std::string("-v")) {
 			params.verbose = true;
         }
     }
