@@ -14,7 +14,7 @@ class XmlOperationContext
 {
 public:
     using offset_data_t = std::vector<ptrdiff_t>;
-    using include_loader_t = std::function<XmlOperationContext(const fs::path&)>;
+    using include_loader_t = std::function<std::shared_ptr<XmlOperationContext>(const fs::path&)>;
 
     XmlOperationContext();
     XmlOperationContext(const fs::path& mod_relative_path,
@@ -25,7 +25,7 @@ public:
                         const std::string& mod_name = {},
                         std::optional<include_loader_t> include_loader = {});
 
-    XmlOperationContext OpenInclude(const fs::path& file_path) const;
+    std::shared_ptr<XmlOperationContext> OpenInclude(const fs::path& file_path) const;
 
     void SetLoader(include_loader_t loader) { include_loader_ = loader; }
 
@@ -63,7 +63,7 @@ public:
               const std::string& guid,
               const std::string& templ,
               bool explicit_speculative,
-              const XmlOperationContext& context,
+              std::shared_ptr<XmlOperationContext> context,
               pugi::xml_node node);
 
     /// @brief Select XPath nodes.
@@ -78,7 +78,7 @@ public:
     const std::string& GetPath() const { return path_; };
 
 private:
-    XmlOperationContext context_;
+    std::shared_ptr<XmlOperationContext> context_;
     pugi::xml_node node_;
 
     bool empty_path_;
@@ -116,7 +116,7 @@ class XmlOperation
 public:
     enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge, Group };
 
-    XmlOperation(XmlOperationContext doc, pugi::xml_node node,
+    XmlOperation(std::shared_ptr<XmlOperationContext> doc, pugi::xml_node node,
                  const std::string& guid = "", const std::string& templ = "");
 
     Type GetType() const;
@@ -125,7 +125,7 @@ public:
 
 public:
     static std::vector<XmlOperation> GetXmlOperations(
-        XmlOperationContext doc,
+        std::shared_ptr<XmlOperationContext> doc,
         const fs::path&     game_path,
         std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes = {});
     static std::vector<XmlOperation> GetXmlOperationsFromFile(
@@ -143,7 +143,7 @@ private:
 
     std::optional<pugi::xml_object_range<pugi::xml_node_iterator>> nodes_;
 
-    XmlOperationContext doc_;
+    std::shared_ptr<XmlOperationContext> doc_;
     pugi::xml_node node_;
 
     std::vector<XmlOperation> group_;

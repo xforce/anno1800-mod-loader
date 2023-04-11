@@ -82,20 +82,20 @@ int main(int argc, const char **argv)
         }
 
         if (file_path == params.stdinPath) {
-            return XmlOperationContext{patch_content.data(), patch_content.size(), file_path, mod_name};
+            return std::make_shared<XmlOperationContext>(patch_content.data(), patch_content.size(), file_path, mod_name);
         }
 
         // read found (or just mod_path)
         if (!XmlOperationContext::ReadFile(search_path / file_path, buffer, size)) {
             spdlog::error("{}: Failed to open {}", mod_name, file_path.string());
-            return XmlOperationContext{};
+            return std::make_shared<XmlOperationContext>();
         }
-        return XmlOperationContext{buffer.data(), size, file_path, mod_name};
+        return std::make_shared<XmlOperationContext>(buffer.data(), size, file_path, mod_name);
     };
-    auto context = game_path == params.stdinPath ? 
-        XmlOperationContext{patch_content.data(), patch_content.size(), game_path, mod_name, loader} :
-        XmlOperationContext{game_path, mod_path, mod_name};
-    context.SetLoader(loader);
+    auto context = game_path == params.stdinPath ?
+        std::make_shared<XmlOperationContext>(patch_content.data(), patch_content.size(), game_path, mod_name, loader) :
+        std::make_shared<XmlOperationContext>(game_path, mod_path, mod_name);
+    context->SetLoader(loader);
 
     auto operations = XmlOperation::GetXmlOperations(context, game_path);
     for (auto& operation : operations) {
