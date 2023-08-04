@@ -1,5 +1,9 @@
 # Anno 1800 Mod Loader
 
+> [!NOTE]
+> The mod loader is now integrated into the game thus this project is no longer required.
+> For the "official" version that has code for the new/different features see the following fowkr https://github.com/jakobharder/anno1800-mod-loader
+
 The one and only mod loader for Anno 1800, supports loading of unpacked RDA files, XML auto merging and DLL based mods.
 
 No file size limit. No more repacking. Less likely to break after updates (in general a mod should continue to work after every update, YMMV).
