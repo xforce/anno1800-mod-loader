@@ -1,0 +1,7 @@
+{
+    "name": "Simple explicitMerge content",
+    "expected": [
+        "/Test/Node/Meow",
+        "/Test/Node[Meow='10']"
+    ]
+}

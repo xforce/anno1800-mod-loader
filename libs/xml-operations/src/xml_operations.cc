@@ -175,6 +175,8 @@ void XmlOperation::ReadType(pugi::xml_node node, std::string mod_name, fs::path 
         type_ = Type::Replace;
     } else if (stricmp(type.c_str(), "merge") == 0) {
         type_ = Type::Merge;
+    } else if (stricmp(type.c_str(), "explicitMerge") == 0) {
+        type_ = Type::ExplicitMerge;
     } else {
         type_ = Type::None;
         offset_data_t offset_data;
@@ -375,6 +377,27 @@ void XmlOperation::Apply(std::shared_ptr<pugi::xml_document> doc)
                 }
                 pugi::xml_node patching_node = *content_node.begin();
                 RecursiveMerge(game_node, game_node, patching_node);
+            } else if (GetType() == XmlOperation::Type::ExplicitMerge) {
+                auto content_node = GetContentNode();
+                auto num_content_nodes = std::distance(content_node.begin(), content_node.end());
+                if (num_content_nodes <= 0) {
+                    //
+                    continue;
+                } else if (num_content_nodes > 1) {
+                    spdlog::error("ExplicitMerge ModOps can only have one patching node, but {} were supplied. "
+                    "If you want to target multiple siblings, consider either targeting their parent or "
+                    "targeting the items with an XPath expression.", num_content_nodes);
+                    continue;
+                } else {
+                    pugi::xml_node patching_node = *content_node.begin();
+                    if(std::string(patching_node.name()) == std::string(game_node.name())) {
+                        ExplicitMerge(game_node, patching_node);
+                    } else {
+                        spdlog::error("ExplicitMerge ModOps can only have a patching node that has the same name as the target node, "
+                        "but the patching node is named {} while the targeted node uis named {}. ", 
+                        std::string(patching_node.name()), std::string(game_node.name()));
+                    }
+                }
             } else if (GetType() == XmlOperation::Type::AddNextSibling) {
                 for (auto &&node : GetContentNode()) {
                     game_node = game_node.parent().insert_copy_after(node, game_node);
@@ -556,6 +579,65 @@ void XmlOperation::RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node 
                 }
             }
         }
+    }
+}
+
+XmlOperation::PCDataMatch XmlOperation::TestForPCData(pugi::xml_node first, pugi::xml_node second) {
+    //Returns a Flags-Style enum with info on which of the given nodes are pcdata nodes
+    XmlOperation::PCDataMatch result = XmlOperation::PCDataMatch::None;
+    if(first.type() == pugi::xml_node_type::node_pcdata) {
+        result = result | XmlOperation::PCDataMatch::First;
+    }
+    
+    if(second.type() == pugi::xml_node_type::node_pcdata) {
+        result = result | XmlOperation::PCDataMatch::Second;
+    }
+    
+    return result;
+}
+
+void XmlOperation::ExplicitMerge(pugi::xml_node game_node, pugi::xml_node patching_node)
+{
+    //Declarations
+    std::list<pugi::xml_node> game_node_children (game_node.children().begin(), game_node.children().end());
+    
+    std::string patching_child_name;
+    const auto nodeNameMatchesPredicate = [&patching_child_name](pugi::xml_node item) -> bool {
+        return std::string(item.name()) == patching_child_name;
+    };
+    
+    //Logic
+    MergeProperties(game_node, patching_node);
+    
+    for(pugi::xml_node patching_child : patching_node.children()) {
+        patching_child_name = std::string(patching_child.name());
+        
+        //Find first game_node child with the same name as the current patching_child
+        auto first_match = std::find_if(game_node_children.begin(), game_node_children.end(), nodeNameMatchesPredicate);
+        if(first_match ==  game_node_children.end()) {
+            continue;
+        }
+        
+        //Test if and which of the match and patching_child are pcdata nodes
+        XmlOperation::PCDataMatch items_pcdata = TestForPCData(*first_match, patching_child);
+        if(items_pcdata != XmlOperation::PCDataMatch::None) {
+            if(items_pcdata == XmlOperation::PCDataMatch::Both) {
+                //If both are pcdata, patch the pcdata value
+                (*first_match).set_value(patching_child.value());
+            } else {
+                //If only one is pcdata write error and skip, we can't patch that
+                //Possible change: allow replacing pcdata nodes with node structure?
+                //But that actually shouldn't happen or be done on purpose with a replace op
+                spdlog::error("One of the nodes named {} has pcdata content, while the other does not. Skipping.", 
+                std::string(game_node.name()));
+            }
+        } else {
+            //If none of match or paching_child are pcdata nodes, recursively patch them
+            ExplicitMerge(*first_match, patching_child);
+        }
+        
+        //Remove patched child from target list
+        game_node_children.erase(first_match);
     }
 }
 

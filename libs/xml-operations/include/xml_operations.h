@@ -12,7 +12,14 @@ namespace fs = std::filesystem;
 class XmlOperation
 {
   public:
-    enum Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge };
+    //enum class-es to not pollute the XmlOperation namespace with the enum value names
+    enum class Type { None, Add, AddNextSibling, AddPrevSibling, Remove, Replace, Merge, ExplicitMerge };
+    enum class PCDataMatch { None, First = 1, Second = 2, Both = 3 };
+    
+    friend PCDataMatch operator|(PCDataMatch a, PCDataMatch b)
+    {
+        return static_cast<PCDataMatch>(static_cast<int>(a) | static_cast<int>(b));
+    }
 
     XmlOperation(std::shared_ptr<pugi::xml_document> doc, pugi::xml_node node,
                  std::string guid = "", std::string temp = "", std::string mod_name = "",
@@ -70,6 +77,10 @@ class XmlOperation
     }
     void RecursiveMerge(pugi::xml_node root_game_node, pugi::xml_node game_node,
                         pugi::xml_node patching_node);
+    
+    PCDataMatch TestForPCData(pugi::xml_node first, pugi::xml_node second);
+    void ExplicitMerge(pugi::xml_node game_node, pugi::xml_node patching_node);
+    
     void ReadPath(pugi::xml_node node, std::string guid = "", std::string temp = "");
     void ReadType(pugi::xml_node node, std::string mod_name, fs::path game_path, fs::path mod_path);
 
